@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>扫码加入伊甸园游戏</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 24px;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+    }
+    h1 {
+      color: #2563eb;
+      font-size: 22px;
+      margin: 0 0 20px;
+    }
+    #qr-code {
+      width: 240px;
+      height: 240px;
+      margin: 10px auto;
+      background: #f1f5f9;
+      border-radius: 8px;
+    }
+    .tip {
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-top: 16px;
+    }
+    .highlight {
+      color: #e11d48;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 扫码加入游戏</h1>
+    <img id="qr-code" src="" alt="加载中..." />
+    <p class="tip">
+      使用手机 <strong>相机 / 支付宝 / Chrome / Safari</strong> 扫描上方二维码<br>
+      <span class="highlight">⚠️ 不要使用微信或 QQ 扫码！</span>
+    </p>
+  </div>
+
+  <script>
+    // 从 Flask 后端获取 Base64 二维码
+    fetch('/qrcode_img')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('网络错误: ' + response.status);
+        }
+        return response.json();
+      })
+      .then(data => {
+        const qrImg = document.getElementById('qr-code');
+        qrImg.src = data.qrcode;  // 直接设置 Base64 图片
+        qrImg.alt = "Join Game QR Code";
+      })
+      .catch(error => {
+        console.error('二维码加载失败:', error);
+        document.getElementById('qr-code').alt = '❌ 加载失败';
+      });
+  </script>
+</body>
+</html>
