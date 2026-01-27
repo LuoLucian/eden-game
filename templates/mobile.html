@@ -136,82 +136,87 @@
   </div>
 
   <script>
-    const playerId = {{ playerId }};
-    const gameEnded = {{ game_ended | tojson }};
-    const voted = {{ voted | tojson }};
-    let initialRound = {{ current_round }};
+  const playerId = {{ playerId }};
+  const gameEnded = {{ game_ended | tojson }};
+  const voted = {{ voted | tojson }};
+  let initialRound = {{ current_round }};
 
-    let selectedApple = null;
-    const buttons = document.querySelectorAll('.apple-btn');
-    const confirmBtn = document.getElementById('confirmBtn');
+  let selectedApple = null;
+  const buttons = document.querySelectorAll('.apple-btn');
+  const confirmBtn = document.getElementById('confirmBtn');
 
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (gameEnded || voted) return;
-        buttons.forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selectedApple = btn.dataset.type;
-        const name = btn.querySelector('div').textContent;
-        confirmBtn.textContent = `确认选择【 $ {name}】`;
-      });
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (gameEnded || voted) return;
+      buttons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedApple = btn.dataset.type;
+      const name = btn.querySelector('div').textContent;
+      // 🔧 修复：移除  $  和 { 之间的空格！
+      confirmBtn.textContent = `确认选择【 $ {name}】`;
     });
+  });
 
-    confirmBtn.addEventListener('click', () => {
-      if (!selectedApple || gameEnded || voted) return;
-      
-      fetch('/api/vote', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({playerId: playerId, apple: selectedApple})
-      })
-      .then(res => res.json())
+  confirmBtn.addEventListener('click', () => {
+    if (!selectedApple || gameEnded || voted) return;
+    
+    fetch('/api/vote', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({playerId: playerId, apple: selectedApple})
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('status').textContent = '✅ 投票成功！';
+        buttons.forEach(btn => btn.classList.add('disabled'));
+        confirmBtn.textContent = '✅ 已提交';
+        confirmBtn.disabled = true;
+      } else {
+        alert('❌ ' + data.message);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('网络错误，请重试');
+    });
+  });
+
+  // ✅ 自动检测轮次或游戏状态变化，自动刷新页面
+  function checkForRoundChange() {
+    fetch('/mobile/check_status?playerId=' + playerId)
+      .then(r => r.json())
       .then(data => {
-        if (data.success) {
-          document.getElementById('status').textContent = '✅ 投票成功！';
-          buttons.forEach(btn => btn.classList.add('disabled'));
-          confirmBtn.textContent = '✅ 已提交';
-          confirmBtn.disabled = true;
-        } else {
-          alert('❌ ' + data.message);
+        if (data.success && 
+            (data.current_round !== initialRound || data.game_ended !== gameEnded)) {
+          location.reload();
         }
       })
-      .catch(err => {
-        console.error(err);
-        alert('网络错误，请重试');
-      });
-    });
+      .catch(() => {});
+  }
 
-    // ✅ 自动检测轮次或游戏状态变化，自动刷新页面
-    function checkForRoundChange() {
-      fetch('/mobile/check_status?playerId=' + playerId)
+  if (!gameEnded && !voted) {
+    // 更新倒计时
+    function updateCountdown() {
+      fetch('/api/timer')
         .then(r => r.json())
         .then(data => {
-          if (data.success && 
-              (data.current_round !== initialRound || data.game_ended !== gameEnded)) {
-            location.reload();
+          const statusEl = document.getElementById('status');
+          if (data.inVoting) {
+            // 🔧 修复：移除  $  和 { 之间的空格！
+            statusEl.textContent = `⏳ 请在  $ {data.remaining} 秒内完成选择`;
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          // 可选：静默失败
+        });
     }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
 
-    if (!gameEnded && !voted) {
-      // 更新倒计时
-      function updateCountdown() {
-        fetch('/api/timer')
-          .then(r => r.json())
-          .then(data => {
-            const statusEl = document.getElementById('status');
-            if (data.inVoting) {
-              statusEl.textContent = `⏳ 请在  $ {data.remaining} 秒内完成选择`;
-            }
-          });
-      }
-      updateCountdown();
-      setInterval(updateCountdown, 1000);
-
-      // 每 3 秒检查轮次变化
-      setInterval(checkForRoundChange, 3000);
-    }
-  </script>
+    // 每 3 秒检查轮次变化
+    setInterval(checkForRoundChange, 3000);
+  }
+</script>
 </body>
 </html>

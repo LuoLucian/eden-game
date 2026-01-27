@@ -9,16 +9,27 @@
       background: #000;
       color: #fff;
       font-family: "Arial", sans-serif;
-      text-align: center;
-      padding: 20px;
       margin: 0;
+      padding: 0;
+      overflow-x: hidden;
     }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
     h1 {
       font-size: 2.8em;
       margin-bottom: 20px;
       color: gold;
       text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
     }
+
     .timer {
       font-size: 3.5em;
       color: #ff6b6b;
@@ -26,11 +37,13 @@
       font-weight: bold;
       text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
     }
+
     .round-info {
       font-size: 1.4em;
       margin-bottom: 25px;
       color: #ccc;
     }
+
     .leaderboard {
       display: inline-block;
       text-align: left;
@@ -38,129 +51,132 @@
       padding: 20px;
       border-radius: 12px;
       max-width: 450px;
-      margin-top: 10px;
+      margin: 10px auto 40px; /* 上10px，下40px，左右自动居中 */
     }
+
     .leaderboard h2 {
       color: #d4af37;
       margin-bottom: 12px;
       font-size: 1.4em;
     }
+
     .leaderboard div {
       padding: 6px 0;
       font-size: 1.1em;
     }
+
     .results {
-      margin-top: 30px;
       padding: 25px;
       background: rgba(0,0,0,0.6);
       border-radius: 12px;
       max-width: 600px;
-      margin: 30px auto 0;
+      margin: 0 auto; /* 左右居中，上下由容器控制 */
     }
+
     .results h2 {
       color: #ff6b6b;
       margin-bottom: 20px;
       font-size: 1.6em;
+      text-align: center;
     }
+
     .apple-row {
       display: flex;
       justify-content: center;
       gap: 40px;
       margin: 20px 0;
     }
+
     .apple-item {
       text-align: center;
     }
+
     .apple-icon {
       width: 80px;
       height: 80px;
     }
+
     .apple-count {
       font-size: 1.4em;
       margin-top: 8px;
       font-weight: bold;
     }
+
     .gold .apple-count { color: gold; }
     .silver .apple-count { color: silver; }
     .red .apple-count { color: #ff6b6b; }
-    .effect {
-      font-size: 1.3em;
-      margin-top: 15px;
-    }
+
     .message {
       margin-top: 20px;
       font-size: 1.4em;
       color: gold;
       font-weight: bold;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <h1>🍎 伊甸园 · 实时排行榜</h1>
-  
-  <div id="timerBox" class="timer" style="display:none;">--:--</div>
+  <div class="container">
+    <h1>🍎 伊甸园 · 实时排行榜</h1>
+    
+    <div id="timerBox" class="timer" style="display:none;">--:--</div>
 
-  <div class="round-info">
-    {% if game_ended %}
-      🏁 游戏已结束！最终排名如下：
-    {% else %}
-      第 {{ current_round }} 轮
-      {% if round_status == 'waiting' %}
-        · 等待主持人开始
-      {% elif round_status == 'voting' %}
-        · 投票进行中
+    <div class="round-info">
+      {% if game_ended %}
+        🏁 游戏已结束！最终排名如下：
       {% else %}
-        · 结算完成
+        第 {{ current_round }} 轮
+        {% if round_status == 'waiting' %}
+          · 等待主持人开始
+        {% elif round_status == 'voting' %}
+          · 投票进行中
+        {% else %}
+          · 结算完成
+        {% endif %}
       {% endif %}
+    </div>
+
+    <div class="leaderboard">
+      <h2>🏆 排行榜（Top 15）</h2>
+      {% for p in top15 %}
+        <div>#{{ p.id }}：¥{{ p.balance }}</div>
+      {% endfor %}
+    </div>
+
+    {% if round_results %}
+    <div class="results">
+      <h2>📊 上一轮结果</h2>
+      
+      <div class="apple-row">
+        <div class="apple-item gold">
+          <svg class="apple-icon" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="#d4af37" />
+            <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+          </svg>
+          <div class="apple-count">{{ round_results.votes.gold }}</div>
+        </div>
+        
+        <div class="apple-item silver">
+          <svg class="apple-icon" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="#c0c0c0" />
+            <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+          </svg>
+          <div class="apple-count">{{ round_results.votes.silver }}</div>
+        </div>
+        
+        <div class="apple-item red">
+          <svg class="apple-icon" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="#8b0000" />
+            <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+          </svg>
+          <div class="apple-count">{{ round_results.votes.red }}</div>
+        </div>
+      </div>
+
+      <div class="message">{{ round_results.message }}</div>
+    </div>
     {% endif %}
   </div>
-
-  <div class="leaderboard">
-    <h2>🏆 排行榜（Top 15）</h2>
-    {% for p in top15 %}
-      <div>#{{ p.id }}：¥{{ p.balance }}</div>
-    {% endfor %}
-  </div>
-
-  {% if round_results %}
-  <div class="results">
-    <h2>📊 上一轮结果</h2>
-    
-    <div class="apple-row">
-      <div class="apple-item gold">
-        <svg class="apple-icon" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="45" fill="#d4af37" />
-          <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
-        </svg>
-        <div class="apple-count">{{ round_results.votes.gold }}</div>
-      </div>
-      
-      <div class="apple-item silver">
-        <svg class="apple-icon" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="45" fill="#c0c0c0" />
-          <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
-        </svg>
-        <div class="apple-count">{{ round_results.votes.silver }}</div>
-      </div>
-      
-      <div class="apple-item red">
-        <svg class="apple-icon" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="45" fill="#8b0000" />
-          <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
-        </svg>
-        <div class="apple-count">{{ round_results.votes.red }}</div>
-      </div>
-    </div>
-
-    <div class="effect">
-      金苹果：{{ "%+d"|format(round_results.effects.gold) }} &nbsp;&nbsp;
-      银苹果：{{ "%+d"|format(round_results.effects.silver) }} &nbsp;&nbsp;
-      红苹果：{{ "%+d"|format(round_results.effects.red) }}
-    </div>
-
-    <div class="message">{{ round_results.message }}</div>
-  </div>
-  {% endif %}
 
   <script>
     function updateTimer() {
@@ -172,16 +188,21 @@
             timerBox.style.display = 'block';
             const mins = Math.floor(data.remaining / 60);
             const secs = data.remaining % 60;
+            // ✅ 修复模板字符串：移除  $ {} 内部空格
             timerBox.textContent = ` $ {mins}: $ {secs.toString().padStart(2, '0')}`;
           } else {
             timerBox.style.display = 'none';
           }
+        })
+        .catch(() => {
+          document.getElementById('timerBox').style.display = 'none';
         });
     }
 
     updateTimer();
     setInterval(updateTimer, 1000);
 
+    // 每10秒刷新一次页面（确保显示最新状态）
     setTimeout(() => location.reload(), 10000);
   </script>
 </body>

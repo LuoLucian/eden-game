@@ -4,8 +4,8 @@ import json
 import threading
 import time
 import copy
-import secrets  # ← 密码学安全随机源（关键！）
-from threading import Lock  # ← 防并发冲突
+import secrets
+from threading import Lock
 
 app = Flask(__name__)
 app.secret_key = 'eden_game_secret_key_2026'
@@ -32,11 +32,61 @@ snapshots = {}
 
 def load_data():
     global game_state, players
+    # 默认状态
+    default_game_state = {
+        'current_round': 1,
+        'round_status': 'waiting',
+        'game_ended': False,
+        'voting_start_time': None
+    }
+    
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            game_state.update(data.get('game_state', game_state))
-            players.update(data.get('players', players))
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                raw_data = json.load(f)
+            
+            # 安全提取 game_state
+            loaded_game_state = raw_data.get('game_state', {})
+            loaded_players = raw_data.get('players', {})
+
+            # 合并默认值 + 加载值
+            merged_game_state = {**default_game_state, **loaded_game_state}
+
+            # ✅ 关键：清洗 voting_start_time
+            vst = merged_game_state.get('voting_start_time')
+            if vst is not None:
+                try:
+                    merged_game_state['voting_start_time'] = float(vst)
+                except (ValueError, TypeError):
+                    merged_game_state['voting_start_time'] = None
+
+            # ✅ 清洗 players 数据（防止 ID 不是 int）
+            cleaned_players = {}
+            for k, v in loaded_players.items():
+                try:
+                    pid = int(k)
+                    # 确保玩家结构完整
+                    cleaned_players[pid] = {
+                        'id': pid,
+                        'balance': int(v.get('balance', START_BALANCE)),
+                        'votes': list(v.get('votes', []))
+                    }
+                except (ValueError, TypeError, AttributeError):
+                    continue  # 跳过损坏的玩家数据
+
+            game_state.update(merged_game_state)
+            players.clear()
+            players.update(cleaned_players)
+
+        except Exception as e:
+            print(f"⚠️ 警告：加载 {DATA_FILE} 失败，使用默认状态。错误：{e}")
+            game_state.update(default_game_state)
+            players.clear()
+            save_data()  # 重建干净文件
+    else:
+        # 文件不存在，初始化
+        game_state.update(default_game_state)
+        players.clear()
 
 def save_data():
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
@@ -69,64 +119,90 @@ def auto_end_voting():
             if (game_state['round_status'] == 'voting' and game_state['voting_start_time'] is not None):
                 elapsed = time.time() - game_state['voting_start_time']
                 if elapsed >= VOTING_DURATION:
-                    end_round_logic()
-                    save_data()
-
+                    try:
+                        end_round_logic()
+                        save_data()
+                    except Exception as e:
+                        print("💥 结算崩溃！错误：", repr(e))
+                        import traceback
+                        traceback.print_exc()
+                        # 防止线程退出
+                        game_state['round_status'] = 'waiting'
+                        game_state['voting_start_time'] = None
 threading.Thread(target=auto_end_voting, daemon=True).start()
 
 def end_round_logic():
     current_round = game_state['current_round']
-    # 扣未投票者：-1000
+    
+    # Step 1: 扣除未投票玩家 1000（包括未加入者）
     for pid, p in players.items():
         if len(p['votes']) < current_round:
-            p['balance'] -= 1000
+            p['balance'] = max(0, p['balance'] - 1000)
 
-    # 收集已投票玩家
+    # Step 2: 收集本轮有效投票者
     voted_players = [p for p in players.values() if len(p['votes']) >= current_round]
     total_voted = len(voted_players)
+    
+    # 初始化计票
     votes = {'red': 0, 'gold': 0, 'silver': 0}
     for p in voted_players:
         apple = p['votes'][current_round - 1]
-        votes[apple] += 1
+        if apple in votes:
+            votes[apple] += 1
+    
     red, gold, silver = votes['red'], votes['gold'], votes['silver']
-
-    # === 结算规则（按你最终版）===
     game_won_by_all = False
-    if total_voted == 0:
-        pass
-    elif red == total_voted and gold == 0 and silver == 0:
-        game_won_by_all = True
-    elif red == 0:
-        if gold < silver:
-            for p in voted_players:
-                if p['votes'][current_round - 1] == 'gold':
-                    p['balance'] += 1000
-                else:
-                    p['balance'] -= 1000
-        elif silver < gold:
-            for p in voted_players:
-                if p['votes'][current_round - 1] == 'silver':
-                    p['balance'] += 1000
-                else:
-                    p['balance'] -= 1000
-        else:
-            for p in voted_players:
-                p['balance'] -= 1000
-    else:
-        if red < gold and red < silver:
-            for p in voted_players:
-                if p['votes'][current_round - 1] == 'red':
-                    p['balance'] += 1000
-                else:
-                    p['balance'] -= 1000
-        else:
-            for p in voted_players:
-                if p['votes'][current_round - 1] == 'red':
-                    p['balance'] -= 1000
-                else:
-                    p['balance'] += 1000
 
-    # === 游戏结束判断 ===
+    # ====== 按新规则处理 ======
+    if total_voted == 0:
+        # 无人投票：不奖不罚
+        pass
+
+    elif total_voted == 1:
+        # ✅ 只有1人投票
+        if red == 1:
+            game_won_by_all = True
+        else:
+            # 投金或银 → 全体 -1000
+            for p in players.values():
+                p['balance'] = max(0, p['balance'] - 1000)
+
+    else:
+        # 多人投票
+        if red == total_voted:
+            game_won_by_all = True
+        elif red == 0:
+            if gold < silver:
+                for p in voted_players:
+                    if p['votes'][current_round - 1] == 'gold':
+                        p['balance'] += 1000
+                    else:
+                        p['balance'] = max(0, p['balance'] - 1000)
+            elif silver < gold:
+                for p in voted_players:
+                    if p['votes'][current_round - 1] == 'silver':
+                        p['balance'] += 1000
+                    else:
+                        p['balance'] = max(0, p['balance'] - 1000)
+            else:
+                # 金 == 银 → 全体 -1000
+                for p in players.values():
+                    p['balance'] = max(0, p['balance'] - 1000)
+        else:
+            if red < gold and red < silver:
+                for p in voted_players:
+                    if p['votes'][current_round - 1] == 'red':
+                        p['balance'] += 1000
+                    else:
+                        p['balance'] = max(0, p['balance'] - 1000)
+            else:
+                for p in voted_players:
+                    if p['votes'][current_round - 1] == 'red':
+                        p['balance'] = max(0, p['balance'] - 1000)
+                    else:
+                        p['balance'] += 1000
+
+    # ===== 游戏结束判断 =====
     if game_won_by_all:
         game_state['game_ended'] = True
         game_state['round_status'] = 'ended'
@@ -139,12 +215,22 @@ def end_round_logic():
             game_state['round_status'] = 'waiting'
             game_state['voting_start_time'] = None
 
+    # 保存快照
     save_snapshot(current_round)
 
-# ===== 核心修复：扫码加入（真随机 + 防并发 + 防重复）=====
+# ===== 核心修复：扫码加入（支持老玩家随时返回）=====
 @app.route('/join')
 def join():
-    with join_lock:  # ← 关键：串行化请求，避免并发冲突
+    with join_lock:
+        existing_id = request.cookies.get('eden_player_id')
+        if existing_id and existing_id.isdigit():
+            pid = int(existing_id)
+            if pid in players:
+                if not game_state['game_ended']:
+                    return f'<script>window.location.href="/mobile?playerId={pid}";</script>'
+                else:
+                    return "🏁 游戏已结束！", 403
+
         if game_state['game_ended']:
             return "❌ 游戏已结束", 403
         if game_state['round_status'] != 'waiting':
@@ -152,37 +238,24 @@ def join():
         if len(players) >= MAX_PLAYERS:
             return "❌ 玩家人数已达上限", 403
 
-        # 检查 Cookie 是否已有身份（防刷新）
-        existing_id = request.cookies.get('eden_player_id')
-        if existing_id and existing_id.isdigit():
-            pid = int(existing_id)
-            if pid in players:
-                return f'<script>window.location.href="/mobile?playerId={pid}";</script>'
-
-        # 获取未使用的ID列表
         used_ids = set(players.keys())
         available_ids = [i for i in range(1, MAX_PLAYERS + 1) if i not in used_ids]
-        
         if not available_ids:
             return "❌ 无可用ID", 500
 
-        # ✅ 使用 secrets.choice：真·不可预测随机（彻底解决固定编号问题）
         pid = secrets.choice(available_ids)
-
-        # 注册新玩家
         players[pid] = {
             'id': pid,
             'balance': START_BALANCE,
             'votes': []
         }
-        save_data()  # 立即持久化，防止下一个请求看不到
+        save_data()
 
-        # 跳转并设置Cookie
         resp = make_response(f'<script>window.location.href="/mobile?playerId={pid}";</script>')
         resp.set_cookie('eden_player_id', str(pid), max_age=86400)
         return resp
 
-# ===== 其他原有路由（完全保留）=====
+# ===== 其他路由（完全保留）=====
 @app.route('/')
 def index():
     return "伊甸园游戏系统"
@@ -221,43 +294,48 @@ def mobile():
 def display():
     top15 = sorted(players.values(), key=lambda x: x['balance'], reverse=True)[:15]
     round_results = None
-    if game_state['round_status'] == 'ended' or (
-            game_state['current_round'] > 1 and game_state['round_status'] == 'waiting'):
+    
+    # ✅ 修复：只有在 current_round > 1 且处于等待/结束状态时才显示上轮结果
+    if game_state['current_round'] > 1 and (game_state['round_status'] == 'waiting' or game_state['game_ended']):
         prev_round = game_state['current_round'] - 1
         votes = {'red': 0, 'gold': 0, 'silver': 0}
-        effects = {'red': 0, 'gold': 0, 'silver': 0}
         for p in players.values():
             if len(p['votes']) >= prev_round:
-                apple = p['votes'][prev_round - 1]
-                votes[apple] += 1
+                apple = p['votes'][prev_round - 1]  # 正确索引：第 prev_round 轮投票在 votes[prev_round-1]
+                if apple in votes:
+                    votes[apple] += 1
+        
         red, gold, silver = votes['red'], votes['gold'], votes['silver']
         total = red + gold + silver
+        
         if total == 0:
             msg = "无人投票"
         elif red == total:
             msg = "全体胜利！"
+        elif total == 1:
+            # 单人投票场景
+            if red == 1:
+                msg = "唯一玩家投红：全体胜利！"
+            else:
+                msg = "唯一玩家投金/银：全员-1000"
         elif red == 0:
             if gold < silver:
                 msg = "金少胜出：金+1000，银-1000"
-                effects = {'gold': +1000, 'silver': -1000}
             elif silver < gold:
                 msg = "银少胜出：银+1000，金-1000"
-                effects = {'gold': -1000, 'silver': +1000}
             else:
-                msg = "金银相等或全投一方：全员-1000"
-                effects = {'gold': -1000, 'silver': -1000}
+                msg = "金银相等：全员-1000"
         else:
             if red < gold and red < silver:
                 msg = "红苹果最少：红+1000，金银-1000"
-                effects = {'red': +1000, 'gold': -1000, 'silver': -1000}
             else:
                 msg = "红苹果非最少：红-1000，金银+1000"
-                effects = {'red': -1000, 'gold': +1000, 'silver': +1000}
+        
         round_results = {
             'votes': votes,
-            'effects': effects,
             'message': msg
         }
+    
     return render_template('display.html',
                            current_round=game_state['current_round'],
                            round_status=game_state['round_status'],
@@ -391,13 +469,22 @@ def vote():
     save_data()
     return jsonify({'success': True})
 
+# ✅ 修复版 /api/timer（类型安全）
 @app.route('/api/timer')
 def get_timer():
     if game_state['round_status'] != 'voting':
         return jsonify({'inVoting': False})
+    
     start_time = game_state.get('voting_start_time')
     if start_time is None:
         return jsonify({'inVoting': False})
+    
+    # ✅ 确保是数字类型
+    if not isinstance(start_time, (int, float)):
+        start_time = time.time()
+        game_state['voting_start_time'] = start_time
+        save_data()
+    
     elapsed = time.time() - start_time
     remaining = max(0, VOTING_DURATION - int(elapsed))
     return jsonify({
@@ -416,9 +503,7 @@ def mobile_check_status():
         'game_ended': game_state['game_ended']
     })
 
-# ===== 启动配置（适配 Render）=====
-import os
-
+# ===== 启动配置 =====
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
