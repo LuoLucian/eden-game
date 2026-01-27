@@ -44,6 +44,13 @@
       border-radius: 8px;
       margin-top: 20px;
     }
+
+    /* 新增：投票进度样式 */
+    #voteProgress {
+      margin-top: 8px;
+      font-weight: bold;
+      color: #66ccff;
+    }
   </style>
 </head>
 <body>
@@ -64,9 +71,16 @@
         {% endif %}
       </p>
       <p><strong>玩家总数：</strong>{{ total_players }} / {{ max_players }}</p>
+      
+      <!-- 条件性显示未投票人数（兼容旧逻辑） -->
       {% if round_status == 'voting' %}
         <p><strong>未投票人数：</strong>{{ not_voted_count }}</p>
       {% endif %}
+
+      <!-- 新增：动态投票进度（由 JS 控制） -->
+      <div id="voteProgress" style="display:none;">
+        🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+      </div>
     </div>
 
     <!-- 控制按钮 -->
@@ -108,6 +122,7 @@
   <script>
     // ✅ 关键：所有布尔值必须用 | tojson 防止 JS 报错
     const gameEnded = {{ game_ended | tojson }};
+    const roundStatus = "{{ round_status }}";
 
     function startRound() {
       if (gameEnded) {
@@ -118,7 +133,7 @@
         .then(r => r.json())
         .then(data => {
           if (data.success) {
-            location.reload(); // 操作成功后刷新页面
+            location.reload();
           } else {
             alert('❌ ' + data.message);
           }
@@ -190,6 +205,40 @@
           console.error(err);
           alert('操作失败');
         });
+    }
+
+    // === 新增：投票进度轮询 ===
+    function updateVoteStatus() {
+      if (roundStatus !== 'voting') return;
+
+      fetch('/api/vote-status')
+        .then(r => r.json())
+        .then(data => {
+          const voteProgress = document.getElementById('voteProgress');
+          if (data.in_voting) {
+            voteProgress.style.display = 'block';
+            const votedEl = document.getElementById('votedCount');
+            const totalEl = document.getElementById('totalCount');
+            if (votedEl && totalEl) {
+              votedEl.textContent = data.voted_players;
+              totalEl.textContent = data.total_players;
+
+              // 如果全员已投，提示结算中
+              if (data.voted_players === data.total_players && data.total_players > 0) {
+                voteProgress.innerHTML = '✅ 全员已投票，正在结算...';
+              }
+            }
+          } else {
+            voteProgress.style.display = 'none';
+          }
+        })
+        .catch(() => {});
+    }
+
+    // 初始加载 + 每2秒刷新
+    if (roundStatus === 'voting') {
+      updateVoteStatus();
+      setInterval(updateVoteStatus, 2000);
     }
   </script>
 </body>

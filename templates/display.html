@@ -30,12 +30,15 @@
       text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
     }
 
-    .timer {
+    .timer, #voteProgress {
       font-size: 3.5em;
-      color: #ff6b6b;
       margin: 20px 0;
       font-weight: bold;
       text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+    }
+    
+    .timer {
+      color: #ff6b6b;
     }
 
     .round-info {
@@ -152,6 +155,11 @@
     
     <div id="timerBox" class="timer" style="display:none;">--:--</div>
 
+    <!-- 新增：投票进度 -->
+    <div id="voteProgress" class="timer" style="color:#66ccff;display:none;">
+      🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+    </div>
+
     <div class="round-info">
       {% if game_ended %}
         🏁 游戏已结束！最终排名如下：
@@ -232,8 +240,35 @@
         });
     }
 
+    // 新增：获取并更新投票状态
+    function updateVoteStatus() {
+      fetch('/api/vote-status')
+        .then(r => r.json())
+        .then(data => {
+          const voteProgress = document.getElementById('voteProgress');
+          if (data.in_voting) {
+            voteProgress.style.display = 'block';
+            document.getElementById('votedCount').textContent = data.voted_players;
+            document.getElementById('totalCount').textContent = data.total_players;
+
+            // 如果全员已投，提示正在结算（此时可能很快跳转）
+            if (data.voted_players === data.total_players && data.total_players > 0) {
+              voteProgress.innerHTML = '✅ 全员已投票，正在结算...';
+            }
+          } else {
+            voteProgress.style.display = 'none';
+          }
+        })
+        .catch(() => {});
+    }
+
     updateTimer();
     setInterval(updateTimer, 1000);
+
+    // 初始加载 + 每2秒刷新投票状态
+    updateVoteStatus();
+    setInterval(updateVoteStatus, 2000);
+
     setTimeout(() => location.reload(), 10000);
   </script>
 </body>

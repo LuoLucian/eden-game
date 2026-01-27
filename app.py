@@ -467,6 +467,22 @@ def vote():
         return jsonify({'success': False, 'message': '你已投票'})
     player['votes'].append(apple)
     save_data()
+
+    # === 新增：检查是否所有玩家都已投票（提前结算）===
+    total_players = len(players)
+    current_round = game_state['current_round']
+    voted_count = sum(1 for p in players.values() if len(p['votes']) >= current_round)
+
+    if total_players > 0 and voted_count == total_players:
+        print(f">>> 所有 {total_players} 名玩家已投票，提前结算！")
+        try:
+            end_round_logic()
+            save_data()
+        except Exception as e:
+            print("💥 提前结算失败：", repr(e))
+            import traceback
+            traceback.print_exc()
+
     return jsonify({'success': True})
 
 # ✅ 修复版 /api/timer（类型安全）
@@ -490,6 +506,26 @@ def get_timer():
     return jsonify({
         'inVoting': True,
         'remaining': remaining
+    })
+
+# === 新增：投票进度 API ===
+@app.route('/api/vote-status')
+def vote_status():
+    if game_state['round_status'] != 'voting':
+        return jsonify({
+            'in_voting': False,
+            'total_players': 0,
+            'voted_players': 0
+        })
+    
+    total = len(players)
+    current_round = game_state['current_round']
+    voted = sum(1 for p in players.values() if len(p['votes']) >= current_round)
+    
+    return jsonify({
+        'in_voting': True,
+        'total_players': total,
+        'voted_players': voted
     })
 
 @app.route('/mobile/check_status')
