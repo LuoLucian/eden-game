@@ -66,14 +66,14 @@
     .gold { background: #f1c40f; }    /* 金苹果 */
     .silver { background: #bdc3c7; }  /* 银苹果 */
 
-    /* 奖惩样式 */
+    /* 奖惩样式：绿色为收益，红色为损失 */
     .plus { 
-      color: #e74c3c; 
+      color: #27ae60; 
       font-weight: bold;
       font-size: 19px;
     }
     .minus { 
-      color: #27ae60; 
+      color: #e74c3c; 
       font-weight: bold;
       font-size: 19px;
     }
@@ -134,8 +134,8 @@
       <div class="rule-card">
         <p><strong>当有人选择红苹果</strong></p>
         <ul>
-          <li>若 <span class="apple red"></span> 数量最少 → <span class="apple red"></span> 每人 <span class="plus">+1000</span>，其余人 <span class="minus">-1000</span></li>
-          <li>若 <span class="apple red"></span> 数量非最少 → <span class="apple red"></span> 每人 <span class="minus">-1000</span>，其余人 <span class="plus">+1000</span></li>
+          <li>若 <span class="apple red"></span> 数量最少 → <span class="apple red"></span> 每人 <span class="plus">+1000</span>，其余人 <span class="minus">-2000</span></li>
+          <li>若 <span class="apple red"></span> 数量非最少 → <span class="apple red"></span> 每人 <span class="minus">-2000</span>，其余人 <span class="plus">+1000</span></li>
         </ul>
         <div class="metaphor">
           💔 <strong>牺牲者</strong>：明知触碰禁果可能招致惩罚，仍愿为善、求变——因清醒而被乐园嘉奖。<br>
@@ -146,38 +146,41 @@
       <div class="rule-card">
         <p><strong>当投票仅有金与银</strong></p>
         <ul>
-          <li><span class="apple gold"></span> &lt; <span class="apple silver"></span> → <span class="apple gold"></span> <span class="plus">+1000</span>，<span class="apple silver"></span> <span class="minus">-1000</span></li>
-          <li><span class="apple silver"></span> &lt; <span class="apple gold"></span> → <span class="apple silver"></span> <span class="plus">+1000</span>，<span class="apple gold"></span> <span class="minus">-1000</span></li>
-          <li><span class="apple gold"></span> = <span class="apple silver"></span> → 全员 <span class="minus">-1000</span></li>
-          <li>全部投 <span class="apple gold"></span> 或 全部投 <span class="apple silver"></span> → 全员 <span class="minus">-1000</span></li>
+          <li><span class="apple gold"></span> &lt; <span class="apple silver"></span> → <span class="apple gold"></span> <span class="plus">+1000</span>，<span class="apple silver"></span> <span class="minus">-2000</span></li>
+          <li><span class="apple silver"></span> &lt; <span class="apple gold"></span> → <span class="apple silver"></span> <span class="plus">+1000</span>，<span class="apple gold"></span> <span class="minus">-2000</span></li>
+          <li><span class="apple gold"></span> = <span class="apple silver"></span> → 全员 <span class="minus">-2000</span></li>
+          <li>全部投 <span class="apple gold"></span> 或 全部投 <span class="apple silver"></span> → 全员 <span class="minus">-2000</span></li>
         </ul>
         <div class="metaphor">
           ⚰️ 无人敢为先，亦无人愿不同——集体的怯懦，终被乐园放逐。
         </div>
       </div>
 
-      <!-- 新增：全体胜利规则 -->
+      <!-- 全体胜利规则（不含单人投红） -->
       <div class="rule-card">
         <p><strong>全体胜利</strong></p>
         <ul>
-          <li>如果所有存活玩家均选择红苹果（禁果），则触发全体胜利。</li>
-          <li>此时，游戏立即结束，所有玩家共同庆祝胜利。</li>
+          <li><strong>第 1–7 轮</strong>：所有已投票玩家均选择红苹果 → 触发全体胜利！</li>
+          <li><strong>第 8 轮</strong>：红苹果数量 ≥（总投票人数 - 10）→ 触发全体胜利！</li>
+          <li>游戏立即结束，所有玩家余额保持不变。</li>
         </ul>
         <div class="metaphor">
-          🎉 当所有人敢于挑战禁忌，乐园见证团结的力量，赋予大家最终的和平。
+          🎉 当足够多的人敢于挑战禁忌，乐园见证团结的力量，赋予大家最终的和平。
         </div>
       </div>
 
       <div class="rule-card">
         <p><strong>未在60秒内投票</strong></p>
-        <p>→ 自动扣除 <span class="minus">¥1000</span></p>
+        <p>→ 自动扣除 <span class="minus">¥2000</span></p>
         <div class="metaphor">
           🙈 拒绝选择，即是放弃身为人之责任。
         </div>
       </div>
 
+      <!-- 最终奖励规则（重点更新） -->
       <div class="win">
-        🏆 <strong>最终胜利者</strong>：8轮结束后，余额最高者获胜。
+        🏆 <strong>最终奖励</strong>：<br>
+        若8轮结束<strong>未达成全体胜利</strong>，则<strong>余额最高的前10名玩家获胜</strong>，并<strong>共同瓜分奖金池</strong>！
       </div>
 
       <h2>🎮 如何参与</h2>
