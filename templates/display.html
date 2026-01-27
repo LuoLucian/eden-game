@@ -44,33 +44,64 @@
       color: #ccc;
     }
 
-    .leaderboard {
-      display: inline-block;
-      text-align: left;
-      background: rgba(30,30,30,0.85);
+    /* ===== 多列排行榜容器 ===== */
+    .leaderboard-container {
+      background: rgba(30, 30, 30, 0.85);
       padding: 20px;
       border-radius: 12px;
-      max-width: 450px;
-      margin: 10px auto 40px; /* 上10px，下40px，左右自动居中 */
+      max-width: 900px;
+      width: 100%;
+      margin: 10px auto 30px;
     }
 
-    .leaderboard h2 {
+    .leaderboard-header {
       color: #d4af37;
-      margin-bottom: 12px;
+      margin-bottom: 15px;
       font-size: 1.4em;
+      text-align: center;
     }
 
-    .leaderboard div {
+    /* 多列网格布局 */
+    .leaderboard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr); /* 默认两列 */
+      gap: 10px 40px; /* 行间距 10px，列间距 40px */
+      font-size: 1.15em;
+      line-height: 1.4;
+    }
+
+    /* 超宽屏（如 4K）自动三列 */
+    @media (min-width: 1800px) {
+      .leaderboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px 50px;
+      }
+    }
+
+    /* 每个玩家项：紧凑 + 分隔线 + 交替背景 */
+    .player-item {
+      white-space: nowrap;
+      text-align: center;
       padding: 6px 0;
-      font-size: 1.1em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(40, 40, 40, 0.15);
+      border-radius: 4px;
     }
 
+    /* 交替背景（条纹效果） */
+    .player-item:nth-child(even) {
+      background: rgba(50, 50, 50, 0.15);
+    }
+
+    /* 结果区域 */
     .results {
       padding: 25px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.6);
       border-radius: 12px;
       max-width: 600px;
-      margin: 0 auto; /* 左右居中，上下由容器控制 */
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .results h2 {
@@ -136,11 +167,14 @@
       {% endif %}
     </div>
 
-    <div class="leaderboard">
-      <h2>🏆 排行榜（Top 15）</h2>
-      {% for p in top15 %}
-        <div>#{{ p.id }}：¥{{ p.balance }}</div>
-      {% endfor %}
+    <!-- 多列排行榜 -->
+    <div class="leaderboard-container">
+      <div class="leaderboard-header">🏆 排行榜（Top {{ top15|length }}）</div>
+      <div class="leaderboard-grid">
+        {% for p in top15 %}
+          <div class="player-item">#{{ p.id }} ¥{{ p.balance }}</div>
+        {% endfor %}
+      </div>
     </div>
 
     {% if round_results %}
@@ -188,7 +222,6 @@
             timerBox.style.display = 'block';
             const mins = Math.floor(data.remaining / 60);
             const secs = data.remaining % 60;
-            // ✅ 修复模板字符串：移除  $ {} 内部空格
             timerBox.textContent = ` $ {mins}: $ {secs.toString().padStart(2, '0')}`;
           } else {
             timerBox.style.display = 'none';
@@ -201,8 +234,6 @@
 
     updateTimer();
     setInterval(updateTimer, 1000);
-
-    // 每10秒刷新一次页面（确保显示最新状态）
     setTimeout(() => location.reload(), 10000);
   </script>
 </body>

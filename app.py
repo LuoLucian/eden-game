@@ -292,7 +292,7 @@ def mobile():
 
 @app.route('/display')
 def display():
-    top15 = sorted(players.values(), key=lambda x: x['balance'], reverse=True)[:15]
+    top20 = sorted(players.values(), key=lambda x: x['balance'], reverse=True)[:20]
     round_results = None
     
     # ✅ 修复：只有在 current_round > 1 且处于等待/结束状态时才显示上轮结果
@@ -340,7 +340,7 @@ def display():
                            current_round=game_state['current_round'],
                            round_status=game_state['round_status'],
                            game_ended=game_state['game_ended'],
-                           top15=top15,
+                           top15=top20,
                            round_results=round_results)
 
 @app.route('/admin')
@@ -502,6 +502,10 @@ def mobile_check_status():
         'current_round': game_state['current_round'],
         'game_ended': game_state['game_ended']
     })
+
+@app.route('/rules')
+def rules():
+    return render_template('rules.html')
 
 # ===== 启动配置 =====
 if __name__ == '__main__':

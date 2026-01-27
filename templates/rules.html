@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>伊甸园 · 游戏规则</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #f9f7f0;
+      color: #2c3e50;
+      line-height: 1.5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 10px;
+    }
+    .container {
+      width: 100%;
+      max-width: 620px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    header {
+      background: #2c5530;
+      color: white;
+      padding: 16px;
+      text-align: center;
+      font-size: 20px;
+    }
+    .content {
+      padding: 16px;
+      font-size: 15px;
+    }
+    h2 {
+      color: #2c5530;
+      margin: 16px 0 10px;
+      font-size: 18px;
+    }
+    p, li {
+      margin-bottom: 8px;
+    }
+    ul {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+
+    /* 苹果图标 */
+    .apple {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin: 0 4px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+    .red { background: #e74c3c; }     /* 红苹果 */
+    .gold { background: #f1c40f; }    /* 金苹果 */
+    .silver { background: #bdc3c7; }  /* 银苹果 */
+
+    /* 奖惩颜色（按你的设定） */
+    .plus { color: #e74c3c; font-weight: bold; }   /* +1000 → 红色（赚钱） */
+    .minus { color: #27ae60; font-weight: bold; }  /* -1000 → 绿色（扣钱） */
+
+    /* 规则卡片 */
+    .rule-card {
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      border-left: 3px solid #2c5530;
+    }
+
+    .win {
+      background: #fdf2f2;
+      border-left: 4px solid #e74c3c;
+      padding: 10px;
+      margin: 14px 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    footer {
+      text-align: center;
+      padding: 12px;
+      font-size: 13px;
+      color: #7f8c8d;
+      background: #f8f9fa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>🍎 伊甸园 · 游戏规则</header>
+    <div class="content">
+      <p>初始资金：<strong>¥10,000</strong>｜共 <strong>8 轮</strong>｜每轮 <strong>60秒</strong> 投票</p>
+
+      <h2>三种选择</h2>
+      <p>
+        <span class="apple red"></span> 红苹果 &nbsp;&nbsp;
+        <span class="apple gold"></span> 金苹果 &nbsp;&nbsp;
+        <span class="apple silver"></span> 银苹果
+      </p>
+
+      <h2>⚖️ 结算规则（多人投票）</h2>
+
+      <div class="rule-card">
+        <p><strong>✅ 全体胜利</strong></p>
+        <p>若 <strong>所有人</strong> 投 <span class="apple red"></span> → <strong>游戏立即结束，全员胜利！</strong></p>
+      </div>
+
+      <div class="rule-card">
+        <p><strong>🚫 无人投红</strong></p>
+        <ul>
+          <li>金 &lt; 银 → 金 <span class="plus">+1000</span>，银 <span class="minus">-1000</span></li>
+          <li>银 &lt; 金 → 银 <span class="plus">+1000</span>，金 <span class="minus">-1000</span></li>
+          <li><strong>全投金</strong>（无人投银）→ 全员 <span class="minus">-1000</span></li>
+          <li><strong>全投银</strong>（无人投金）→ 全员 <span class="minus">-1000</span></li>
+          <li>金 = 银（且都 ≥1）→ 全员 <span class="minus">-1000</span></li>
+        </ul>
+      </div>
+
+      <div class="rule-card">
+        <p><strong>⚠️ 有人投红（但非全红）</strong></p>
+        <ul>
+          <li>红是 <strong>最少</strong> 的 → 红 <span class="plus">+1000</span>，金/银 <span class="minus">-1000</span></li>
+          <li>红 <strong>不是最少</strong> 的 → 红 <span class="minus">-1000</span>，金/银 <span class="plus">+1000</span></li>
+        </ul>
+      </div>
+
+      <div class="rule-card">
+        <p><strong>⏱️ 未投票</strong></p>
+        <p>超时未选 → 自动 <span class="minus">-¥1000</span></p>
+      </div>
+
+      <div class="win">
+        💡 <strong>胜利条件</strong>：触发“全体胜利”，或8轮后余额最高者胜。
+      </div>
+
+      <h2>🎮 如何参与</h2>
+      <p>1. 扫码加入，获得 playerId<br>
+         2. 每轮在手机上选择一颗苹果<br>
+         3. 提交后不可更改<br>
+         4. 大屏实时显示结果与排行榜</p>
+    </div>
+    <footer>《伊甸园》· 策略与人性的终极试炼</footer>
+  </div>
+</body>
+</html>
