@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>大屏展示</title>
+  <meta http-equiv="refresh" content="1">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
     body {
@@ -151,11 +152,116 @@
 </head>
 <body>
   <div class="container">
-    <h1>🍎 伊甸园 · 实时排行榜</h1>
-    
-    <div id="timerBox" class="timer" style="display:none;">--:--</div>
+  <h1>🍎 伊甸园 · 实时排行榜</h1>
 
-    <!-- 新增：投票进度 -->
+  {% if won_by_all %}
+    <!-- ✅ 全体胜利专属界面（含投票统计） -->
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 80vh;
+      text-align: center;
+      padding: 30px;
+      gap: 40px;
+    ">
+      <!-- 胜利标题 -->
+      <div style="
+        font-size: 5em;
+        color: gold;
+        text-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+        animation: pulse 2s infinite;
+      ">🎉</div>
+      
+      <div style="
+        font-size: 3.2em;
+        color: white;
+        font-weight: bold;
+        line-height: 1.4;
+        max-width: 800px;
+      ">
+        全体胜利！<br/>
+        <span style="color: #66ff99; font-size: 1.2em;">伊甸园重归和平 🌿</span>
+      </div>
+
+      <!-- 投票统计卡片 -->
+      {% if round_results %}
+      <div style="
+        background: rgba(0,0,0,0.4);
+        padding: 25px 50px;
+        border-radius: 16px;
+        max-width: 600px;
+        width: 100%;
+        margin-top: 20px;
+      ">
+        <h2 style="color: #ffcc66; margin: 0 0 20px;">📊 本轮投票统计</h2>
+        <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+          <!-- 红苹果 -->
+          <div style="text-align: center;">
+            <div style="
+              width: 70px; height: 70px;
+              background: #8b0000;
+              border-radius: 50%;
+              margin: 0 auto 10px;
+              display: flex; align-items: center; justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 1.4em;
+            ">{{ round_results.votes.red }}</div>
+            <div style="color: #ff9999; font-size: 1.1em;">红苹果</div>
+          </div>
+          
+          <!-- 金苹果 -->
+          <div style="text-align: center;">
+            <div style="
+              width: 70px; height: 70px;
+              background: #d4af37;
+              border-radius: 50%;
+              margin: 0 auto 10px;
+              display: flex; align-items: center; justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 1.4em;
+            ">{{ round_results.votes.gold }}</div>
+            <div style="color: #ffd700; font-size: 1.1em;">金苹果</div>
+          </div>
+          
+          <!-- 银苹果 -->
+          <div style="text-align: center;">
+            <div style="
+              width: 70px; height: 70px;
+              background: #c0c0c0;
+              border-radius: 50%;
+              margin: 0 auto 10px;
+              display: flex; align-items: center; justify-content: center;
+              color: black;
+              font-weight: bold;
+              font-size: 1.4em;
+            ">{{ round_results.votes.silver }}</div>
+            <div style="color: #cccccc; font-size: 1.1em;">银苹果</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <style>
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+    </style>
+
+  {% else %}
+        <!-- 服务端渲染倒计时（自动刷新） -->
+    {% if in_voting and countdown is not none %}
+    <div class="timer">
+      ⏳ 投票剩余：{{ "%02d:%02d"|format(countdown // 60, countdown % 60) }}
+    </div>
+    {% endif %}
+
     <div id="voteProgress" class="timer" style="color:#66ccff;display:none;">
       🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
     </div>
@@ -218,53 +324,12 @@
       <div class="message">{{ round_results.message }}</div>
     </div>
     {% endif %}
+
+  {% endif %}
   </div>
 
   <script>
-    function updateTimer() {
-      fetch('/api/timer')
-        .then(r => r.json())
-        .then(data => {
-          const timerBox = document.getElementById('timerBox');
-          if (data.inVoting) {
-            timerBox.style.display = 'block';
-            const mins = Math.floor(data.remaining / 60);
-            const secs = data.remaining % 60;
-            timerBox.textContent = ` $ {mins}: $ {secs.toString().padStart(2, '0')}`;
-          } else {
-            timerBox.style.display = 'none';
-          }
-        })
-        .catch(() => {
-          document.getElementById('timerBox').style.display = 'none';
-        });
-    }
-
-    // 新增：获取并更新投票状态
-    function updateVoteStatus() {
-      fetch('/api/vote-status')
-        .then(r => r.json())
-        .then(data => {
-          const voteProgress = document.getElementById('voteProgress');
-          if (data.in_voting) {
-            voteProgress.style.display = 'block';
-            document.getElementById('votedCount').textContent = data.voted_players;
-            document.getElementById('totalCount').textContent = data.total_players;
-
-            // 如果全员已投，提示正在结算（此时可能很快跳转）
-            if (data.voted_players === data.total_players && data.total_players > 0) {
-              voteProgress.innerHTML = '✅ 全员已投票，正在结算...';
-            }
-          } else {
-            voteProgress.style.display = 'none';
-          }
-        })
-        .catch(() => {});
-    }
-
-    updateTimer();
-    setInterval(updateTimer, 1000);
-
+    
     // 初始加载 + 每2秒刷新投票状态
     updateVoteStatus();
     setInterval(updateVoteStatus, 2000);

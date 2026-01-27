@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -93,9 +94,14 @@
   <div class="container">
     <h1>玩家 #{{ playerId }}</h1>
     <div class="balance">余额：¥{{ balance }}</div>
+{% if balance <= 0 %}
+  <div style="color: #ff6b6b; font-size: 18px; margin: 10px 0; font-weight: bold;">
+    💀 你已破产！无法继续投票。
+  </div>
+{% endif %}
 
     <div class="apple-grid">
-      <div class="apple-btn {% if voted or game_ended %}disabled{% endif %}" id="btn-gold" data-type="gold">
+      <div class="apple-btn {% if voted or game_ended or balance <= 0 %}disabled{% endif %}" id="btn-gold" data-type="gold">
         <svg class="apple-svg" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="45" fill="var(--eden-gold)" />
           <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
@@ -103,7 +109,7 @@
         <div>金苹果</div>
       </div>
       
-      <div class="apple-btn {% if voted or game_ended %}disabled{% endif %}" id="btn-silver" data-type="silver">
+      <div class="apple-btn {% if voted or game_ended or balance <= 0 %}disabled{% endif %}" id="btn-silver" data-type="silver">
         <svg class="apple-svg" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="45" fill="var(--eden-silver)" />
           <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
@@ -111,7 +117,7 @@
         <div>银苹果</div>
       </div>
       
-      <div class="apple-btn {% if voted or game_ended %}disabled{% endif %}" id="btn-red" data-type="red">
+      <div class="apple-btn {% if voted or game_ended or balance <= 0 %}disabled{% endif %}" id="btn-red" data-type="red">
         <svg class="apple-svg" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="45" fill="var(--eden-crimson)" />
           <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
@@ -120,7 +126,7 @@
       </div>
     </div>
 
-    <button class="confirm-btn" id="confirmBtn" {% if voted or game_ended %}disabled{% endif %}>
+    <button class="confirm-btn" id="confirmBtn" {% if voted or game_ended or balance <= 0 %}disabled{% endif %}>
       {{ "✅ 已提交" if (voted or game_ended) else "请选择后确认" }}
     </button>
 
@@ -182,41 +188,6 @@
     });
   });
 
-  // ✅ 自动检测轮次或游戏状态变化，自动刷新页面
-  function checkForRoundChange() {
-    fetch('/mobile/check_status?playerId=' + playerId)
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && 
-            (data.current_round !== initialRound || data.game_ended !== gameEnded)) {
-          location.reload();
-        }
-      })
-      .catch(() => {});
-  }
-
-  if (!gameEnded && !voted) {
-    // 更新倒计时
-    function updateCountdown() {
-      fetch('/api/timer')
-        .then(r => r.json())
-        .then(data => {
-          const statusEl = document.getElementById('status');
-          if (data.inVoting) {
-            // 🔧 修复：移除  $  和 { 之间的空格！
-            statusEl.textContent = `⏳ 请在  $ {data.remaining} 秒内完成选择`;
-          }
-        })
-        .catch(() => {
-          // 可选：静默失败
-        });
-    }
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-
-    // 每 3 秒检查轮次变化
-    setInterval(checkForRoundChange, 3000);
-  }
-</script>
+ </script>
 </body>
 </html>

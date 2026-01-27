@@ -58,41 +58,49 @@
     <h1>👑 伊甸园 · 管理员控制台</h1>
     
     <div class="status">
-      <p><strong>当前轮次：</strong>第 {{ current_round }} 轮</p>
-      <p><strong>游戏状态：</strong>
-        {% if game_ended %}
-          🏁 已结束
-        {% elif round_status == 'waiting' %}
-          ⏳ 等待开始
-        {% elif round_status == 'voting' %}
-          🗳️ 投票中（剩余 {{ remaining_time }} 秒）
+      {% if game_ended %}
+        {% if won_by_all %}
+          <p><strong>🎉 游戏状态：</strong>全体胜利！游戏已结束。</p>
         {% else %}
-          ✅ 结算完成
+          <p><strong>🏁 游戏状态：</strong>游戏已结束（正常结算）。</p>
         {% endif %}
-      </p>
-      <p><strong>玩家总数：</strong>{{ total_players }} / {{ max_players }}</p>
-      
-      <!-- 条件性显示未投票人数（兼容旧逻辑） -->
-      {% if round_status == 'voting' %}
-        <p><strong>未投票人数：</strong>{{ not_voted_count }}</p>
-      {% endif %}
+        <p><strong>最终轮次：</strong>第 {{ current_round }} 轮</p>
+      {% else %}
+        <p><strong>当前轮次：</strong>第 {{ current_round }} 轮</p>
+        <p><strong>游戏状态：</strong>
+          {% if round_status == 'waiting' %}
+            ⏳ 等待开始
+          {% elif round_status == 'voting' %}
+            🗳️ 投票中（剩余 {{ remaining_time }} 秒）
+          {% else %}
+            ✅ 结算完成
+          {% endif %}
+        </p>
+        <p><strong>玩家总数：</strong>{{ total_players }} / {{ max_players }}</p>
 
-      <!-- 新增：动态投票进度（由 JS 控制） -->
-      <div id="voteProgress" style="display:none;">
-        🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+        {% if round_status == 'voting' %}
+          <p><strong>未投票人数：</strong>{{ not_voted_count }}</p>
+        {% endif %}
+
+        <!-- 动态投票进度 -->
+        <div id="voteProgress" style="display:none;">
+          🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 控制按钮（仅在游戏未结束且非全体胜利时显示） -->
+    {% if not game_ended %}
+      <div>
+        {% if round_status == 'waiting' %}
+          <button class="btn start" onclick="startRound()">▶️ 开始本轮投票</button>
+        {% elif round_status == 'voting' %}
+          <button class="btn end" onclick="endRound()">⏹️ 手动结算本轮</button>
+        {% endif %}
       </div>
-    </div>
+    {% endif %}
 
-    <!-- 控制按钮 -->
-    <div>
-      {% if not game_ended and round_status == 'waiting' %}
-        <button class="btn start" onclick="startRound()">▶️ 开始本轮投票</button>
-      {% elif not game_ended and round_status == 'voting' %}
-        <button class="btn end" onclick="endRound()">⏹️ 手动结算本轮</button>
-      {% endif %}
-    </div>
-
-    <!-- 调试与重置 -->
+    <!-- 调试与重置（始终可用，即使游戏结束） -->
     <div style="margin-top: 30px; padding: 15px; background: #222; border-radius: 8px;">
       <h3>🔧 调试与重置</h3>
       
@@ -120,7 +128,6 @@
   </div>
 
   <script>
-    // ✅ 关键：所有布尔值必须用 | tojson 防止 JS 报错
     const gameEnded = {{ game_ended | tojson }};
     const roundStatus = "{{ round_status }}";
 
@@ -207,7 +214,7 @@
         });
     }
 
-    // === 新增：投票进度轮询 ===
+    // === 投票进度轮询 ===
     function updateVoteStatus() {
       if (roundStatus !== 'voting') return;
 
@@ -223,7 +230,6 @@
               votedEl.textContent = data.voted_players;
               totalEl.textContent = data.total_players;
 
-              // 如果全员已投，提示结算中
               if (data.voted_players === data.total_players && data.total_players > 0) {
                 voteProgress.innerHTML = '✅ 全员已投票，正在结算...';
               }
@@ -235,7 +241,6 @@
         .catch(() => {});
     }
 
-    // 初始加载 + 每2秒刷新
     if (roundStatus === 'voting') {
       updateVoteStatus();
       setInterval(updateVoteStatus, 2000);

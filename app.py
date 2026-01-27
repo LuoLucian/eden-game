@@ -18,6 +18,8 @@ START_BALANCE = 10000
 MAX_PLAYERS = 70
 MAX_ROUNDS = 8
 VOTING_DURATION = 60
+REWARD = 1000    # 奖励
+PENALTY = 2000   # 惩罚（原为1000）
 
 game_state = {
     'current_round': 1,
@@ -37,7 +39,8 @@ def load_data():
         'current_round': 1,
         'round_status': 'waiting',
         'game_ended': False,
-        'voting_start_time': None
+        'voting_start_time': None,
+        'won_by_all': False  # 新增字段，用于标记全体胜利
     }
     
     if os.path.exists(DATA_FILE):
@@ -134,12 +137,12 @@ threading.Thread(target=auto_end_voting, daemon=True).start()
 def end_round_logic():
     current_round = game_state['current_round']
     
-    # Step 1: 扣除未投票玩家 1000（包括未加入者）
+    # Step 1: 扣除未投票玩家 PENALTY（-2000）
     for pid, p in players.items():
         if len(p['votes']) < current_round:
-            p['balance'] = max(0, p['balance'] - 1000)
+            p['balance'] = max(0, p['balance'] - PENALTY)
 
-    # Step 2: 收集本轮有效投票者
+    # Step 2: 收集本轮已投票玩家（用于计票）
     voted_players = [p for p in players.values() if len(p['votes']) >= current_round]
     total_voted = len(voted_players)
     
@@ -153,67 +156,79 @@ def end_round_logic():
     red, gold, silver = votes['red'], votes['gold'], votes['silver']
     game_won_by_all = False
 
-    # ====== 按新规则处理 ======
+    # ====== 全体胜利条件（兼容旧规则 + 新增规则）======
+    game_won_by_all = False
+    if total_voted > 0:
+        # 原有规则：仅1人投票且投红 → 全体胜利
+        if total_voted == 1 and red == 1:
+            game_won_by_all = True
+        # 新增规则1：前7轮所有人投红
+        elif current_round < MAX_ROUNDS and red == total_voted:
+            game_won_by_all = True
+        # 新增规则2：第8轮红 >= 总投票 - 10
+        elif current_round == MAX_ROUNDS and red >= total_voted - 10:
+            game_won_by_all = True
+
+    if game_won_by_all:
+        # ✅ 全体胜利：余额保持不变（不加奖励，不扣惩罚）
+        game_state['game_ended'] = True
+        game_state['round_status'] = 'ended'
+        game_state['won_by_all'] = True
+        save_snapshot(current_round)
+        return
+
+    # ====== 常规结算逻辑（与原逻辑一致，仅惩罚值改为 PENALTY）======
     if total_voted == 0:
-        # 无人投票：不奖不罚
+        # 无人投票：已在 Step 1 扣款，无需额外操作
         pass
 
     elif total_voted == 1:
-        # ✅ 只有1人投票
-        if red == 1:
-            game_won_by_all = True
-        else:
-            # 投金或银 → 全体 -1000
-            for p in players.values():
-                p['balance'] = max(0, p['balance'] - 1000)
+        # 此时 red != 1（否则已触发全体胜利），所以是金或银
+        for p in players.values():
+            p['balance'] = max(0, p['balance'] - PENALTY)
 
     else:
         # 多人投票
-        if red == total_voted:
-            game_won_by_all = True
-        elif red == 0:
+        if red == 0:
             if gold < silver:
                 for p in voted_players:
                     if p['votes'][current_round - 1] == 'gold':
-                        p['balance'] += 1000
+                        p['balance'] += REWARD
                     else:
-                        p['balance'] = max(0, p['balance'] - 1000)
+                        p['balance'] = max(0, p['balance'] - PENALTY)
             elif silver < gold:
                 for p in voted_players:
                     if p['votes'][current_round - 1] == 'silver':
-                        p['balance'] += 1000
+                        p['balance'] += REWARD
                     else:
-                        p['balance'] = max(0, p['balance'] - 1000)
+                        p['balance'] = max(0, p['balance'] - PENALTY)
             else:
-                # 金 == 银 → 全体 -1000
+                # 金 == 银（含全金、全银）
                 for p in players.values():
-                    p['balance'] = max(0, p['balance'] - 1000)
+                    p['balance'] = max(0, p['balance'] - PENALTY)
         else:
+            # 有人投红
             if red < gold and red < silver:
                 for p in voted_players:
                     if p['votes'][current_round - 1] == 'red':
-                        p['balance'] += 1000
+                        p['balance'] += REWARD
                     else:
-                        p['balance'] = max(0, p['balance'] - 1000)
+                        p['balance'] = max(0, p['balance'] - PENALTY)
             else:
                 for p in voted_players:
                     if p['votes'][current_round - 1] == 'red':
-                        p['balance'] = max(0, p['balance'] - 1000)
+                        p['balance'] = max(0, p['balance'] - PENALTY)
                     else:
-                        p['balance'] += 1000
+                        p['balance'] += REWARD
 
     # ===== 游戏结束判断 =====
-    if game_won_by_all:
+    if current_round >= MAX_ROUNDS:
         game_state['game_ended'] = True
         game_state['round_status'] = 'ended'
     else:
-        if current_round >= MAX_ROUNDS:
-            game_state['game_ended'] = True
-            game_state['round_status'] = 'ended'
-        else:
-            game_state['current_round'] += 1
-            game_state['round_status'] = 'waiting'
-            game_state['voting_start_time'] = None
+        game_state['current_round'] += 1
+        game_state['round_status'] = 'waiting'
+        game_state['voting_start_time'] = None
 
     # 保存快照
     save_snapshot(current_round)
@@ -295,13 +310,27 @@ def display():
     top20 = sorted(players.values(), key=lambda x: x['balance'], reverse=True)[:20]
     round_results = None
     
-    # ✅ 修复：只有在 current_round > 1 且处于等待/结束状态时才显示上轮结果
-    if game_state['current_round'] > 1 and (game_state['round_status'] == 'waiting' or game_state['game_ended']):
+     # ✅ 如果因全体胜利结束，直接显示
+    if game_state.get('won_by_all', False):
+        # 收集最后一轮的投票数据（用于显示苹果数量）
+        current_round = game_state['current_round']
+        votes = {'red': 0, 'gold': 0, 'silver': 0}
+        for p in players.values():
+            if len(p['votes']) >= current_round:
+                apple = p['votes'][current_round - 1]
+                if apple in votes:
+                    votes[apple] += 1
+        
+        round_results = {
+            'votes': votes,
+            'message': "🎉 全体胜利！"
+        }
+    elif game_state['current_round'] > 1 and (game_state['round_status'] == 'waiting' or game_state['game_ended']):
         prev_round = game_state['current_round'] - 1
         votes = {'red': 0, 'gold': 0, 'silver': 0}
         for p in players.values():
             if len(p['votes']) >= prev_round:
-                apple = p['votes'][prev_round - 1]  # 正确索引：第 prev_round 轮投票在 votes[prev_round-1]
+                apple = p['votes'][prev_round - 1]
                 if apple in votes:
                     votes[apple] += 1
         
@@ -313,35 +342,44 @@ def display():
         elif red == total:
             msg = "全体胜利！"
         elif total == 1:
-            # 单人投票场景
             if red == 1:
                 msg = "唯一玩家投红：全体胜利！"
             else:
-                msg = "唯一玩家投金/银：全员-1000"
+                msg = f"唯一玩家投金/银：全员-{PENALTY}"
         elif red == 0:
             if gold < silver:
-                msg = "金少胜出：金+1000，银-1000"
+                msg = f"金少胜出：金+{REWARD}，银-{PENALTY}"
             elif silver < gold:
-                msg = "银少胜出：银+1000，金-1000"
+                msg = f"银少胜出：银+{REWARD}，金-{PENALTY}"
             else:
-                msg = "金银相等：全员-1000"
+                msg = f"金银相等：全员-{PENALTY}"
         else:
             if red < gold and red < silver:
-                msg = "红苹果最少：红+1000，金银-1000"
+                msg = f"红苹果最少：红+{REWARD}，金银-{PENALTY}"
             else:
-                msg = "红苹果非最少：红-1000，金银+1000"
+                msg = f"红苹果非最少：红-{PENALTY}，金银+{REWARD}"
         
         round_results = {
             'votes': votes,
             'message': msg
         }
-    
+
+    # ===== 新增：服务端倒计时（用于 display.html 直接渲染）=====
+    countdown = None
+    in_voting = (game_state['round_status'] == 'voting')
+    if in_voting and game_state.get('voting_start_time') is not None:
+        remaining = int(game_state['voting_start_time'] + VOTING_DURATION - time.time())
+        countdown = max(0, remaining) 
+
     return render_template('display.html',
                            current_round=game_state['current_round'],
                            round_status=game_state['round_status'],
                            game_ended=game_state['game_ended'],
+                           won_by_all=game_state.get('won_by_all', False), 
                            top15=top20,
-                           round_results=round_results)
+                           round_results=round_results,
+                           countdown=countdown,      
+                           in_voting=in_voting)      
 
 @app.route('/admin')
 def admin():
@@ -367,14 +405,18 @@ def admin():
 
 @app.route('/admin/status_json')
 def admin_status_json():
-    total_players = len(players)
-    not_voted_count = 0
     remaining_time = None
     if game_state['round_status'] == 'voting' and game_state['voting_start_time']:
         elapsed = time.time() - game_state['voting_start_time']
         remaining_time = max(0, VOTING_DURATION - int(elapsed))
+    
     current_round = game_state['current_round']
-    not_voted_count = sum(1 for p in players.values() if len(p['votes']) < current_round)
+    
+    # ✅ 关键修复：只统计 balance > 0 的玩家
+    eligible_players = [p for p in players.values() if p['balance'] > 0]
+    total_players = len(eligible_players)
+    not_voted_count = sum(1 for p in eligible_players if len(p['votes']) < current_round)
+
     return jsonify({
         'current_round': game_state['current_round'],
         'round_status': game_state['round_status'],
@@ -439,7 +481,8 @@ def reset_all():
         'current_round': 1,
         'round_status': 'waiting',
         'game_ended': False,
-        'voting_start_time': None
+        'voting_start_time': None,
+        'won_by_all': False
     }
     snapshots.clear()
     if os.path.exists(DATA_FILE):
@@ -463,18 +506,23 @@ def vote():
         return jsonify({'success': False, 'message': '游戏已结束'})
     player = players[player_id]
     current_round = game_state['current_round']
+
+    # ✅ 新增：余额 <= 0 不能投票
+    if player['balance'] <= 0:
+        return jsonify({'success': False, 'message': '你的余额已耗尽，无法继续投票'})
+
     if len(player['votes']) >= current_round:
         return jsonify({'success': False, 'message': '你已投票'})
     player['votes'].append(apple)
     save_data()
 
-    # === 新增：检查是否所有玩家都已投票（提前结算）===
-    total_players = len(players)
+      # === 修复：仅当所有【余额 > 0】的玩家都已投票时，才提前结算 ===
     current_round = game_state['current_round']
-    voted_count = sum(1 for p in players.values() if len(p['votes']) >= current_round)
+    eligible_players = [p for p in players.values() if p['balance'] > 0]
+    voted_eligible = [p for p in eligible_players if len(p['votes']) >= current_round]
 
-    if total_players > 0 and voted_count == total_players:
-        print(f">>> 所有 {total_players} 名玩家已投票，提前结算！")
+    if len(eligible_players) > 0 and len(voted_eligible) == len(eligible_players):
+        print(f">>> 所有 {len(eligible_players)} 名可投票玩家已提交，提前结算！")
         try:
             end_round_logic()
             save_data()
@@ -508,7 +556,7 @@ def get_timer():
         'remaining': remaining
     })
 
-# === 新增：投票进度 API ===
+
 @app.route('/api/vote-status')
 def vote_status():
     if game_state['round_status'] != 'voting':
@@ -517,15 +565,16 @@ def vote_status():
             'total_players': 0,
             'voted_players': 0
         })
-    
-    total = len(players)
+
     current_round = game_state['current_round']
-    voted = sum(1 for p in players.values() if len(p['votes']) >= current_round)
-    
+    # ✅ 仅统计 balance > 0 的玩家
+    eligible_players = [p for p in players.values() if p['balance'] > 0]
+    voted_eligible = sum(1 for p in eligible_players if len(p['votes']) >= current_round)
+
     return jsonify({
         'in_voting': True,
-        'total_players': total,
-        'voted_players': voted
+        'total_players': len(eligible_players),
+        'voted_players': voted_eligible
     })
 
 @app.route('/mobile/check_status')
