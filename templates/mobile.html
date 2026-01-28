@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -20,11 +19,13 @@
       font-family: "Georgia", serif;
       min-height: 100vh;
       padding: 20px;
+      /* ❌ 移除 overflow: hidden —— 这是关键！ */
     }
     .container {
       max-width: 500px;
       margin: 0 auto;
       text-align: center;
+      /* 不需要 fixed 定位 */
     }
     h1 {
       font-size: 24px;
@@ -88,6 +89,64 @@
       font-size: 18px;
       min-height: 24px;
     }
+
+    /* 查看规则按钮 - 显式设置样式 */
+    #showRulesBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: rgba(212, 175, 55, 0.25);
+      color: var(--eden-gold);
+      border: 1px solid var(--eden-gold);
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+      /* 确保可点击 */
+      pointer-events: auto;
+      position: relative;
+      z-index: 10;
+    }
+    #showRulesBtn:hover {
+      background: rgba(212, 175, 55, 0.4);
+    }
+
+    /* —————— 规则弹窗样式 —————— */
+    #rulesModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      z-index: 1000;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #rulesContent {
+      padding: 20px;
+      color: #2c3e50;
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+      font-size: 18px;
+    }
+    #backToVoteBtn {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      z-index: 1001;
+      padding: 8px 16px;
+      background: #2c5530;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    #backToVoteBtn:hover {
+      background: #1a3d22;
+    }
   </style>
 </head>
 <body>
@@ -139,6 +198,9 @@
         请选择一个苹果，然后点击“确认”
       {% endif %}
     </div>
+
+    <!-- 查看规则按钮 -->
+    <button id="showRulesBtn">📜 查看游戏规则</button>
   </div>
 
   <script>
@@ -158,7 +220,6 @@
       btn.classList.add('selected');
       selectedApple = btn.dataset.type;
       const name = btn.querySelector('div').textContent;
-      // 🔧 修复：移除  $  和 { 之间的空格！
       confirmBtn.textContent = `确认选择【 $ {name}】`;
     });
   });
@@ -188,6 +249,42 @@
     });
   });
 
- </script>
+  // —————— 规则弹窗逻辑 ——————
+  document.getElementById('showRulesBtn').addEventListener('click', function() {
+    console.log("✅ 规则按钮被点击！");
+
+    const modal = document.createElement('div');
+    modal.id = 'rulesModal';
+    modal.innerHTML = `
+      <button id="backToVoteBtn">⬅ 返回投票</button>
+      <div id="rulesContent">加载中...</div>
+    `;
+    document.body.appendChild(modal);
+
+    // 加载规则（只加载一次）
+    if (!window.rulesCache) {
+      fetch('/rules')
+        .then(res => res.ok ? res.text() : Promise.reject('Failed to load /rules'))
+        .then(html => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const content = doc.querySelector('.container')?.innerHTML || doc.body.innerHTML;
+          window.rulesCache = content;
+          document.getElementById('rulesContent').innerHTML = content;
+        })
+        .catch(err => {
+          console.error('规则加载失败:', err);
+          document.getElementById('rulesContent').innerHTML = '<p style="color:red;padding:20px;">❌ 无法加载规则</p>';
+        });
+    } else {
+      document.getElementById('rulesContent').innerHTML = window.rulesCache;
+    }
+
+    // 返回按钮
+    document.getElementById('backToVoteBtn').onclick = () => {
+      document.body.removeChild(modal);
+    };
+  });
+  </script>
 </body>
 </html>
