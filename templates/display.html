@@ -31,15 +31,22 @@
       text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
     }
 
-    .timer, #voteProgress {
+    .timer {
       font-size: 3.5em;
       margin: 20px 0;
       font-weight: bold;
       text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
     }
     
-    .timer {
-      color: #ff6b6b;
+    .timer.countdown { color: #ff6b6b; }
+    .timer.votes { 
+      color: #66ccff;
+      /* 固定高度，确保始终占位 */
+      min-height: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .round-info {
@@ -48,7 +55,6 @@
       color: #ccc;
     }
 
-    /* ===== 多列排行榜容器 ===== */
     .leaderboard-container {
       background: rgba(30, 30, 30, 0.85);
       padding: 20px;
@@ -65,16 +71,14 @@
       text-align: center;
     }
 
-    /* 多列网格布局 */
     .leaderboard-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr); /* 默认两列 */
-      gap: 10px 40px; /* 行间距 10px，列间距 40px */
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 40px;
       font-size: 1.15em;
       line-height: 1.4;
     }
 
-    /* 超宽屏（如 4K）自动三列 */
     @media (min-width: 1800px) {
       .leaderboard-grid {
         grid-template-columns: repeat(3, 1fr);
@@ -82,7 +86,6 @@
       }
     }
 
-    /* 每个玩家项：紧凑 + 分隔线 + 交替背景 */
     .player-item {
       white-space: nowrap;
       text-align: center;
@@ -92,12 +95,10 @@
       border-radius: 4px;
     }
 
-    /* 交替背景（条纹效果） */
     .player-item:nth-child(even) {
       background: rgba(50, 50, 50, 0.15);
     }
 
-    /* 结果区域 */
     .results {
       padding: 25px;
       background: rgba(0, 0, 0, 0.6);
@@ -152,189 +153,239 @@
 </head>
 <body>
   <div class="container">
-  <h1>🍎 伊甸园 · 实时排行榜</h1>
+    <h1>🍎 伊甸园 · 实时排行榜</h1>
 
-  {% if won_by_all %}
-    <!-- ✅ 全体胜利专属界面（含投票统计） -->
-    <div style="
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 80vh;
-      text-align: center;
-      padding: 30px;
-      gap: 40px;
-    ">
-      <!-- 胜利标题 -->
+    {% if won_by_all %}
+      <!-- 全体胜利界面 -->
       <div style="
-        font-size: 5em;
-        color: gold;
-        text-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
-        animation: pulse 2s infinite;
-      ">🎉</div>
-      
-      <div style="
-        font-size: 3.2em;
-        color: white;
-        font-weight: bold;
-        line-height: 1.4;
-        max-width: 800px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        height: 80vh;
+        text-align: center;
+        padding: 30px;
+        gap: 40px;
       ">
-        全体胜利！<br/>
-        <span style="color: #66ff99; font-size: 1.2em;">伊甸园重归和平 🌿</span>
-      </div>
+        <div style="
+          font-size: 5em;
+          color: gold;
+          text-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+          animation: pulse 2s infinite;
+        ">🎉</div>
+        
+        <div style="
+          font-size: 3.2em;
+          color: white;
+          font-weight: bold;
+          line-height: 1.4;
+          max-width: 800px;
+        ">
+          全体胜利！<br/>
+          <span style="color: #66ff99; font-size: 1.2em;">伊甸园重归和平 🌿</span>
+        </div>
 
-      <!-- 投票统计卡片 -->
-      {% if round_results %}
-      <div style="
-        background: rgba(0,0,0,0.4);
-        padding: 25px 50px;
-        border-radius: 16px;
-        max-width: 600px;
-        width: 100%;
-        margin-top: 20px;
-      ">
-        <h2 style="color: #ffcc66; margin: 0 0 20px;">📊 本轮投票统计</h2>
-        <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
-          <!-- 红苹果 -->
-          <div style="text-align: center;">
-            <div style="
-              width: 70px; height: 70px;
-              background: #8b0000;
-              border-radius: 50%;
-              margin: 0 auto 10px;
-              display: flex; align-items: center; justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 1.4em;
-            ">{{ round_results.votes.red }}</div>
-            <div style="color: #ff9999; font-size: 1.1em;">红苹果</div>
-          </div>
-          
-          <!-- 金苹果 -->
-          <div style="text-align: center;">
-            <div style="
-              width: 70px; height: 70px;
-              background: #d4af37;
-              border-radius: 50%;
-              margin: 0 auto 10px;
-              display: flex; align-items: center; justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 1.4em;
-            ">{{ round_results.votes.gold }}</div>
-            <div style="color: #ffd700; font-size: 1.1em;">金苹果</div>
-          </div>
-          
-          <!-- 银苹果 -->
-          <div style="text-align: center;">
-            <div style="
-              width: 70px; height: 70px;
-              background: #c0c0c0;
-              border-radius: 50%;
-              margin: 0 auto 10px;
-              display: flex; align-items: center; justify-content: center;
-              color: black;
-              font-weight: bold;
-              font-size: 1.4em;
-            ">{{ round_results.votes.silver }}</div>
-            <div style="color: #cccccc; font-size: 1.1em;">银苹果</div>
+        {% if round_results %}
+        <div style="
+          background: rgba(0,0,0,0.4);
+          padding: 25px 50px;
+          border-radius: 16px;
+          max-width: 600px;
+          width: 100%;
+          margin-top: 20px;
+        ">
+          <h2 style="color: #ffcc66; margin: 0 0 20px;">📊 本轮投票统计</h2>
+          <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+            <div style="text-align: center;">
+              <div style="
+                width: 70px; height: 70px;
+                background: #8b0000;
+                border-radius: 50%;
+                margin: 0 auto 10px;
+                display: flex; align-items: center; justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 1.4em;
+              ">{{ round_results.votes.red }}</div>
+              <div style="color: #ff9999; font-size: 1.1em;">红苹果</div>
+            </div>
+            
+            <div style="text-align: center;">
+              <div style="
+                width: 70px; height: 70px;
+                background: #d4af37;
+                border-radius: 50%;
+                margin: 0 auto 10px;
+                display: flex; align-items: center; justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 1.4em;
+              ">{{ round_results.votes.gold }}</div>
+              <div style="color: #ffd700; font-size: 1.1em;">金苹果</div>
+            </div>
+            
+            <div style="text-align: center;">
+              <div style="
+                width: 70px; height: 70px;
+                background: #c0c0c0;
+                border-radius: 50%;
+                margin: 0 auto 10px;
+                display: flex; align-items: center; justify-content: center;
+                color: black;
+                font-weight: bold;
+                font-size: 1.4em;
+              ">{{ round_results.votes.silver }}</div>
+              <div style="color: #cccccc; font-size: 1.1em;">银苹果</div>
+            </div>
           </div>
         </div>
-      </div>
-      {% endif %}
-    </div>
-
-    <style>
-      @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
-      }
-    </style>
-
-  {% else %}
-        <!-- 服务端渲染倒计时（自动刷新） -->
-    {% if in_voting and countdown is not none %}
-    <div class="timer">
-      ⏳ 投票剩余：{{ "%02d:%02d"|format(countdown // 60, countdown % 60) }}
-    </div>
-    {% endif %}
-
-    <div id="voteProgress" class="timer" style="color:#66ccff;display:none;">
-      🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
-    </div>
-
-    <div class="round-info">
-      {% if game_ended %}
-        🏁 游戏已结束！最终排名如下：
-      {% else %}
-        第 {{ current_round }} 轮
-        {% if round_status == 'waiting' %}
-          · 等待主持人开始
-        {% elif round_status == 'voting' %}
-          · 投票进行中
-        {% else %}
-          · 结算完成
         {% endif %}
+      </div>
+
+      <style>
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+      </style>
+
+    {% else %}
+      <!-- 倒计时（仅投票中显示） -->
+      {% if in_voting and countdown is not none %}
+      <div class="timer countdown">
+        ⏳ 投票剩余：{{ "%02d:%02d"|format(countdown // 60, countdown % 60) }}
+      </div>
       {% endif %}
-    </div>
 
-    <!-- 多列排行榜 -->
-    <div class="leaderboard-container">
-      <div class="leaderboard-header">🏆 排行榜（Top {{ top15|length }}）</div>
-      <div class="leaderboard-grid">
-        {% for p in top15 %}
-          <div class="player-item">#{{ p.id }} ¥{{ p.balance }}</div>
-        {% endfor %}
+      <!-- ✅ 关键修改：固定高度 + visibility 控制 -->
+      <div id="voteProgress" class="timer votes">
+        <span id="voteText" style="display: none;">
+          🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+        </span>
       </div>
-    </div>
 
-    {% if round_results %}
-    <div class="results">
-      <h2>📊 上一轮结果</h2>
-      
-      <div class="apple-row">
-        <div class="apple-item gold">
-          <svg class="apple-icon" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="#d4af37" />
-            <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
-          </svg>
-          <div class="apple-count">{{ round_results.votes.gold }}</div>
-        </div>
-        
-        <div class="apple-item silver">
-          <svg class="apple-icon" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="#c0c0c0" />
-            <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
-          </svg>
-          <div class="apple-count">{{ round_results.votes.silver }}</div>
-        </div>
-        
-        <div class="apple-item red">
-          <svg class="apple-icon" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="#8b0000" />
-            <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
-          </svg>
-          <div class="apple-count">{{ round_results.votes.red }}</div>
+      <!-- 轮次状态 -->
+      <div class="round-info">
+        {% if game_ended %}
+          🏁 游戏已结束！最终排名如下：
+        {% else %}
+          第 {{ current_round }} 轮
+          {% if round_status == 'waiting' %}
+            · 等待主持人开始
+          {% elif round_status == 'voting' %}
+            · 投票进行中
+          {% else %}
+            · 结算完成
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <!-- 排行榜 -->
+      <div class="leaderboard-container">
+        <div class="leaderboard-header">🏆 排行榜（Top {{ top15|length }}）</div>
+        <div class="leaderboard-grid">
+          {% for p in top15 %}
+            <div class="player-item">#{{ p.id }} ¥{{ p.balance }}</div>
+          {% endfor %}
         </div>
       </div>
 
-      <div class="message">{{ round_results.message }}</div>
-    </div>
+      <!-- 上一轮结果 -->
+      {% if round_results %}
+      <div class="results">
+        <h2>📊 上一轮结果</h2>
+        <div class="apple-row">
+          <div class="apple-item gold">
+            <svg class="apple-icon" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="#d4af37" />
+              <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="apple-count">{{ round_results.votes.gold }}</div>
+          </div>
+          
+          <div class="apple-item silver">
+            <svg class="apple-icon" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="#c0c0c0" />
+              <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="apple-count">{{ round_results.votes.silver }}</div>
+          </div>
+          
+          <div class="apple-item red">
+            <svg class="apple-icon" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="#8b0000" />
+              <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="apple-count">{{ round_results.votes.red }}</div>
+          </div>
+        </div>
+        <div class="message">{{ round_results.message }}</div>
+      </div>
+      {% endif %}
+
     {% endif %}
-
-  {% endif %}
   </div>
 
+  <!-- ✅ 投票进度控制脚本（使用 visibility 避免布局跳动） -->
   <script>
-    
-    // 初始加载 + 每2秒刷新投票状态
-    updateVoteStatus();
-    setInterval(updateVoteStatus, 2000);
+    const roundStatus = "{{ round_status }}";
+    const gameEnded = {{ game_ended | tojson }};
 
-    setTimeout(() => location.reload(), 10000);
+    function updateVoteStatus() {
+      const voteProgress = document.getElementById('voteProgress');
+      const voteText = document.getElementById('voteText');
+      const votedEl = document.getElementById('votedCount');
+      const totalEl = document.getElementById('totalCount');
+
+      // 如果不在投票阶段，隐藏但保持占位
+      if (roundStatus !== 'voting' || gameEnded) {
+        voteProgress.style.visibility = 'hidden';
+        voteText.style.display = 'none';
+        return;
+      }
+
+      // 在投票阶段，尝试获取数据
+      fetch('/api/vote-status')
+        .then(response => response.json())
+        .then(data => {
+          const voted = data.voted_players || data.voted || 0;
+          const total = data.total_players || data.total || 0;
+
+          if (votedEl && totalEl) {
+            votedEl.textContent = voted;
+            totalEl.textContent = total;
+          }
+
+          // 显示文字
+          voteText.style.display = 'inline';
+
+          // 全员投完提示
+          if (total > 0 && voted >= total) {
+            voteText.innerHTML = '✅ 全员已投票！';
+          }
+
+          // 确保容器可见
+          voteProgress.style.visibility = 'visible';
+        })
+        .catch(err => {
+          console.warn('获取投票状态失败:', err);
+          // 出错时隐藏文字，但保留占位
+          voteText.style.display = 'none';
+          voteProgress.style.visibility = 'hidden';
+        });
+    }
+
+    // 初始化
+    if (roundStatus === 'voting' && !gameEnded) {
+      updateVoteStatus();
+    } else {
+      // 非投票阶段，直接隐藏
+      const voteProgress = document.getElementById('voteProgress');
+      const voteText = document.getElementById('voteText');
+      if (voteProgress) voteProgress.style.visibility = 'hidden';
+      if (voteText) voteText.style.display = 'none';
+    }
   </script>
 </body>
 </html>

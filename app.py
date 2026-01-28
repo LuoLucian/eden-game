@@ -610,6 +610,15 @@ def vote_status():
         'voted_players': voted_eligible
     })
 
+@app.route('/api/player-status/<int:player_id>')
+def player_status(player_id):
+    if player_id not in players:
+        return jsonify({'error': 'Player not found'}), 404
+    return jsonify({
+        'current_round': game_state['current_round'],
+        'game_ended': game_state['game_ended']
+    })
+
 @app.route('/mobile/check_status')
 def mobile_check_status():
     player_id = request.args.get('playerId', type=int)

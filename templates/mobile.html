@@ -19,13 +19,11 @@
       font-family: "Georgia", serif;
       min-height: 100vh;
       padding: 20px;
-      /* ❌ 移除 overflow: hidden —— 这是关键！ */
     }
     .container {
       max-width: 500px;
       margin: 0 auto;
       text-align: center;
-      /* 不需要 fixed 定位 */
     }
     h1 {
       font-size: 24px;
@@ -89,75 +87,17 @@
       font-size: 18px;
       min-height: 24px;
     }
-
-    /* 查看规则按钮 - 显式设置样式 */
-    #showRulesBtn {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background: rgba(212, 175, 55, 0.25);
-      color: var(--eden-gold);
-      border: 1px solid var(--eden-gold);
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      font-weight: bold;
-      /* 确保可点击 */
-      pointer-events: auto;
-      position: relative;
-      z-index: 10;
-    }
-    #showRulesBtn:hover {
-      background: rgba(212, 175, 55, 0.4);
-    }
-
-    /* —————— 规则弹窗样式 —————— */
-    #rulesModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: white;
-      z-index: 1000;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    #rulesContent {
-      padding: 20px;
-      color: #2c3e50;
-      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-      line-height: 1.6;
-      font-size: 18px;
-    }
-    #backToVoteBtn {
-      position: fixed;
-      top: 15px;
-      right: 15px;
-      z-index: 1001;
-      padding: 8px 16px;
-      background: #2c5530;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    #backToVoteBtn:hover {
-      background: #1a3d22;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>玩家 #{{ playerId }}</h1>
     <div class="balance">余额：¥{{ balance }}</div>
-{% if balance <= 0 %}
-  <div style="color: #ff6b6b; font-size: 18px; margin: 10px 0; font-weight: bold;">
-    💀 你已破产！无法继续投票。
-  </div>
-{% endif %}
+    {% if balance <= 0 %}
+      <div style="color: #ff6b6b; font-size: 18px; margin: 10px 0; font-weight: bold;">
+        💀 你已破产！无法继续投票。
+      </div>
+    {% endif %}
 
     <div class="apple-grid">
       <div class="apple-btn {% if voted or game_ended or balance <= 0 %}disabled{% endif %}" id="btn-gold" data-type="gold">
@@ -199,92 +139,75 @@
       {% endif %}
     </div>
 
-    <!-- 查看规则按钮 -->
-    <button id="showRulesBtn">📜 查看游戏规则</button>
+    <!-- ✅ 简单刷新按钮 -->
+    <button id="refreshBtn" class="confirm-btn" style="margin-top: 12px; background: #5a8f3a;">
+      🔁 刷新页面
+    </button>
   </div>
 
   <script>
-  const playerId = {{ playerId }};
-  const gameEnded = {{ game_ended | tojson }};
-  const voted = {{ voted | tojson }};
-  let initialRound = {{ current_round }};
+    // 初始化数据
+    const playerId = {{ playerId }};
+    let currentState = {
+      voted: {{ voted | tojson }},
+      game_ended: {{ game_ended | tojson }},
+      current_round: {{ current_round }}
+    };
 
-  let selectedApple = null;
-  const buttons = document.querySelectorAll('.apple-btn');
-  const confirmBtn = document.getElementById('confirmBtn');
+    // 按钮绑定
+    const buttons = document.querySelectorAll('.apple-btn');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const statusEl = document.getElementById('status');
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (gameEnded || voted) return;
-      buttons.forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      selectedApple = btn.dataset.type;
-      const name = btn.querySelector('div').textContent;
-      confirmBtn.textContent = `确认选择【 $ {name}】`;
-    });
-  });
+    // 更新 UI
+    function updateUI() {
+      const { voted, game_ended } = currentState;
+      const isDisabled = voted || game_ended;
 
-  confirmBtn.addEventListener('click', () => {
-    if (!selectedApple || gameEnded || voted) return;
-    
-    fetch('/api/vote', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({playerId: playerId, apple: selectedApple})
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        document.getElementById('status').textContent = '✅ 投票成功！';
-        buttons.forEach(btn => btn.classList.add('disabled'));
-        confirmBtn.textContent = '✅ 已提交';
-        confirmBtn.disabled = true;
-      } else {
-        alert('❌ ' + data.message);
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      alert('网络错误，请重试');
-    });
-  });
-
-  // —————— 规则弹窗逻辑 ——————
-  document.getElementById('showRulesBtn').addEventListener('click', function() {
-    console.log("✅ 规则按钮被点击！");
-
-    const modal = document.createElement('div');
-    modal.id = 'rulesModal';
-    modal.innerHTML = `
-      <button id="backToVoteBtn">⬅ 返回投票</button>
-      <div id="rulesContent">加载中...</div>
-    `;
-    document.body.appendChild(modal);
-
-    // 加载规则（只加载一次）
-    if (!window.rulesCache) {
-      fetch('/rules')
-        .then(res => res.ok ? res.text() : Promise.reject('Failed to load /rules'))
-        .then(html => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const content = doc.querySelector('.container')?.innerHTML || doc.body.innerHTML;
-          window.rulesCache = content;
-          document.getElementById('rulesContent').innerHTML = content;
-        })
-        .catch(err => {
-          console.error('规则加载失败:', err);
-          document.getElementById('rulesContent').innerHTML = '<p style="color:red;padding:20px;">❌ 无法加载规则</p>';
-        });
-    } else {
-      document.getElementById('rulesContent').innerHTML = window.rulesCache;
+      buttons.forEach(btn => btn.classList.toggle('disabled', isDisabled));
+      confirmBtn.disabled = isDisabled;
+      confirmBtn.textContent = game_ended || voted ? '✅ 已提交' : '请选择后确认';
+      statusEl.textContent = game_ended ? '🏁 游戏已结束！' : voted ? '✅ 你已提交选择' : '请选择一个苹果，然后点击“确认”';
     }
 
-    // 返回按钮
-    document.getElementById('backToVoteBtn').onclick = () => {
-      document.body.removeChild(modal);
-    };
-  });
+    // 苹果点击事件
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (currentState.voted || currentState.game_ended) return;
+        buttons.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedApple = btn.dataset.type;
+        confirmBtn.textContent = '确认选择';
+      });
+    });
+
+    // 提交投票
+    confirmBtn.addEventListener('click', () => {
+      if (!selectedApple || currentState.voted || currentState.game_ended) return;
+      fetch('/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId, apple: selectedApple })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          currentState.voted = true;
+          updateUI();
+        } else {
+          alert('❌ ' + data.message);
+        }
+      })
+      .catch(() => alert('网络错误，请重试'));
+    });
+
+    // ✅ 刷新按钮：直接 F5 效果
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      location.reload(); // 就是按 F5 的效果
+    });
+
+    // 初始化
+    updateUI();
   </script>
 </body>
 </html>
