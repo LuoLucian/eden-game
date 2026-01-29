@@ -209,23 +209,21 @@ def end_round_logic():
         else:
                 # 有人投红（red > 0）
                 if current_round == MAX_ROUNDS:
-                    # ===== 第8轮特殊规则（最终版）=====
-                    if red == gold == silver:
-                        # 三者完全相等 → 全员惩罚
-                        for p in players.values():
-                            if len(p['votes']) >= current_round:
-                                p['balance'] = max(0, p['balance'] - PENALTY)
-                    elif gold == silver:
-                        # 金 == 银，但红 ≠ 金 → 红胜
-                        for p in players.values():
-                            if len(p['votes']) >= current_round:
-                                vote = p['votes'][current_round - 1]
-                                if vote == 'red':
-                                    p['balance'] += REWARD
-                                else:
-                                    p['balance'] = max(0, p['balance'] - PENALTY)
-                    elif red < gold and red < silver:
-                        # 金 ≠ 银，且红严格最少 → 红胜
+                   # ===== 第8轮：两阶段胜负判定 =====
+                    # 阶段1: 红能否胜？必须 red > 0 且严格小于所有有票的非红
+                    red_can_win = False
+                    if red > 0:
+                        active_non_red = []
+                        if gold > 0:
+                            active_non_red.append(gold)
+                        if silver > 0:
+                            active_non_red.append(silver)
+                        # 只有当存在非红投票时，才判断红是否更少
+                        if active_non_red and all(red < x for x in active_non_red):
+                            red_can_win = True
+
+                    if red_can_win:
+                        # --- 红胜 ---
                         for p in players.values():
                             if len(p['votes']) >= current_round:
                                 vote = p['votes'][current_round - 1]
@@ -234,25 +232,114 @@ def end_round_logic():
                                 else:
                                     p['balance'] = max(0, p['balance'] - PENALTY)
                     else:
-                        # 金 ≠ 银，且红非严格最少 → 较少的非红颜色胜出
-                        if gold < silver:
-                            winner = 'gold'
-                        else:
-                            winner = 'silver'
-                        for p in players.values():
-                            if len(p['votes']) >= current_round:
-                                vote = p['votes'][current_round - 1]
-                                if vote == winner:
-                                    p['balance'] += REWARD
+                        # --- 红失败（或 red == 0），处理非红 ---
+                        if red == 0:
+                            # 情况A: 无人投红 → 金、银需至少两个活跃才能决胜
+                            non_red_active = []
+                            if gold > 0:
+                                non_red_active.append('gold')
+                            if silver > 0:
+                                non_red_active.append('silver')
+                            
+                            if len(non_red_active) < 2:
+                                # 如 (0,0,5)、(0,5,0) → 全体惩罚
+                                for p in players.values():
+                                    if len(p['votes']) >= current_round:
+                                        p['balance'] = max(0, p['balance'] - PENALTY)
+                            else:
+                                # 金、银都有票
+                                if gold < silver:
+                                    winner = 'gold'
+                                elif silver < gold:
+                                    winner = 'silver'
                                 else:
-                                    p['balance'] = max(0, p['balance'] - PENALTY)
-                else:
-                    # ===== 非第8轮：原逻辑 =====
-                    for p in voted_players:
-                        if p['votes'][current_round - 1] == 'red':
-                            p['balance'] = max(0, p['balance'] - PENALTY)
+                                    winner = None  # 平局
+                                
+                                if winner:
+                                    for p in players.values():
+                                        if len(p['votes']) >= current_round:
+                                            vote = p['votes'][current_round - 1]
+                                            if vote == winner:
+                                                p['balance'] += REWARD
+                                            else:
+                                                p['balance'] = max(0, p['balance'] - PENALTY)
+                                else:
+                                    for p in players.values():
+                                        if len(p['votes']) >= current_round:
+                                            p['balance'] = max(0, p['balance'] - PENALTY)
                         else:
-                            p['balance'] += REWARD
+                            # 情况B: red > 0 但红失败 → 非红单色也可胜
+                            if gold == 0 and silver == 0:
+                                # 理论上不会发生（因 red > 0 且 total > 0）
+                                for p in players.values():
+                                    if len(p['votes']) >= current_round:
+                                        p['balance'] = max(0, p['balance'] - PENALTY)
+                            elif gold == 0:
+                                # 只有银有票 → 银胜
+                                winner = 'silver'
+                                for p in players.values():
+                                    if len(p['votes']) >= current_round:
+                                        vote = p['votes'][current_round - 1]
+                                        if vote == winner:
+                                            p['balance'] += REWARD
+                                        else:
+                                            p['balance'] = max(0, p['balance'] - PENALTY)
+                            elif silver == 0:
+                                # 只有金有票 → 金胜
+                                winner = 'gold'
+                                for p in players.values():
+                                    if len(p['votes']) >= current_round:
+                                        vote = p['votes'][current_round - 1]
+                                        if vote == winner:
+                                            p['balance'] += REWARD
+                                        else:
+                                            p['balance'] = max(0, p['balance'] - PENALTY)
+                            else:
+                                # 金、银都有票 → 比多少
+                                if gold < silver:
+                                    winner = 'gold'
+                                elif silver < gold:
+                                    winner = 'silver'
+                                else:
+                                    winner = None
+                                
+                                if winner:
+                                    for p in players.values():
+                                        if len(p['votes']) >= current_round:
+                                            vote = p['votes'][current_round - 1]
+                                            if vote == winner:
+                                                p['balance'] += REWARD
+                                            else:
+                                                p['balance'] = max(0, p['balance'] - PENALTY)
+                                else:
+                                    for p in players.values():
+                                        if len(p['votes']) >= current_round:
+                                            p['balance'] = max(0, p['balance'] - PENALTY)
+
+                else:
+                   # ===== 非第8轮：红若严格小于所有【有票】的非红颜色，则红胜；否则非红全体胜 =====
+                    active_non_red = []
+                    if gold > 0:
+                        active_non_red.append(gold)
+                    if silver > 0:
+                        active_non_red.append(silver)
+                    
+                    # 判断红是否严格小于每一个活跃非红颜色
+                    if active_non_red and all(red < x for x in active_non_red):
+                        # 红胜
+                        for p in voted_players:
+                            vote = p['votes'][current_round - 1]
+                            if vote == 'red':
+                                p['balance'] += REWARD
+                            else:
+                                p['balance'] = max(0, p['balance'] - PENALTY)
+                    else:
+                        # 非红全体胜（包括：无非红活跃、或红不严格最少）
+                        for p in voted_players:
+                            if p['votes'][current_round - 1] == 'red':
+                                p['balance'] = max(0, p['balance'] - PENALTY)
+                            else:
+                                p['balance'] += REWARD
 
     # ===== 游戏结束判断 =====
     if current_round >= MAX_ROUNDS:
@@ -281,7 +368,7 @@ def join():
 
         if game_state['game_ended']:
             return "❌ 游戏已结束", 403
-        if game_state['round_status'] != 'waiting':
+        if not (game_state['current_round'] == 1 and game_state['round_status'] == 'waiting'):
             return "❌ 游戏已开始，无法加入新玩家", 403
         if len(players) >= MAX_PLAYERS:
             return "❌ 玩家人数已达上限", 403
@@ -314,7 +401,7 @@ def mobile():
     if player_id is None or player_id <= 0:
         return "❌ 请提供有效的 playerId，例如：/mobile?playerId=1", 400
 
-    if player_id not in players and game_state['round_status'] != 'waiting':
+    if player_id not in players and not (game_state['current_round'] == 1 and game_state['round_status'] == 'waiting'):
         return "❌ 游戏已开始，无法加入新玩家", 403
 
     if player_id not in players:
@@ -370,27 +457,75 @@ def display():
         red, gold, silver = votes['red'], votes['gold'], votes['silver']
         total = red + gold + silver
         
+        # 获取上一轮是否是第8轮（用于判断规则）
+        is_final_round = (prev_round == MAX_ROUNDS)
+
         if total == 0:
             msg = "无人投票"
-        elif red == total:
-            msg = "全体胜利！"
         elif total == 1:
             if red == 1:
                 msg = "唯一玩家投红：全体胜利！"
             else:
                 msg = f"唯一玩家投金/银：全员-{PENALTY}"
         elif red == 0:
-            if gold < silver:
-                msg = f"金少胜出：金+{REWARD}，银-{PENALTY}"
-            elif silver < gold:
-                msg = f"银少胜出：银+{REWARD}，金-{PENALTY}"
+            # 无人投红
+            non_red_count = (1 if gold > 0 else 0) + (1 if silver > 0 else 0)
+            if non_red_count < 2:
+                # 只有一种非红（只有金 或 只有银）
+                msg = f"仅一种非红苹果：全员-{PENALTY}"
             else:
-                msg = f"金银相等：全员-{PENALTY}"
+                # 金和银都有
+                if gold < silver:
+                    msg = f"金少胜出：金+{REWARD}，银-{PENALTY}"
+                elif silver < gold:
+                    msg = f"银少胜出：银+{REWARD}，金-{PENALTY}"
+                else:
+                    msg = f"金银票数相等：全员-{PENALTY}"
         else:
-            if red < gold and red < silver:
-                msg = f"红苹果最少：红+{REWARD}，金银-{PENALTY}"
+            # 有人投红
+            if not is_final_round:
+                # 非第8轮：红若严格小于所有活跃非红 → 红胜；否则非红全体胜
+                active_non_red = []
+                if gold > 0: active_non_red.append(gold)
+                if silver > 0: active_non_red.append(silver)
+                
+                if active_non_red and all(red < x for x in active_non_red):
+                    msg = f"红苹果最少：红+{REWARD}，非红-{PENALTY}"
+                else:
+                    msg = f"红未最少：非红全体+{REWARD}，红-{PENALTY}"
             else:
-                msg = f"红苹果非最少：红-{PENALTY}，金银+{REWARD}"
+                # 第8轮：需精确判断
+                active_non_red = []
+                if gold > 0: active_non_red.append(('gold', gold))
+                if silver > 0: active_non_red.append(('silver', silver))
+                
+                # 判断红能否胜
+                red_can_win = False
+                if active_non_red and all(red < count for _, count in active_non_red):
+                    red_can_win = True
+
+                if red_can_win:
+                    msg = f"第8轮红胜：红+{REWARD}，非红-{PENALTY}"
+                else:
+                    # 红失败，处理非红
+                    if len(active_non_red) == 0:
+                        # 不可能（因 red > 0 且 total > 0）
+                        msg = f"异常：仅有红苹果？全员-{PENALTY}"
+                    elif len(active_non_red) == 1:
+                        # 只有一种非红 → 该颜色胜
+                        winner_color, _ = active_non_red[0]
+                        color_name = "金" if winner_color == 'gold' else "银"
+                        msg = f"第8轮{color_name}胜：{color_name}+{REWARD}，其他-{PENALTY}"
+                    else:
+                        # 两种非红都存在
+                        gold_count = gold
+                        silver_count = silver
+                        if gold_count < silver_count:
+                            msg = f"第8轮金胜：金+{REWARD}，银/红-{PENALTY}"
+                        elif silver_count < gold_count:
+                            msg = f"第8轮银胜：银+{REWARD}，金/红-{PENALTY}"
+                        else:
+                            msg = f"第8轮金银平局：全员-{PENALTY}"
         
         round_results = {
             'votes': votes,
