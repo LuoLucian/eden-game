@@ -165,9 +165,11 @@ def end_round_logic():
         # 新增规则1：前7轮所有人投红
         elif current_round < MAX_ROUNDS and red == total_voted:
             game_won_by_all = True
-        # 新增规则2：第8轮红 >= 总投票 - 10
-        elif current_round == MAX_ROUNDS and red >= total_voted - 10:
-            game_won_by_all = True
+        # 新增规则2：第8轮红 >= 本轮有效玩家数 - 10
+        elif current_round == MAX_ROUNDS:
+            total_eligible = game_state.get('current_round_eligible', total_voted)
+            if red >= total_eligible - 10:
+                game_won_by_all = True
 
     if game_won_by_all:
         # ✅ 全体胜利：余额保持不变（不加奖励，不扣惩罚）
@@ -600,6 +602,11 @@ def start_round():
         return jsonify({'success': False, 'message': '游戏已结束'})
     if game_state['round_status'] != 'waiting':
         return jsonify({'success': False, 'message': '当前不在等待状态'})
+    
+    # ✅ 记录本轮开始时的有效玩家数（balance > 0）
+    current_eligible_count = len([p for p in players.values() if p['balance'] > 0])
+    game_state['current_round_eligible'] = current_eligible_count
+
     game_state['round_status'] = 'voting'
     game_state['voting_start_time'] = time.time()
     save_data()
