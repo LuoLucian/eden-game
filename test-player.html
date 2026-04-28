@@ -140,6 +140,32 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
 .btn-conf:not(:disabled){background:linear-gradient(135deg,#6bb889,#4a9a6a);color:#fff}
 .btn-conf:disabled{background:rgba(255,255,255,.03);color:var(--muted);border-color:var(--border);cursor:not-allowed}
 
+/* ★ ready 阶段灰色禁用遮罩 */
+.vote-disabled-overlay{
+  display:none;
+  position:absolute;
+  inset:0;
+  z-index:20;
+  background:rgba(12,15,26,.7);
+  backdrop-filter:blur(3px);
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  text-align:center;
+  padding:20px;
+  pointer-events:auto;
+  animation:vdoIn .35s ease;
+}
+.vote-disabled-overlay.show{display:flex}
+@keyframes vdoIn{from{opacity:0}to{opacity:1}}
+.vdo-icon{font-size:42px;animation:flo 3s ease-in-out infinite}
+.vdo-title{font-size:18px;font-weight:800;color:var(--muted);letter-spacing:1px}
+.vdo-sub{font-size:12.5px;color:var(--muted);opacity:.6;font-style:italic;line-height:1.5}
+.votePage-wrap{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden}
+.votePage-wrap.disabled .vc{filter:grayscale(.85) brightness(.6)}
+.votePage-wrap.disabled .vh{filter:grayscale(.6) brightness(.7)}
+
 /* 已投票卡片 */
 .voted-cd{text-align:center;padding:28px 18px;background:var(--card);border-radius:18px;margin:16px 12px;backdrop-filter:blur(8px);transition:all .3s}
 .voted-cd.vc-gold{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.4)}
@@ -311,6 +337,13 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
 
 <!-- ===== 投票页 ===== -->
 <div id="votePage" class="page">
+<div class="votePage-wrap" id="votePageWrap">
+  <!-- ★ ready 阶段禁用遮罩 -->
+  <div class="vote-disabled-overlay" id="voteDisabledOverlay">
+    <div class="vdo-icon">🔒</div>
+    <div class="vdo-title">等待主持人开启投票</div>
+    <div class="vdo-sub">本轮投票即将开始<br>请做好准备</div>
+  </div>
   <div class="vh">
     <div><div class="vhl">身份 <b id="vhNm">#001</b></div><div class="vhr" id="vhRd">第1轮</div></div>
     <div class="vhs-r"><div class="vhs-v" id="vhSc">10,000</div><div class="vhs-l">积 分</div></div>
@@ -435,9 +468,8 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
       </div>
     </div>
   </div>
+</div><!-- /votePageWrap -->
 </div>
-
-<!-- ===== 结果页 ===== -->
 <div id="resultPage" class="page">
   <div class="rt">🍎 本轮结果</div>
   <div id="rmc" class="rmc rneut">
@@ -577,6 +609,7 @@ let lastResultRound = -1;
 let wasGameActive = false;
 let totalRounds = 8;
 let lastKnownRound = 1;        // ★ 追踪轮次变化，用于检测"下一轮"
+let lastKnownPhase = 'idle';    // ★ 追踪阶段变化（idle/ready/voting/result），用于检测 ready→voting 切换
 
 // ============================================================
 //  加入页粒子效果
@@ -948,9 +981,10 @@ function poll(){
 
   const cp = curPg();
 
-  // ★★★ 检测"下一轮"：轮次变了 + gamePhase=voting（控制端点了开始投票）
-  if(gameActive && curRound !== lastKnownRound && gamePhase === 'voting'){
+  // ★★★ 检测"下一轮"：轮次变了（控制端点了下一轮）
+  if(gameActive && curRound !== lastKnownRound){
     lastKnownRound = curRound;
+    lastKnownPhase = gamePhase;
     // 新一轮开始了！重置投票状态
     hasVoted = false;
     selChoice = null;
@@ -963,15 +997,41 @@ function poll(){
   }
   lastKnownRound = curRound;
 
+  // ★★★ 检测 phase 变化：ready → voting（控制端点了"开始投票"）
+  if(gameActive && lastKnownPhase !== gamePhase){
+    const phaseChanged = lastKnownPhase;
+    lastKnownPhase = gamePhase;
+
+    if(phaseChanged === 'ready' && gamePhase === 'voting'){
+      // 主持人开启了投票！移除灰色遮罩，激活投票
+      hasVoted = false;
+      selChoice = null;
+      initVoteUI();
+      if(cp === 'waitPage' || cp === 'resultPage' || cp === 'votePage'){
+        showPg('votePage');
+      }
+      return;
+    }
+    if(gamePhase === 'voting' && cp !== 'votePage'){
+      // 其他阶段→voting，也进入投票页
+      hasVoted = false;
+      selChoice = null;
+      initVoteUI();
+      showPg('votePage');
+      return;
+    }
+  }
+  lastKnownPhase = gamePhase;
+
   // ========== 在等待页 ==========
   if(cp === 'waitPage'){
     updateWCount();
     if(gameActive){
       document.getElementById('wWarn').style.display='none';
       document.getElementById('wSt').className = 'w-status ready';
-      // ★ 只有 phase=voting 才进入投票页
-      if(gamePhase === 'voting'){
-        document.getElementById('wSt').innerHTML = '✅ 投票已开始';
+      // ★ voting 或 ready 阶段都进入投票页
+      if(gamePhase === 'voting' || gamePhase === 'ready'){
+        document.getElementById('wSt').innerHTML = gamePhase === 'voting' ? '✅ 投票已开始' : '⏳ 准备进入投票';
         lastKnownRound = curRound;
         initVoteUI();
         showPg('votePage');
@@ -990,10 +1050,11 @@ function poll(){
   if(cp === 'votePage'){
     renderVoteHeader();
 
-    // ★ 只有 gamePhase === 'voting' 才显示投票区域
+    // ★ 只有 gamePhase === 'voting' 才显示投票区域（可操作）
     if(gameActive && gamePhase === 'voting'){
       document.getElementById('vwStart').style.display='none';
       document.getElementById('voteArea').style.display='block';
+      updateVoteDisabledState();  // ★ 确保遮罩隐藏
 
       // ★ 更新加注UI（最后三轮解锁，否则锁定禁用）
       myScore = p.score;
@@ -1001,17 +1062,14 @@ function poll(){
       const betSection = document.getElementById('betSection');
       const betLockHint = document.getElementById('betLockHint');
       if (remaining <= 3 && remaining > 0 && gameActive) {
-        // ★ 最后三轮 — 解锁
         betSection.classList.remove('locked');
         betLockHint.style.display = 'none';
       } else if (gameActive) {
-        // ★ 非最后三轮 — 锁定显示但不可操作
         betSection.classList.add('locked');
         betLockHint.style.display = 'block';
         betLockHint.textContent = `🔒 加注将在最后3轮解锁（当前第${curRound}轮，剩余${remaining-1}轮）`;
         curBet = 0;
       } else {
-        // 游戏未开始
         betSection.classList.add('locked');
         betLockHint.style.display = 'block';
         betLockHint.textContent = '🔒 游戏开始后显示加注';
@@ -1025,15 +1083,25 @@ function poll(){
         selChoice = p.voteChoice;
         showVotedApple(p.voteChoice);
       }
-    } else if(gameActive && gamePhase !== 'voting') {
-      // ★ 游戏已开始但投票未开启（ready/result阶段）
+    } else if(gameActive && gamePhase === 'ready') {
+      // ★ ready 阶段：显示投票界面+灰色遮罩（能看到但不能操作）
+      document.getElementById('vwStart').style.display='none';
+      document.getElementById('voteArea').style.display='block';
+      updateVoteDisabledState();
+    } else if(gameActive && gamePhase === 'result') {
+      // ★ result 阶段：显示"本轮已结算"提示
       document.getElementById('vwStart').style.display='block';
-      document.getElementById('vwStart').querySelector('.vwt').textContent = 
-        gamePhase === 'ready' ? '等待主持人开启投票' : '本轮已结算，等待下一轮';
       document.getElementById('voteArea').style.display='none';
+      updateVoteDisabledState();
+      const vwtEl = document.getElementById('vwStart').querySelector('.vwt');
+      const vwsEl = document.getElementById('vwStart').querySelector('.vws');
+      vwtEl.textContent = '本轮已结算';
+      vwsEl.textContent = '等待下一轮...';
     } else {
+      // 游戏未开始
       document.getElementById('vwStart').style.display='block';
       document.getElementById('voteArea').style.display='none';
+      updateVoteDisabledState();
     }
   }
 
@@ -1086,6 +1154,25 @@ function initVoteUI(){
     betLockHint.textContent = `🔒 加注将在最后3轮解锁（当前第${curRound}轮，剩余${remaining-1}轮）`;
   }
   updateBetUI();
+  // ★ 更新禁用遮罩状态
+  updateVoteDisabledState();
+}
+
+// ============================================================
+//  ★ ready 阶段灰色禁用遮罩控制
+// ============================================================
+function updateVoteDisabledState(){
+  const wrap = document.getElementById('votePageWrap');
+  const overlay = document.getElementById('voteDisabledOverlay');
+  if(gameActive && gamePhase === 'ready'){
+    // ★ ready 阶段：显示投票界面+灰色遮罩
+    wrap.classList.add('disabled');
+    overlay.classList.add('show');
+  } else {
+    // ★ voting 或其他阶段：隐藏遮罩，可操作
+    wrap.classList.remove('disabled');
+    overlay.classList.remove('show');
+  }
 }
 
 // ============================================================
@@ -1177,7 +1264,7 @@ function handleReset(){
   localStorage.removeItem(R_KEY);
   myId = null; myNum = 0; myScore = INIT_SCORE;
   isEliminated = false; hasVoted = false; selChoice = null; curBet = 0;
-  lastResultRound = -1; wasGameActive = false; lastKnownRound = 1;
+  lastResultRound = -1; wasGameActive = false; lastKnownRound = 1; lastKnownPhase = 'idle';
   countdownEndTs = 0; lastCdRemaining = -1;
   players = {}; gameActive = false; lastResult = null;
   gamePhase = 'idle';  // ★ 重置阶段
@@ -1185,6 +1272,8 @@ function handleReset(){
   // 清理UI
   document.getElementById('cdBar').classList.remove('show');
   document.getElementById('cdEndedBar').classList.remove('show');
+  document.getElementById('votePageWrap').classList.remove('disabled');
+  document.getElementById('voteDisabledOverlay').classList.remove('show');
 
   showPg('joinPage');
 }
@@ -1221,6 +1310,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       hasVoted = !!p.voted;
       selChoice = p.voteChoice||null;
       lastKnownRound = curRound;
+      lastKnownPhase = gamePhase;
 
       if(isEliminated){
         clearId();
@@ -1230,12 +1320,12 @@ window.addEventListener('DOMContentLoaded',()=>{
         if(gameActive){
           if(lastResult && lastResult.round === curRound){
             // 正在显示结果 — 等poll处理
-          } else if(gamePhase === 'voting'){
-            // ★ 只有voting阶段才进入投票页
+          } else if(gamePhase === 'voting' || gamePhase === 'ready'){
+            // ★ voting 或 ready 阶段都进入投票页
             initVoteUI();
             showPg('votePage');
           }
-          // ready/result阶段 — 保持在等待页，等poll处理
+          // result阶段 — 保持在等待页，等poll处理
         }
         return;
       }

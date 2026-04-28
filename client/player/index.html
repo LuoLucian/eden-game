@@ -3,783 +3,730 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>伊甸园 — 玩家端</title>
+<title>🏛️ 伊甸园 — 玩家端</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
 
-  :root {
-    --bg: #0a0e1a;
-    --card: #151c2e;
-    --border: #1e2d45;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --gold: #fbbf24;
-    --silver: #94a3b8;
-    --red: #f87171;
-    --green: #4ade80;
-  }
+/* ===== 古希腊主题变量 ===== */
+:root{
+  --bg:#0c0f1a;--card:rgba(18,22,40,.92);--border:rgba(196,165,107,.18);
+  --text:#e8dcc8;--muted:#8a7e6e;--gold:#d4a853;--gold-light:#f0d48a;
+  --silver:#a8b4c4;--red:#c45c5c;--green:#6bb889;--purple:#a78bfa;
+  --marble:rgba(232,220,200,.06);--marble2:rgba(196,165,107,.08);
+  --olive:#7a9a5a;--temple:rgba(212,168,83,.12);
+}
+body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC','PingFang SC',serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;position:relative}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, 'PingFang SC', sans-serif;
-    min-height: 100vh;
-    min-height: 100dvh;
-    overflow-x: hidden;
-  }
+.page{display:none;position:absolute;inset:0;flex-direction:column}
+.page.active{display:flex;z-index:1}
 
-  /* 页面切换 */
-  .page { display: none; min-height: 100vh; min-height: 100dvh; }
-  .page.active { display: flex; flex-direction: column; }
+/* ===== 古希腊装饰线条 ===== */
+.greek-border{border:1px solid var(--border);position:relative}
+.greek-border::before{content:'⁂';position:absolute;top:-8px;left:50%;transform:translateX(-50%);color:var(--gold);font-size:10px;background:var(--bg);padding:0 6px}
+.greek-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px 0;opacity:.35}
 
-  /* ===== 加入页 ===== */
-  #joinPage {
-    align-items: center;
-    justify-content: center;
-    padding: 40px 24px;
-    background: radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.12) 0%, transparent 60%);
-  }
+/* ===== 加入页 ===== */
+#joinPage{align-items:center;justify-content:center;padding:30px 20px;background:radial-gradient(ellipse at 50% 15%,rgba(212,168,83,.08) 0%,transparent 60%);z-index:2}
+#joinCanvas{position:absolute;inset:0;pointer-events:none;z-index:0}
+.jc{position:relative;z-index:1;text-align:center;width:100%;max-width:360px}
+/* ★ 伊甸园 LOGO — 金色苹果+叶子 SVG */
+.logo-icon{width:64px;height:64px;display:block;margin:0 auto 12px;animation:flo 3s ease-in-out infinite}
+.logo-t{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:5px;font-style:italic}
+.logo-s{font-size:11px;color:var(--muted);letter-spacing:4px;margin-top:4px;text-transform:uppercase}
+.jc-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:26px 22px;margin-top:28px;text-align:center;backdrop-filter:blur(8px)}
+.jc-t{font-size:17px;font-weight:700;margin-bottom:8px;color:var(--gold-light)}
+.jc-d{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.input-wrap{margin-bottom:16px;text-align:left}
+.input-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.input-field{
+  width:100%;padding:14px 16px;
+  background:rgba(12,15,26,.8);
+  border:1px solid var(--border);
+  border-radius:12px;
+  color:var(--text);font-size:16px;
+  outline:none;transition:border-color .2s;
+  font-family:inherit;
+}
+.input-field:focus{border-color:var(--gold)}
+.input-field::placeholder{color:var(--muted)}
+.btn-enter{width:100%;padding:15px;background:linear-gradient(135deg,#d4a853,#b8860b);border:1px solid rgba(240,212,138,.3);border-radius:12px;color:#1a1206;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:2px;transition:all .15s;font-family:inherit}
+.btn-enter:active{transform:scale(.97);filter:brightness(.9)}
+.join-error{margin-top:14px;padding:11px 14px;background:rgba(196,92,92,.07);border:1px solid rgba(196,92,92,.2);border-radius:10px;font-size:12.5px;color:var(--red);display:none;line-height:1.5}
+.join-error.show{display:block;animation:rhIn .4s ease}
+@keyframes rhIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 
-  .logo { text-align: center; margin-bottom: 40px; }
-  .logo-emoji { font-size: 60px; animation: float 3s ease-in-out infinite; display: block; }
-  .logo-title { font-size: 32px; font-weight: 900; color: var(--gold); letter-spacing: 3px; margin-top: 10px; }
-  .logo-sub { font-size: 13px; color: var(--muted); letter-spacing: 2px; margin-top: 4px; }
+/* ===== 等待页 — 身份+积分更显眼 ===== */
+#waitPage{align-items:center;justify-content:center;text-align:center;padding:35px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(167,139,250,.04) 0%,transparent 60%)}
+.w-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,rgba(212,168,83,.22),rgba(212,168,83,.05));border:2.5px solid rgba(212,168,83,.5);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;box-shadow:0 0 20px rgba(212,168,83,.15)}
+.w-name{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:2px;font-variant-numeric:tabular-nums;text-shadow:0 0 16px rgba(212,168,83,.3)}
+.w-score{font-size:15px;color:var(--muted);margin-bottom:28px;font-style:italic}
+.w-score b{font-size:20px;color:var(--green);font-weight:900}
+.w-status{padding:14px 22px;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:14.5px;color:var(--muted);margin-bottom:16px;transition:all .5s}
+.w-status.waiting{animation:bs 2s infinite}
+.w-status.ready{border-color:rgba(107,184,137,.4);color:var(--green);background:rgba(107,184,137,.05)}
+@keyframes bs{0%,100%{border-color:var(--border)}50%{border-color:rgba(212,168,83,.35)}}
+.w-count{font-size:13px;color:var(--muted)}.w-count b{color:var(--green);font-size:16px;font-weight:800}
 
-  .join-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 28px 24px;
-    width: 100%;
-    max-width: 360px;
-  }
+/* ===== 投票页顶栏 — 身份+积分超显眼 ===== */
+.vh{padding:12px 16px 10px;background:linear-gradient(135deg,rgba(212,168,83,.1),rgba(18,22,40,.95));border-bottom:2px solid rgba(212,168,83,.25);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+.vhl{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px}
+.vhl b{color:var(--gold);font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.vhr{font-size:10px;color:var(--muted);margin-top:1px}
+.vhs-r{text-align:right}
+.vhs-v{font-size:26px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;line-height:1.1;text-shadow:0 0 12px rgba(107,184,137,.25)}
+.vhs-l{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px}
 
-  .join-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+/* ★ 倒计时圆环 ★ */
+.cd-bar{display:none;padding:12px 16px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(212,168,83,.08));border-bottom:1px solid rgba(167,139,250,.25);align-items:center;justify-content:center;gap:14px;position:relative;overflow:hidden}
+.cd-bar::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.1),transparent 70%);pointer-events:none}
+.cd-bar.show{display:flex}
 
-  .input-wrap { margin-bottom: 16px; }
-  .input-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-  .input-field {
-    width: 100%;
-    padding: 14px 16px;
-    background: #0a0e1a;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    color: var(--text);
-    font-size: 16px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .input-field:focus { border-color: var(--gold); }
-  .input-field::placeholder { color: var(--muted); }
+/* 圆形倒计时 */
+.cd-ring{position:relative;width:54px;height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.cd-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.cd-ring circle{fill:none;stroke-width:4;cx:27;cy:27;r:22}
+.cd-ring-bg{stroke:rgba(255,255,255,.06)}
+.cd-ring-prog{stroke:#a78bfa;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
+.cd-ring-prog.warn{stroke:#fb923c}
+.cd-ring-prog.danger{stroke:#ef4444}
 
-  .btn-join {
-    width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: none;
-    border-radius: 12px;
-    color: #fff;
-    font-size: 17px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 1px;
-  }
-  .btn-join:active { transform: scale(0.97); }
+.cd-ring-num{font-size:20px;font-weight:900;color:#c4b5fd;font-family:Georgia,'Noto Serif SC',serif;font-variant-numeric:tabular-nums;z-index:1;line-height:1}
+.cd-ring-num.warn{color:#fb923c}
+.cd-ring-num.danger{color:#ef4444;animation:cdPulse .3s infinite alternate}
+@keyframes cdPulse{from{transform:scale(1)}to{transform:scale(1.08)}}
 
-  .join-error {
-    margin-top: 12px;
-    padding: 10px 14px;
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.3);
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--red);
-    display: none;
-  }
+.cd-bar-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.cd-bar-lbl{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-style:italic}
+.cd-bar-pct{width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.cd-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:2px;transition:width .3s}
 
-  /* ===== 等待页 ===== */
-  #waitPage {
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px 24px;
-  }
+/* 时间到提示 */
+.cd-ended-bar{display:none;padding:10px 16px;background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(239,68,68,.03));border-bottom:1px solid rgba(239,68,68,.3);align-items:center;justify-content:center;gap:8px;animation:ceSlide .3s ease}
+.cd-ended-bar.show{display:flex}
+@keyframes ceSlide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.cd-ended-icon{animation:ceShake .6s ease-in-out infinite}
+@keyframes ceShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.cd-ended-txt{font-size:14px;font-weight:700;color:var(--red);font-family:Georgia,'Noto Serif SC',serif}
+.cd-ended-sub{font-size:10.5px;color:var(--muted);font-style:italic}
 
-  .wait-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.05));
-    border: 2px solid rgba(251,191,36,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    margin: 0 auto 16px;
-  }
-  .wait-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-  .wait-score { font-size: 16px; color: var(--green); margin-bottom: 32px; }
+.vc{flex:1;padding:16px 14px;overflow-y:auto}
 
-  .wait-status {
-    padding: 16px 24px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    font-size: 16px;
-    color: var(--muted);
-    margin-bottom: 20px;
-    animation: pulse-border 2s infinite;
-  }
-  @keyframes pulse-border {
-    0%,100% { border-color: var(--border); }
-    50% { border-color: rgba(251,191,36,0.4); }
-  }
+/* 投票等待开始 */
+.vw-start{text-align:center;padding:50px 20px}
+.vwi{font-size:44px;animation:flo 3s ease-in-out infinite;display:block;margin-bottom:14px}
+.vwt{font-size:17px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.vws{font-size:12.5px;color:var(--muted);opacity:.55}
 
-  .wait-count {
-    font-size: 14px;
-    color: var(--muted);
-  }
-  .wait-count span { color: var(--green); font-weight: 700; }
+/* ★ 三个独立苹果按钮 ★ */
+.apple-lbl{font-size:11px;color:var(--muted);letter-spacing:3px;text-align:center;margin-bottom:10px;text-transform:uppercase;font-style:italic}
+.apple-lbl::before,.apple-lbl::after{content:' · ';opacity:.4}
 
-  /* ===== 投票页 ===== */
-  #votePage { padding: 0; }
+.abtn{width:100%;padding:14px 14px;border-radius:14px;border:2px solid transparent;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;gap:12px;transition:all .25s;margin-bottom:10px;position:relative;overflow:hidden;font-family:inherit;backdrop-filter:blur(4px)}
+.abtn:active{transform:scale(.97)}
 
-  .vote-header {
-    padding: 16px 20px 12px;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  .vote-header-left { font-size: 15px; font-weight: 700; }
-  .vote-header-round { font-size: 11px; color: var(--muted); }
-  .vote-header-score { text-align: right; }
-  .vote-header-score-val { font-size: 20px; font-weight: 800; color: var(--green); }
-  .vote-header-score-label { font-size: 11px; color: var(--muted); }
+/* 金苹果 */
+.agold{background:linear-gradient(135deg,rgba(212,168,83,.14),rgba(212,168,83,.04));border-color:rgba(212,168,83,.4);color:var(--gold)}
+.agold.sel{background:linear-gradient(135deg,rgba(212,168,83,.3),rgba(212,168,83,.12));border-color:var(--gold);box-shadow:0 0 24px rgba(212,168,83,.3),inset 0 0 20px rgba(212,168,83,.1)}
 
-  /* 倒计时条 */
-  .timer-bar-wrap { width: 100%; height: 4px; background: var(--border); }
-  .timer-bar { height: 4px; background: var(--green); transition: width 1s linear, background 1s; }
+/* 银苹果 */
+.asilver{background:linear-gradient(135deg,rgba(168,180,196,.14),rgba(168,180,196,.04));border-color:rgba(168,180,196,.4);color:var(--silver)}
+.asilver.sel{background:linear-gradient(135deg,rgba(168,180,196,.28),rgba(168,180,196,.1));border-color:var(--silver);box-shadow:0 0 24px rgba(168,180,196,.25),inset 0 0 20px rgba(168,180,196,.08)}
 
-  .vote-content { flex: 1; padding: 20px 16px; overflow-y: auto; }
+/* 红苹果 */
+.ared{background:linear-gradient(135deg,rgba(196,92,92,.14),rgba(196,92,92,.04));border-color:rgba(196,92,92,.4);color:var(--red)}
+.ared.sel{background:linear-gradient(135deg,rgba(196,92,92,.28),rgba(196,92,92,.1));border-color:var(--red);box-shadow:0 0 24px rgba(196,92,92,.3),inset 0 0 20px rgba(196,92,92,.1)}
 
-  .vote-instruction {
-    text-align: center;
-    padding: 14px;
-    background: rgba(251,191,36,0.06);
-    border: 1px solid rgba(251,191,36,0.2);
-    border-radius: 12px;
-    margin-bottom: 20px;
-    font-size: 13px;
-    color: rgba(255,255,255,0.6);
-    line-height: 1.6;
-  }
-  .vote-instruction strong { color: var(--gold); }
+/* 苹果图标区 — 真正的立体苹果 */
+.ab-i{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:52px;height:52px;position:relative}
+.ab-i svg{width:40px;height:40px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+.ab-i-gold{background:transparent;box-shadow:none}
+.ab-i-silver{background:transparent;box-shadow:none}
+.ab-i-red{background:transparent;box-shadow:none}
+.ab-inf{flex:1;text-align:left}
+.ab-n{font-size:17px;font-weight:800;letter-spacing:1px}
+.ab-c{font-size:11px;opacity:.6;margin-top:2px;line-height:1.4}
+.ab-chk{position:absolute;right:14px;width:22px;height:22px;border-radius:50%;background:rgba(107,184,137,.18);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;color:var(--green);font-size:12px}
+.abtn.sel .ab-chk{opacity:1}
 
-  .timer-center {
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  .timer-center-num {
-    font-size: 48px;
-    font-weight: 900;
-    color: var(--green);
-    line-height: 1;
-  }
-  .timer-center-num.urgent { color: var(--red); animation: shake 0.3s infinite; }
-  .timer-center-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.btn-conf{width:100%;padding:14px;border:1px solid rgba(107,184,137,.3);border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;letter-spacing:2px;transition:all .15s;font-family:inherit}
+.btn-conf:not(:disabled){background:linear-gradient(135deg,#6bb889,#4a9a6a);color:#fff}
+.btn-conf:disabled{background:rgba(255,255,255,.03);color:var(--muted);border-color:var(--border);cursor:not-allowed}
 
-  @keyframes shake {
-    0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)}
-  }
+/* ★ ready 阶段灰色禁用遮罩 */
+.vote-disabled-overlay{
+  display:none;
+  position:absolute;
+  inset:0;
+  z-index:20;
+  background:rgba(12,15,26,.7);
+  backdrop-filter:blur(3px);
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  text-align:center;
+  padding:20px;
+  pointer-events:auto;
+  animation:vdoIn .35s ease;
+}
+.vote-disabled-overlay.show{display:flex}
+@keyframes vdoIn{from{opacity:0}to{opacity:1}}
+.vdo-icon{font-size:42px;animation:flo 3s ease-in-out infinite}
+.vdo-title{font-size:18px;font-weight:800;color:var(--muted);letter-spacing:1px}
+.vdo-sub{font-size:12.5px;color:var(--muted);opacity:.6;font-style:italic;line-height:1.5}
+.votePage-wrap{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden}
+.votePage-wrap.disabled .vc{filter:grayscale(.85) brightness(.6)}
+.votePage-wrap.disabled .vh{filter:grayscale(.6) brightness(.7)}
 
-  .camp-label {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-align: center;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-  }
+/* 已投票卡片 */
+.voted-cd{text-align:center;padding:28px 18px;background:var(--card);border-radius:18px;margin:16px 12px;backdrop-filter:blur(8px);transition:all .3s}
+.voted-cd.vc-gold{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.4)}
+.voted-cd.vc-silver{background:rgba(168,180,196,.08);border:1.5px solid rgba(168,180,196,.4)}
+.voted-cd.vc-red{background:rgba(196,92,92,.08);border:1.5px solid rgba(196,92,92,.4)}
+/* 苹果SVG图标 */
+.vi{margin-bottom:10px;display:flex;justify-content:center}
+.vi svg{width:64px;height:64px}
+.vt{font-size:18px;font-weight:900;margin-bottom:5px;letter-spacing:1px}
+.vt.vc-gold-t{color:var(--gold-light)}
+.vt.vc-silver-t{color:var(--silver)}
+.vt.vc-red-t{color:var(--red)}
+.vch{font-size:13px;color:var(--muted);margin-bottom:12px;font-style:italic}
+.vwt{font-size:12.5px;color:var(--muted)}
 
-  .apple-btn {
-    width: 100%;
-    padding: 18px 16px;
-    border-radius: 16px;
-    border: 2px solid transparent;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    transition: all 0.2s;
-    margin-bottom: 12px;
-    position: relative;
-    overflow: hidden;
-  }
-  .apple-btn:active { transform: scale(0.97); }
+/* 最终轮横幅 */
+.fr-banner{display:none;background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(167,139,250,.05));border:1px solid rgba(167,139,250,.4);border-radius:9px;padding:9px 13px;font-size:12.5px;color:#c4b5fd;text-align:center;margin-bottom:10px;line-height:1.5;font-style:italic}
+.fr-banner strong{color:#e879f9}
 
-  .apple-gold {
-    background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(251,191,36,0.05));
-    border-color: rgba(251,191,36,0.4);
-    color: var(--gold);
-  }
-  .apple-gold.selected {
-    background: linear-gradient(135deg, rgba(251,191,36,0.35), rgba(251,191,36,0.15));
-    border-color: var(--gold);
-    box-shadow: 0 0 20px rgba(251,191,36,0.3);
-  }
-  .apple-silver {
-    background: linear-gradient(135deg, rgba(148,163,184,0.15), rgba(148,163,184,0.05));
-    border-color: rgba(148,163,184,0.4);
-    color: var(--silver);
-  }
-  .apple-silver.selected {
-    background: linear-gradient(135deg, rgba(148,163,184,0.35), rgba(148,163,184,0.15));
-    border-color: var(--silver);
-    box-shadow: 0 0 20px rgba(148,163,184,0.25);
-  }
-  .apple-red {
-    background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
-    border-color: rgba(239,68,68,0.4);
-    color: var(--red);
-  }
-  .apple-red.selected {
-    background: linear-gradient(135deg, rgba(239,68,68,0.35), rgba(239,68,68,0.15));
-    border-color: var(--red);
-    box-shadow: 0 0 20px rgba(239,68,68,0.25);
-  }
+/* ===== 结果页 ===== */
+#resultPage{padding:22px 14px;overflow-y:auto;background:radial-gradient(ellipse at 50% 30%,rgba(212,168,83,.06) 0%,transparent 60%)}
+.rt{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--gold);text-align:center;letter-spacing:2px}
+.rmc{border-radius:18px;padding:20px;text-align:center;margin-bottom:16px;backdrop-filter:blur(6px)}
+.rwin{background:rgba(107,184,137,.08);border:1px solid rgba(107,184,137,.25)}
+.rlose{background:rgba(196,92,92,.08);border:1px solid rgba(196,92,92,.25)}
+.rneut{background:var(--card);border:1px solid var(--border)}
+.rspec{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25)}
+.re{font-size:42px;display:block;margin-bottom:8px}
+.ro{font-size:20px;font-weight:800;margin-bottom:5px}
+.rwin .ro{color:var(--green)}.rlose .ro{color:var(--red)}.rneut .ro{color:var(--muted)}.rspec .ro{color:#c084fc}
+.rch{font-size:26px;font-weight:900}.cp{color:var(--green)}.cn{color:var(--red)}.cz{color:var(--muted)}
+.rtot{font-size:13px;color:var(--muted);margin-top:5px;font-style:italic}
+.rtot span{color:var(--green);font-weight:700;font-size:17px}
+.rmsg{padding:14px;background:var(--card);border-radius:12px;border:1px solid var(--border);font-size:13px;color:rgba(232,220,200,.55);text-align:center;line-height:1.6;margin-bottom:14px;font-style:italic}
+.rvs{margin-bottom:14px}
+.rvt{font-size:12px;color:var(--muted);margin-bottom:9px;letter-spacing:2px;text-align:center;font-style:italic}
+.rvb{display:flex;gap:7px}
+.rvbi{flex:1;text-align:center}
+.rvc{font-size:21px;font-weight:800}.rg{color:var(--gold)}.rs{color:var(--silver)}.rr{color:var(--red)}
+.rvn{font-size:10.5px;color:var(--muted);margin-top:2px}
+.rwait{text-align:center;font-size:13px;color:var(--muted);padding:10px;font-style:italic}
 
-  .apple-btn-icon { font-size: 32px; flex-shrink: 0; }
-  .apple-btn-info { flex: 1; text-align: left; }
-  .apple-btn-name { font-size: 18px; font-weight: 800; }
-  .apple-btn-camp { font-size: 11px; opacity: 0.6; margin-top: 2px; }
-  .apple-btn-cost { font-size: 13px; opacity: 0.7; }
+/* ===== 全体胜利 ===== */
+#awPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(107,184,137,.22) 0%,var(--bg) 70%)}
+.aw-e{font-size:72px;display:block;animation:bnc .7s infinite alternate;margin-bottom:12px}
+.aw-t{font-size:36px;font-weight:900;margin:16px 0 8px;background:linear-gradient(135deg,#6bb889,var(--gold),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px}
+.aw-s{font-size:15px;color:rgba(232,220,200,.55);line-height:1.6;font-style:italic}
 
-  .apple-check {
-    position: absolute;
-    right: 16px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(74,222,128,0.2);
-    border: 2px solid var(--green);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .apple-btn.selected .apple-check { opacity: 1; }
+/* ===== 游戏结束 ===== */
+#goPage{padding:22px 14px;overflow-y:auto;text-align:center}
+.go-t{font-size:26px;font-weight:900;color:var(--gold);margin-bottom:6px;letter-spacing:3px}
+.go-s{font-size:13px;color:var(--muted);margin-bottom:22px;font-style:italic}
+.mf-c{padding:18px;background:var(--card);border:1px solid var(--border);border-radius:15px;margin-bottom:18px}
+.mf-l{font-size:12px;color:var(--muted);margin-bottom:3px}
+.mf-sc{font-size:36px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums}
+.mf-rk{font-size:15px;color:var(--gold);margin-top:4px}
+.tpl{list-style:none;padding:0}
+.tpi{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:11px;margin-bottom:7px;font-size:14px}
+.tpi.me{border-color:rgba(212,168,83,.35);background:rgba(212,168,83,.05)}
+.tp-md{font-size:16px;width:22px}.tp-nm{flex:1;text-align:left;font-variant-numeric:tabular-nums}.tp-sc{color:var(--green);font-weight:700}
 
-  .vote-confirm-btn {
-    width: 100%;
-    padding: 16px;
-    border: none;
-    border-radius: 14px;
-    font-size: 17px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 4px;
-    letter-spacing: 1px;
-  }
-  .vote-confirm-btn:not(:disabled) {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: #fff;
-  }
-  .vote-confirm-btn:disabled {
-    background: #1e293b;
-    color: #475569;
-    cursor: not-allowed;
-  }
-  .vote-confirm-btn:not(:disabled):active { transform: scale(0.97); }
+/* ===== 淘汰页 ===== */
+#elPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(196,92,92,.15) 0%,var(--bg) 70%);position:relative;overflow:hidden}
+.el-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.el-bg::before,.el-bg::after{content:'';position:absolute;width:180px;height:180px;border-radius:50%;opacity:.06;animation:ef 4s ease-in-out infinite alternate}
+.el-bg::before{background:#c45c5c;top:-50px;left:-30px}
+.el-bg::after{background:#b84444;bottom:-70px;right:-20px;animation-delay:-2s}
+@keyframes ef{from{transform:translateY(0)}to{transform:translateY(25px)}}
+.el-card{position:relative;z-index:1;padding:30px 24px;background:rgba(196,92,92,.06);border:2px solid rgba(196,92,92,.2);border-radius:22px;max-width:330px;width:90%;animation:ePop .55s cubic-bezier(.34,1.56,.64,1)}
+@keyframes ePop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.el-em{font-size:64px;display:block;margin-bottom:10px;animation:eSh .75s ease-in-out}
+@keyframes eSh{0%{transform:rotate(0)}20%{transform:rotate(-7deg)}40%{transform:rotate(7deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(2px)}100%{transform:rotate(0)}}
+.el-t{font-size:24px;font-weight:900;color:#c45c5c;margin-bottom:5px}
+.el-nm{font-size:17px;color:var(--text);margin-bottom:14px;font-variant-numeric:tabular-nums}
+.el-sl{font-size:12.5px;color:var(--muted)}
+.el-sv{font-size:33px;font-weight:900;color:#c45c5c;font-variant-numeric:tabular-nums}
+.el-msg{font-size:13px;color:rgba(232,220,200,.4);line-height:1.7;margin-top:18px;padding-top:14px;border-top:1px solid rgba(196,92,92,.14);font-style:italic}
 
-  /* 已投票状态 */
-  .voted-card {
-    text-align: center;
-    padding: 30px 20px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    margin: 20px 16px;
-  }
-  .voted-icon { font-size: 48px; margin-bottom: 12px; }
-  .voted-text { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-  .voted-choice { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
-  .voted-waiting { font-size: 13px; color: var(--muted); }
-
-  /* ===== 结果页 ===== */
-  #resultPage {
-    padding: 24px 16px;
-    overflow-y: auto;
-  }
-
-  .result-title {
-    text-align: center;
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    color: var(--gold);
-  }
-
-  .result-my-card {
-    border-radius: 20px;
-    padding: 24px;
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  .result-win { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35); }
-  .result-lose { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
-  .result-neutral { background: var(--card); border: 1px solid var(--border); }
-  .result-special { background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.35); }
-
-  .result-my-emoji { font-size: 48px; display: block; margin-bottom: 10px; }
-  .result-my-outcome { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
-  .result-win .result-my-outcome { color: var(--green); }
-  .result-lose .result-my-outcome { color: var(--red); }
-  .result-neutral .result-my-outcome { color: var(--muted); }
-  .result-special .result-my-outcome { color: #c084fc; }
-
-  .result-my-change { font-size: 28px; font-weight: 900; }
-  .change-pos { color: var(--green); }
-  .change-neg { color: var(--red); }
-  .change-zero { color: var(--muted); }
-
-  .result-my-total { font-size: 14px; color: var(--muted); margin-top: 6px; }
-  .result-my-total span { color: var(--green); font-weight: 700; font-size: 18px; }
-
-  .result-msg-card {
-    padding: 16px;
-    background: var(--card);
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    font-size: 14px;
-    color: rgba(255,255,255,0.6);
-    text-align: center;
-    line-height: 1.6;
-    margin-bottom: 16px;
-  }
-
-  .result-vote-summary { margin-bottom: 16px; }
-  .result-vote-title { font-size: 13px; color: var(--muted); margin-bottom: 10px; letter-spacing: 1px; }
-  .result-vote-bars { display: flex; gap: 8px; }
-  .result-vote-bar-item { flex: 1; text-align: center; }
-  .rvb-count { font-size: 22px; font-weight: 800; }
-  .rvb-gold { color: var(--gold); }
-  .rvb-silver { color: var(--silver); }
-  .rvb-red { color: var(--red); }
-  .rvb-name { font-size: 11px; color: var(--muted); margin-top: 2px; }
-
-  .result-wait { text-align: center; font-size: 14px; color: var(--muted); padding: 12px; }
-
-  /* ===== 全体胜利页 ===== */
-  #allwinPage {
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px 24px;
-    background: radial-gradient(ellipse at 50% 50%, rgba(34,197,94,0.25) 0%, var(--bg) 70%);
-  }
-
-  .allwin-emoji { font-size: 80px; animation: bounce2 0.7s infinite alternate; display: block; }
-  @keyframes bounce2 { from{transform:translateY(0)} to{transform:translateY(-15px)} }
-  .allwin-title {
-    font-size: 40px; font-weight: 900; margin: 20px 0 10px;
-    background: linear-gradient(135deg, #4ade80, #22d3ee);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .allwin-sub { font-size: 16px; color: rgba(255,255,255,0.6); line-height: 1.6; }
-
-  /* ===== 游戏结束页 ===== */
-  #gameoverPage {
-    padding: 24px 16px;
-    overflow-y: auto;
-    text-align: center;
-  }
-
-  .gameover-title { font-size: 28px; font-weight: 900; color: var(--gold); margin-bottom: 8px; }
-  .gameover-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
-
-  .my-final-card {
-    padding: 20px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    margin-bottom: 20px;
-  }
-  .my-final-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-  .my-final-score { font-size: 40px; font-weight: 900; color: var(--green); }
-  .my-final-rank { font-size: 16px; color: var(--gold); margin-top: 6px; }
-
-  .top-list { list-style: none; }
-  .top-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    margin-bottom: 8px;
-    font-size: 15px;
-  }
-  .top-item.me { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.06); }
-  .top-medal { font-size: 18px; width: 24px; }
-  .top-name { flex: 1; text-align: left; }
-  .top-score { color: var(--green); font-weight: 700; }
-
-  @keyframes float {
-    0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)}
-  }
-
-  /* 最终轮横幅 */
-  .final-round-banner {
-    display: none;
-    background: linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.08));
-    border: 1px solid rgba(168,85,247,0.5);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #c084fc;
-    text-align: center;
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
-  .final-round-banner strong { color: #e879f9; }
-  /* ===== 淘汰页 ===== */
-  #eliminatedPage {
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 40px 24px;
-    background: radial-gradient(ellipse at 50% 50%, rgba(239,68,68,0.2) 0%, var(--bg) 70%);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .eliminated-bg {
-    position: absolute; inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .eliminated-bg::before,
-  .eliminated-bg::after {
-    content: '';
-    position: absolute;
-    width: 200px; height: 200px;
-    border-radius: 50%;
-    opacity: 0.08;
-    animation: elimFloat 4s ease-in-out infinite alternate;
-  }
-  .eliminated-bg::before { background: #f87171; top: -60px; left: -40px; }
-  .eliminated-bg::after { background: #ef4444; bottom: -80px; right: -30px; animation-delay: -2s; }
-  @keyframes elimFloat { from{transform:translateY(0)} to{transform:translateY(30px)} }
-
-  .elim-card {
-    position: relative;
-    z-index: 1;
-    padding: 32px 28px;
-    background: rgba(239,68,68,0.08);
-    border: 2px solid rgba(239,68,68,0.3);
-    border-radius: 24px;
-    max-width: 340px;
-    width: 100%;
-    animation: elimPopIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes elimPopIn {
-    from { opacity: 0; transform: scale(0.5); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  .elim-emoji { font-size: 72px; display: block; margin-bottom: 12px; animation: elimShake 0.8s ease-in-out; }
-  @keyframes elimShake {
-    0%{transform:rotate(0)} 20%{transform:rotate(-8deg)} 40%{transform:rotate(8deg)} 60%{transform:rotate(-5deg)} 80%{transform:rotate(3deg)} 100%{transform:rotate(0)}
-  }
-  .elim-title { font-size: 26px; font-weight: 900; color: #f87171; margin-bottom: 6px; }
-  .elim-name { font-size: 18px; color: var(--text); margin-bottom: 16px; }
-  .elim-score-label { font-size: 13px; color: var(--muted); }
-  .elim-score-val { font-size: 36px; font-weight: 900; color: #f87171; }
-  .elim-msg {
-    font-size: 14px;
-    color: rgba(255,255,255,0.45);
-    line-height: 1.7;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(239,68,68,0.15);
-  }
-
-  /* 碎片特效 */
-  .fragments-container {
-    position: fixed; inset: 0; pointer-events: none; z-index: 100;
-    overflow: hidden;
-  }
-  .fragment {
-    position: absolute; width: 10px; height: 10px;
-    background: #f87171; border-radius: 3px;
-    animation: fragmentFall 1.5s ease-in forwards;
-  }
-  @keyframes fragmentFall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
-  }
+/* 碎片特效 */
+.fg-container{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.fg{position:absolute;background:#c45c5c;border-radius:2.5px;animation:fFall 1.4s ease-in forwards}
+@keyframes fFall{0%{transform:translateY(0)rotate(0);opacity:1}100%{transform:translateY(110vh)rotate(720deg);opacity:0}}
+@keyframes flo{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes bnc{from{transform:translateY(0)}to{transform:translateY(-14px)}}
 </style>
 </head>
 <body>
 
-<!-- 加入页 -->
+<!-- ===== 加入页 ===== -->
 <div id="joinPage" class="page active">
-  <div class="logo">
-    <span class="logo-emoji">🌿</span>
-    <div class="logo-title">伊甸园</div>
-    <div class="logo-sub">EDEN · TEAM GAME</div>
+<canvas id="joinCanvas"></canvas>
+<div class="jc">
+  <div class="logo-icon">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+      <defs>
+        <linearGradient id="logoAppleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#f0d48a"/>
+          <stop offset="40%" style="stop-color:#d4a853"/>
+          <stop offset="80%" style="stop-color:#b8860b"/>
+          <stop offset="100%" style="stop-color:#9a7209"/>
+        </linearGradient>
+        <linearGradient id="logoLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#6bb889"/>
+          <stop offset="100%" style="stop-color:#3d8b5a"/>
+        </linearGradient>
+        <filter id="logoGlow">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#logoAppleGrad)" filter="url(#logoGlow)"/>
+      <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.2)" transform="rotate(-15 23 32)"/>
+      <path d="M32 17 Q33 10 35 6" stroke="#8b6914" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="url(#logoLeafGrad)"/>
+      <path d="M35 11 Q39 10 43 10" stroke="rgba(255,255,255,.25)" stroke-width="0.8" fill="none"/>
+    </svg>
   </div>
-  <div class="join-card">
-    <div class="join-title">加入游戏</div>
-    <div class="input-wrap">
-      <div class="input-label">你的名字</div>
-      <input class="input-field" id="nameInput" type="text" placeholder="输入昵称（最多10字）" maxlength="10" autocomplete="off">
-    </div>
-    <button class="btn-join" onclick="joinGame()">进入伊甸园 →</button>
+  <div class="logo-t" style="background:linear-gradient(135deg,#d4a853,#6bb889);-webkit-background-clip:text;-webkit-text-fill-color:transparent">伊甸园</div>
+  <div class="logo-s">EDEN · TEAM GAME</div>
+  <div class="jc-card greek-border">
+    <div class="jc-t">🍎 加入游戏</div>
+    <div class="jc-d">系统将随机分配你的数字编号<br>用这个编号参与本轮游戏</div>
+    <button class="btn-enter" onclick="joinGame()">加入游戏 →</button>
     <div class="join-error" id="joinError"></div>
   </div>
 </div>
+</div>
 
-<!-- 等待页 -->
+<!-- ===== 等待页 ===== -->
 <div id="waitPage" class="page">
-  <div class="wait-avatar">🌿</div>
-  <div class="wait-name" id="waitName">玩家</div>
-  <div class="wait-score">初始积分：<strong>10,000</strong></div>
-  <div class="wait-status">⌛ 等待主持人开始游戏...</div>
-  <div class="wait-count">已有 <span id="waitPlayerCount">0</span> 位勇士就绪</div>
+  <div class="w-avatar" id="wAv">#</div>
+  <div class="w-name" id="wNm">#001</div>
+  <div class="w-score">初始积分：<strong>10,000</strong></div>
+  <div class="greek-line"></div>
+  <div class="w-status waiting" id="wSt">⏳ 等待主持人开始...</div>
+  <div class="w-count">已有 <b id="wCnt">0</b> 位玩家就位</div>
 </div>
 
-<!-- 投票页 -->
+<!-- ===== 投票页 ===== -->
 <div id="votePage" class="page">
-  <div class="vote-header">
-    <div>
-      <div class="vote-header-left" id="voteHeaderName">投票</div>
-      <div class="vote-header-round" id="voteHeaderRound">第1轮</div>
+<div class="votePage-wrap" id="votePageWrap">
+  <!-- ★ ready 阶段禁用遮罩 -->
+  <div class="vote-disabled-overlay" id="voteDisabledOverlay">
+    <div class="vdo-icon">🔒</div>
+    <div class="vdo-title">等待主持人开启投票</div>
+    <div class="vdo-sub">本轮投票即将开始<br>请做好准备</div>
+  </div>
+  <div class="vh">
+    <div><div class="vhl">身份 <b id="vhNm">#001</b></div><div class="vhr" id="vhRd">第1轮</div></div>
+    <div class="vhs-r"><div class="vhs-v" id="vhSc">10,000</div><div class="vhs-l">积 分</div></div>
+  </div>
+  <!-- ★ 倒计时圆环 ★ -->
+  <div class="cd-bar" id="cdBar">
+    <div class="cd-ring">
+      <svg viewBox="0 0 54 54">
+        <circle class="cd-ring-bg"/>
+        <circle class="cd-ring-prog" id="cdRingProg" stroke-dasharray="138.2" stroke-dashoffset="0"/>
+      </svg>
+      <div class="cd-ring-num" id="cdNum">60</div>
     </div>
-    <div class="vote-header-score">
-      <div class="vote-header-score-val" id="voteScore">0</div>
-      <div class="vote-header-score-label">当前积分</div>
+    <div class="cd-bar-info">
+      <div class="cd-bar-lbl">投票倒计时</div>
+      <div class="cd-bar-pct"><div class="cd-bar-fill" id="cdFill" style="width:100%"></div></div>
     </div>
   </div>
-  <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
-
-  <div class="vote-content">
-    <!-- 最终轮横幅 -->
-    <div class="final-round-banner" id="finalRoundBanner">
-      🏁 <strong>最终轮！</strong> 红苹果人数 ≥ 总投票人数 - 10，即触发全体胜利！
+  <!-- 时间到 -->
+  <div class="cd-ended-bar" id="cdEndedBar">
+    <span class="cd-ended-icon">⏳</span>
+    <div><div class="cd-ended-txt">时间到！</div><div class="cd-ended-sub">等待结算</div></div>
+  </div>
+  <div class="vc">
+    <!-- 等待游戏开始 -->
+    <div id="vwStart" class="vw-start">
+      <div class="vwi">🔒</div>
+      <div class="vwt">等待游戏开始</div>
+      <div class="vws">请等待主持人开启本轮投票</div>
     </div>
 
-    <!-- 倒计时 -->
-    <div class="timer-center">
-      <div class="timer-center-num" id="timerCenterNum">60</div>
-      <div class="timer-center-label">秒后自动结束，未投票扣 2000 分</div>
-    </div>
+    <!-- 投票区域 -->
+    <div id="voteArea" style="display:none">
+      <div class="fr-banner" id="frBanner">🏁 <strong>最终轮！</strong> 红≥总-10 触发全体胜利！</div>
 
-    <!-- 说明 -->
-    <div class="vote-instruction" id="voteInstruction">
-      花费 <strong>2000 积分</strong>投票<br>
-      🍎 红最少 → 红+1000，金银各-2000<br>
-      🍏 金或银任意一个比红少 → <strong>金银阵营整体赢</strong>，金+1000，银+1000，红-2000<br>
-      无红时：金银单独比，少的+1000，多的-2000
-    </div>
+      <!-- 已投票 -->
+      <div id="votedCard" class="voted-cd" style="display:none">
+        <div class="vi" id="votedIcon"></div>
+        <div class="vt" id="votedTitle">已提交投票</div>
+        <div class="vch" id="votedChText"></div>
+        <div class="vwt">等待结算结果...</div>
+      </div>
 
-    <!-- 已投票卡片（隐藏） -->
-    <div id="votedCard" class="voted-card" style="display:none">
-      <div class="voted-icon">✅</div>
-      <div class="voted-text">已投票</div>
-      <div class="voted-choice" id="votedChoiceText">你选择了金苹果</div>
-      <div class="voted-waiting">等待本轮结束...</div>
-    </div>
+      <!-- 选择按钮 -->
+      <div id="btnArea">
+        <div class="apple-lbl">选择你的苹果</div>
 
-    <!-- 投票按钮（显示） -->
-    <div id="voteButtons">
-      <div class="camp-label">— 金银阵营 —</div>
-      <button class="apple-btn apple-gold" id="btnGold" onclick="selectApple('gold', this)">
-        <div class="apple-btn-icon">🍎</div>
-        <div class="apple-btn-info">
-          <div class="apple-btn-name">金苹果</div>
-          <div class="apple-btn-camp">金银阵营 · 和银苹果共同胜负</div>
-          <div class="apple-btn-cost">花费 2,000 积分</div>
-        </div>
-        <div class="apple-check">✓</div>
-      </button>
-      <button class="apple-btn apple-silver" id="btnSilver" onclick="selectApple('silver', this)">
-        <div class="apple-btn-icon">🥈</div>
-        <div class="apple-btn-info">
-          <div class="apple-btn-name">银苹果</div>
-          <div class="apple-btn-camp">金银阵营 · 和金苹果共同胜负</div>
-          <div class="apple-btn-cost">花费 2,000 积分</div>
-        </div>
-        <div class="apple-check">✓</div>
-      </button>
-      <div class="camp-label" style="margin-top:8px">— 红色阵营 —</div>
-      <button class="apple-btn apple-red" id="btnRed" onclick="selectApple('red', this)">
-        <div class="apple-btn-icon">🍒</div>
-        <div class="apple-btn-info">
-          <div class="apple-btn-name">红苹果</div>
-          <div class="apple-btn-camp">红色阵营 · 独立对抗金银</div>
-          <div class="apple-btn-cost">花费 2,000 积分</div>
-        </div>
-        <div class="apple-check">✓</div>
-      </button>
-
-      <button class="vote-confirm-btn" id="confirmVoteBtn" onclick="confirmVote()" disabled>
-        确认投票
-      </button>
+        <button class="abtn agold" id="bGold" onclick="selApple('gold')">
+          <div class="ab-i ab-i-gold">
+            <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="agGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ffe4a0"/><stop offset="30%" style="stop-color:#f0d48a"/><stop offset="65%" style="stop-color:#d4a853"/><stop offset="100%" style="stop-color:#9a7209"/>
+                </linearGradient>
+                <linearGradient id="agGoldLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#7ec88a"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 10 C11 8 2 16 2 28 C2 39 9 43 17 41 C18.5 40.6 19.3 39.8 20 39.3 C20.7 39.8 21.5 40.6 23 41 C31 43 38 39 38 28 C38 16 29 8 20 10 Z" fill="url(#agGold)"/>
+              <ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.22)" transform="rotate(-20 13 22)"/>
+              <path d="M20 9 Q21 3 23 0" stroke="#8b6914" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M22 3 Q30 -2 31 5 Q30 10 24 8 Q21.5 7 22 3 Z" fill="url(#agGoldLeaf)"/>
+            </svg>
+          </div>
+          <div class="ab-inf"><div class="ab-n">金苹果</div><div class="ab-c">Golden Apple · 稀有选择</div></div>
+          <div class="ab-chk">✓</div>
+        </button>
+        <button class="abtn asilver" id="bSilver" onclick="selApple('silver')">
+          <div class="ab-i ab-i-silver">
+            <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="agSilver" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#e8eef5"/><stop offset="30%" style="stop-color:#c8d4e2"/><stop offset="65%" style="stop-color:#94a3b8"/><stop offset="100%" style="stop-color:#5a6a7e"/>
+                </linearGradient>
+                <linearGradient id="agSilverLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#7ec88a"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 10 C11 8 2 16 2 28 C2 39 9 43 17 41 C18.5 40.6 19.3 39.8 20 39.3 C20.7 39.8 21.5 40.6 23 41 C31 43 38 39 38 28 C38 16 29 8 20 10 Z" fill="url(#agSilver)"/>
+              <ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.3)" transform="rotate(-20 13 22)"/>
+              <path d="M20 9 Q21 3 23 0" stroke="#6a7a8e" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M22 3 Q30 -2 31 5 Q30 10 24 8 Q21.5 7 22 3 Z" fill="url(#agSilverLeaf)"/>
+            </svg>
+          </div>
+          <div class="ab-inf"><div class="ab-n">银苹果</div><div class="ab-c">Silver Apple · 稳健选择</div></div>
+          <div class="ab-chk">✓</div>
+        </button>
+        <button class="abtn ared" id="bRed" onclick="selApple('red')">
+          <div class="ab-i ab-i-red">
+            <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="agRed" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ff8888"/><stop offset="30%" style="stop-color:#e06060"/><stop offset="65%" style="stop-color:#c45c5c"/><stop offset="100%" style="stop-color:#7a2e2e"/>
+                </linearGradient>
+                <linearGradient id="agRedLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#7ec88a"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 10 C11 8 2 16 2 28 C2 39 9 43 17 41 C18.5 40.6 19.3 39.8 20 39.3 C20.7 39.8 21.5 40.6 23 41 C31 43 38 39 38 28 C38 16 29 8 20 10 Z" fill="url(#agRed)"/>
+              <ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.2)" transform="rotate(-20 13 22)"/>
+              <path d="M20 9 Q21 3 23 0" stroke="#6e3030" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M22 3 Q30 -2 31 5 Q30 10 24 8 Q21.5 7 22 3 Z" fill="url(#agRedLeaf)"/>
+            </svg>
+          </div>
+          <div class="ab-inf"><div class="ab-n">红苹果</div><div class="ab-c">Red Apple · 勇敢选择</div></div>
+          <div class="ab-chk">✓</div>
+        </button>
+        <button class="btn-conf" id="confBtn" disabled onclick="confirmVote()">确认投票</button>
+      </div>
     </div>
   </div>
+</div><!-- /votePageWrap -->
 </div>
 
-<!-- 结果页 -->
+<!-- ===== 结果页 ===== -->
 <div id="resultPage" class="page">
-  <div class="result-title">📊 本轮结果</div>
-  <div id="resultMyCard" class="result-my-card result-neutral">
-    <span class="result-my-emoji" id="resultEmoji">❓</span>
-    <div class="result-my-outcome" id="resultOutcomeText">—</div>
-    <div class="result-my-change" id="resultChangeText">—</div>
-    <div class="result-my-total">当前积分：<span id="resultTotalScore">0</span></div>
+  <div class="rt">🍎 本轮结果</div>
+  <div id="rmc" class="rmc rneut">
+    <span class="re" id="reEmoji">❓</span>
+    <div class="ro" id="reOutcome">—</div>
+    <div class="rch" id="reChange">—</div>
+    <div class="rtot">当前积分：<span id="reTotal">0</span></div>
   </div>
-  <div class="result-msg-card" id="resultMsgCard"></div>
-  <div class="result-vote-summary">
-    <div class="result-vote-title">本轮投票结果</div>
-    <div class="result-vote-bars">
-      <div class="result-vote-bar-item">
-        <div class="rvb-count rvb-gold" id="rvbGold">0</div>
-        <div class="rvb-name">🍎 金苹果</div>
-      </div>
-      <div class="result-vote-bar-item">
-        <div class="rvb-count rvb-silver" id="rvbSilver">0</div>
-        <div class="rvb-name">🥈 银苹果</div>
-      </div>
-      <div class="result-vote-bar-item">
-        <div class="rvb-count rvb-red" id="rvbRed">0</div>
-        <div class="rvb-name">🍒 红苹果</div>
-      </div>
+  <div class="rmsg" id="reMsg"></div>
+  <div class="rvs">
+    <div class="rvt">本轮投票分布</div>
+    <div class="rvb">
+      <div class="rvbi"><div class="rvc rg" id="rvG">0</div><div class="rvn">🍎 金苹果</div></div>
+      <div class="rvbi"><div class="rvc rs" id="rvS">0</div><div class="rvn">🍎 银苹果</div></div>
+      <div class="rvbi"><div class="rvc rr" id="rvR">0</div><div class="rvn">🍎 红苹果</div></div>
     </div>
   </div>
-  <div class="result-wait">等待主持人开始下一轮...</div>
+  <div class="rwait">等待下一轮...</div>
 </div>
 
-<!-- 全体胜利页 -->
-<div id="allwinPage" class="page">
-  <span class="allwin-emoji">🎉</span>
-  <div class="allwin-title">全体胜利！</div>
-  <div class="allwin-sub">所有人都选择了红苹果<br>大家共同守护了伊甸园！</div>
+<!-- ===== 全体胜利 ===== -->
+<div id="awPage" class="page">
+  <span class="aw-e">🍎</span>
+  <div class="aw-t">全体胜利！</div>
+  <div class="aw-s">所有人选择了红苹果<br>团队的力量创造了奇迹！</div>
 </div>
 
-<!-- 游戏结束页 -->
-<div id="gameoverPage" class="page">
-  <div class="gameover-title">🏆 游戏结束</div>
-  <div class="gameover-sub">感谢参与伊甸园！</div>
-  <div class="my-final-card">
-    <div class="my-final-label">你的最终积分</div>
-    <div class="my-final-score" id="myFinalScore">—</div>
-    <div class="my-final-rank" id="myFinalRank">—</div>
+<!-- ===== 游戏结束 ===== -->
+<div id="goPage" class="page">
+  <div class="go-t">🏆 游戏结束</div>
+  <div class="go-s">所有轮次已完成</div>
+  <div class="mf-c">
+    <div class="mf-l">最终积分</div>
+    <div class="mf-sc" id="gfSc">—</div>
+    <div class="mf-rk" id="gfRk">—</div>
   </div>
-  <ul class="top-list" id="finalList"></ul>
+  <ul class="tpl" id="gfList"></ul>
 </div>
 
-<!-- 淘汰结算页 -->
-<div id="eliminatedPage" class="page">
-  <div class="eliminated-bg"></div>
-  <div class="fragments-container" id="fragmentsContainer"></div>
-  <div class="elim-card">
-    <span class="elim-emoji">💥</span>
-    <div class="elim-title">你已被淘汰！</div>
-    <div class="elim-name" id="elimName">玩家</div>
-    <div class="elim-score-label">积分归零</div>
-    <div class="elim-score-val">0</div>
-    <div class="elim-msg">
-      你的积分已经耗尽，无法继续参与后续轮次。<br><br>
-      请继续关注大屏幕，<br>为其他选手加油吧！🌿
-    </div>
+<!-- ===== 淘汰页 ===== -->
+<div id="elPage" class="page">
+  <div class="el-bg"></div>
+  <div class="fg-container" id="fgBox"></div>
+  <div class="el-card">
+    <span class="el-em">⚡</span>
+    <div class="el-t">很遗憾</div>
+    <div class="el-nm" id="elNm">#001</div>
+    <div class="el-sl">积分归零</div>
+    <div class="el-sv">0</div>
+    <div class="el-msg">你已被淘汰<br>可以继续观战 ⚔️</div>
   </div>
 </div>
 
 <script>
+// ============================================================
+//  WebSocket 连接
+// ============================================================
 const socket = io();
-const TOTAL_TIME = 60;
+const COUNTDOWN_SEC = 60;
+const CD_RING_CIRCUMFERENCE = 2 * Math.PI * 22; // ≈ 138.2
 
 let myId = null;
 let myName = '';
 let myNum = 0;
 let myScore = 10000;
-let selectedChoice = null;
-let currentRound = 1;
+let selChoice = null;
 let hasVoted = false;
 let isEliminated = false;
+let currentRound = 1;
+let totalRounds = 8;
 
-// 页面切换
-function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+// ============================================================
+//  页面切换
+// ============================================================
+function showPg(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function curPg(){for(const p of document.querySelectorAll('.page'))if(p.classList.contains('active'))return p.id;return''}
+
+// ============================================================
+//  加入页粒子效果
+// ============================================================
+(function(){
+  const c=document.getElementById('joinCanvas'),ctx=c.getContext('2d');
+  let w,h;
+  function rs(){w=c.width=c.offsetWidth||375;h=c.height=c.offsetHeight||700}
+  rs();window.addEventListener('resize',rs);
+  const ps=Array.from({length:30},()=>({
+    x:Math.random()*w,y:Math.random()*h,
+    r:Math.random()*2+.4,dx:(Math.random()-.5)*.35,dy:-Math.random()*.45-.08,
+    a:Math.random()*.35+.08,
+    cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)]
+  }));
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    ps.forEach(p=>{
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.cl;ctx.globalAlpha=p.a;ctx.fill();
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r*2.8,0,Math.PI*2);
+      ctx.fillStyle=p.cl;ctx.globalAlpha=p.a*.12;ctx.fill();
+      p.x+=p.dx;p.y+=p.dy;
+      if(p.y<-15){p.y=h+15;p.x=Math.random()*w}
+      if(p.x<-15)p.x=w+15;if(p.x>w+15)p.x=-15;
+    });
+    ctx.globalAlpha=1;requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+//  ★ 生成苹果SVG图标（金/银/红三色）
+// ============================================================
+function appleSVG(type) {
+  const colors = {
+    gold: { body: '#d4a853', highlight: '#f0d48a', dark: '#9a7209', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' },
+    silver: { body: '#a8b4c4', highlight: '#d0dae6', dark: '#6b7a8c', leaf: '#7da88a', leafDark: '#4a7a5a', stem: '#6b7a5c' },
+    red: { body: '#c45c5c', highlight: '#e8a0a0', dark: '#8b3030', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' }
+  };
+  const c = colors[type] || colors.gold;
+  return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="abg${type}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${c.highlight}"/>
+        <stop offset="40%" style="stop-color:${c.body}"/>
+        <stop offset="80%" style="stop-color:${c.dark}"/>
+        <stop offset="100%" style="stop-color:${c.dark}"/>
+      </linearGradient>
+    </defs>
+    <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#abg${type})"/>
+    <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.25)" transform="rotate(-15 23 32)"/>
+    <path d="M32 17 Q33 10 35 6" stroke="${c.stem}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="${c.leaf}"/>
+    <path d="M36 11 Q40 7 42 10" stroke="${c.leafDark}" stroke-width=".8" fill="none"/>
+  </svg>`;
 }
 
-// 加入游戏
+// ★ 设置投票后的苹果UI显示
+function showVotedApple(type) {
+  const card = document.getElementById('votedCard');
+  const icon = document.getElementById('votedIcon');
+  const title = document.getElementById('votedTitle');
+  const chText = document.getElementById('votedChText');
+  const names = { gold: '金苹果', silver: '银苹果', red: '红苹果' };
+
+  card.className = 'voted-cd vc-' + type;
+  icon.innerHTML = appleSVG(type);
+  title.className = 'vt vc-' + type + '-t';
+  title.textContent = '已选择' + names[type];
+  chText.textContent = '你选择了' + names[type];
+
+  document.getElementById('btnArea').style.display = 'none';
+  card.style.display = 'block';
+}
+
+// ============================================================
+//  加入游戏
+// ============================================================
 function joinGame() {
-  const name = document.getElementById('nameInput').value.trim();
-  if (!name) {
-    showError('请输入你的名字！');
-    return;
-  }
-  socket.emit('joinGame', { name });
+  socket.emit('joinGame', {});  // 不需要名字，服务端自动分配编号
 }
 
 function showError(msg) {
   const el = document.getElementById('joinError');
   el.textContent = msg;
-  el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3000);
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// 选择苹果
-function selectApple(choice, btn) {
-  if (hasVoted) return;
-  selectedChoice = choice;
-  document.querySelectorAll('.apple-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById('confirmVoteBtn').disabled = false;
+// ============================================================
+//  投票操作
+// ============================================================
+function selApple(ch){
+  if(hasVoted||isEliminated)return;
+  selChoice = ch;
+  document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById({gold:'bGold',silver:'bSilver',red:'bRed'}[ch]).classList.add('sel');
+  document.getElementById('confBtn').disabled = false;
 }
 
-// 确认投票
-function confirmVote() {
-  if (!selectedChoice || hasVoted) return;
-  socket.emit('vote', { choice: selectedChoice });
+function confirmVote(){
+  if(!selChoice||hasVoted)return;
+  socket.emit('vote', { choice: selChoice });
 }
 
-// 更新倒计时
-function updateTimerDisplay(t) {
-  document.getElementById('timerCenterNum').textContent = t;
-  const el = document.getElementById('timerCenterNum');
-  el.classList.toggle('urgent', t <= 10);
-  const pct = (t / TOTAL_TIME * 100);
-  const bar = document.getElementById('timerBar');
-  bar.style.width = pct + '%';
-  bar.style.background = t <= 10 ? '#f87171' : t <= 20 ? '#fbbf24' : '#4ade80';
+// ============================================================
+//  倒计时更新（服务端推送）
+// ============================================================
+let lastCdRemaining = -1;
+
+function updateCountdown(remaining) {
+  const bar = document.getElementById('cdBar');
+  const endedBar = document.getElementById('cdEndedBar');
+  const numEl = document.getElementById('cdNum');
+  const ringProg = document.getElementById('cdRingProg');
+  const fillEl = document.getElementById('cdFill');
+
+  if (remaining <= 0) {
+    // 时间到
+    bar.classList.remove('show');
+    endedBar.classList.add('show');
+    if (lastCdRemaining !== 0) {
+      numEl.textContent = '0';
+      numEl.className = 'cd-ring-num danger';
+      ringProg.style.strokeDashoffset = CD_RING_CIRCUMFERENCE;
+      ringProg.className = 'cd-ring-prog danger';
+      fillEl.style.width = '0%';
+    }
+    lastCdRemaining = 0;
+    return;
+  }
+
+  // 有倒计时在跑
+  endedBar.classList.remove('show');
+  bar.classList.add('show');
+
+  if (remaining !== lastCdRemaining) {
+    lastCdRemaining = remaining;
+    numEl.textContent = remaining;
+    
+    const danger = remaining <= 10;
+    const warn = remaining <= 20 && !danger;
+    numEl.className = 'cd-ring-num' + (danger ? ' danger' : warn ? ' warn' : '');
+    ringProg.className = 'cd-ring-prog' + (danger ? ' danger' : warn ? ' warn' : '');
+    
+    const pct = remaining / COUNTDOWN_SEC;
+    const offset = CD_RING_CIRCUMFERENCE * (1 - pct);
+    ringProg.style.strokeDashoffset = offset;
+  }
+  
+  const fillPct = Math.max(0, Math.min(100, (remaining / COUNTDOWN_SEC) * 100));
+  fillEl.style.width = fillPct + '%';
 }
 
-// ===== Socket 事件 =====
+// ============================================================
+//  ★ ready 阶段灰色禁用遮罩控制
+// ============================================================
+function updateVoteDisabledState(isReady){
+  const wrap = document.getElementById('votePageWrap');
+  const overlay = document.getElementById('voteDisabledOverlay');
+  if(isReady){
+    wrap.classList.add('disabled');
+    overlay.classList.add('show');
+  } else {
+    wrap.classList.remove('disabled');
+    overlay.classList.remove('show');
+  }
+}
 
+// ============================================================
+//  投票页初始化
+// ============================================================
+function initVoteUI(data){
+  const ns = myNum ? String(myNum).padStart(3,'0') : '???';
+  document.getElementById('vhNm').textContent = '#'+ns;
+  document.getElementById('vhSc').textContent = myScore.toLocaleString();
+  document.getElementById('vhRd').textContent = '第' + (data ? data.round : currentRound) + '轮';
+  
+  const isFinal = data ? data.isFinalRound : (currentRound >= totalRounds);
+  document.getElementById('frBanner').style.display = isFinal ? 'block' : 'none';
+  
+  document.getElementById('votedCard').style.display='none';
+  document.getElementById('btnArea').style.display='block';
+  document.getElementById('voteArea').style.display='block';
+  document.getElementById('vwStart').style.display='none';
+  document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('confBtn').disabled = true;
+  selChoice = null; hasVoted = false;
+  
+  updateVoteDisabledState(false);
+  
+  if (data) {
+    lastCdRemaining = -1;
+    updateCountdown(data.timer || COUNTDOWN_SEC);
+  }
+}
+
+// ============================================================
+//  Socket 事件
+// ============================================================
 socket.on('joinSuccess', (data) => {
   myId = data.playerId;
-  myName = data.name;
+  myName = '';  // 正式版不需要名字
   myNum = data.num || 0;
   myScore = data.score;
-  document.getElementById('waitName').textContent = myName + (myNum ? ` #${myNum}` : '');
-  showPage('waitPage');
+  const ns = String(myNum).padStart(3,'0');
+  document.getElementById('wAv').textContent = '#'+ns;
+  document.getElementById('wNm').textContent = '#'+ns;
+  showPg('waitPage');
 });
 
 socket.on('joinError', (data) => {
@@ -787,160 +734,88 @@ socket.on('joinError', (data) => {
 });
 
 socket.on('playerListUpdate', (data) => {
-  document.getElementById('waitPlayerCount').textContent = data.count;
+  document.getElementById('wCnt').textContent = data.count;
 });
 
 socket.on('gameStart', (data) => {
   currentRound = data.round;
+  totalRounds = data.totalRounds || 8;
+  myScore = 10000;
+  isEliminated = false;
   hasVoted = false;
-  selectedChoice = null;
-  startVotingUI(data);
-  showPage('votePage');
+  selChoice = null;
+  initVoteUI(data);
+  showPg('votePage');
 });
 
 socket.on('nextRound', (data) => {
   currentRound = data.round;
+  totalRounds = data.totalRounds || 8;
   hasVoted = false;
-  selectedChoice = null;
-  startVotingUI(data);
-  showPage('votePage');
+  selChoice = null;
+  initVoteUI(data);
+  showPg('votePage');
 });
-
-function startVotingUI(data) {
-  // 已淘汰则直接显示淘汰页
-  if (isEliminated) { showPage('eliminatedPage'); return; }
-
-  document.getElementById('voteHeaderName').textContent = myName + (myNum ? ` #${myNum}` : '');
-  const isFinal = data.isFinalRound || false;
-  document.getElementById('voteHeaderRound').textContent = '第' + data.round + '轮' + (isFinal ? '（最终轮）' : '');
-  document.getElementById('voteScore').textContent = myScore.toLocaleString();
-  document.getElementById('votedCard').style.display = 'none';
-  document.getElementById('voteButtons').style.display = 'block';
-  document.querySelectorAll('.apple-btn').forEach(b => b.classList.remove('selected'));
-  document.getElementById('confirmVoteBtn').disabled = true;
-  selectedChoice = null;
-  updateTimerDisplay(data.timer || TOTAL_TIME);
-
-  // 最终轮横幅
-  const banner = document.getElementById('finalRoundBanner');
-  banner.style.display = isFinal ? 'block' : 'none';
-
-  // 规则说明（免费投票）
-  const inst = document.getElementById('voteInstruction');
-  if (isFinal) {
-    inst.innerHTML = '投票<strong>无需消耗积分</strong>。最终轮特殊规则：<br>红苹果 ≥ 总票数-10 → <strong>全体胜利</strong>！否则按最少者获胜。';
-  } else {
-    inst.innerHTML = '投票<strong>无需消耗积分</strong><br>🍎 红最少→红+1000，金银各-2000<br>🍏 金或银任一比红少→<strong>金银阵营整体赢</strong>，金银+1000，红-2000<br><span style="color:var(--red);font-size:11px">⚠️ 未投票将自动扣除2000分</span>';
-  }
-
-  // 更新按钮文字：去掉"花费"
-  document.querySelector('#btnGold .apple-btn-cost').textContent = '免费投票';
-  document.querySelector('#btnSilver .apple-btn-cost').textContent = '免费投票';
-  document.querySelector('#btnRed .apple-btn-cost').textContent = '免费投票';
-}
 
 socket.on('timerUpdate', (data) => {
   if (document.getElementById('votePage').classList.contains('active')) {
-    updateTimerDisplay(data.timer);
+    updateCountdown(data.timer);
   }
 });
 
 socket.on('voteSuccess', (data) => {
   hasVoted = true;
   myScore = data.score;
-  const names = { gold: '金苹果', silver: '银苹果', red: '红苹果' };
-  document.getElementById('voteScore').textContent = myScore.toLocaleString();
-  document.getElementById('votedChoiceText').textContent = '你选择了 ' + names[data.choice];
-  document.getElementById('voteButtons').style.display = 'none';
-  document.getElementById('votedCard').style.display = 'block';
+  document.getElementById('vhSc').textContent = myScore.toLocaleString();
+  showVotedApple(data.choice);
 });
 
 socket.on('voteError', (data) => {
-  alert(data.message);
+  showError(data.message);
 });
 
 socket.on('myResult', (data) => {
   myScore = data.total;
 
   // 检测淘汰
-  if (data.eliminated && !isEliminated) {
+  if(data.eliminated && !isEliminated){
     isEliminated = true;
-    showEliminatedEffect();
+    document.getElementById('elNm').textContent = '#' + String(myNum).padStart(3,'0');
+    makeFragments();
+    showPg('elPage');
     return;
   }
 
-  if (data.specialEvent === 'all_red') {
-    showPage('allwinPage');
+  if(data.specialEvent === 'all_red'){
+    showPg('awPage');
     return;
   }
 
-  // 填充结果
-  const card = document.getElementById('resultMyCard');
-  const emoji = document.getElementById('resultEmoji');
-  const outcome = document.getElementById('resultOutcomeText');
-  const change = document.getElementById('resultChangeText');
+  const card = document.getElementById('rmc');
+  const emoji = document.getElementById('reEmoji');
+  const outcome = document.getElementById('reOutcome');
+  const change = document.getElementById('reChange');
+  card.className = 'rmc';
 
-  card.className = 'result-my-card';
-
-  if (!data.voted) {
-    card.classList.add('result-lose');
-    emoji.textContent = '😔';
-    outcome.textContent = '未投票 — 自动扣分';
-    change.innerHTML = '<span class="change-neg">-2000</span>';
-  } else if (data.change > 0) {
-    card.classList.add('result-win');
-    emoji.textContent = '🎉';
-    outcome.textContent = '少数派胜利！';
-    change.innerHTML = `<span class="change-pos">+${data.change}</span>`;
-  } else if (data.change < 0) {
-    card.classList.add('result-lose');
-    emoji.textContent = '😞';
-    outcome.textContent = '多数派败北';
-    change.innerHTML = `<span class="change-neg">${data.change}</span>`;
+  if(!data.voted){
+    card.classList.add('rlose');emoji.textContent='😔';outcome.textContent='未投票';change.innerHTML='<span class="cn">-2000</span>';
+  } else if(data.change > 0){
+    card.classList.add('rwin');emoji.textContent='🍎';outcome.textContent='得分！';change.innerHTML='<span class="cp">+'+data.change+'</span>';
+  } else if(data.change < 0){
+    card.classList.add('rlose');emoji.textContent='⚡';outcome.textContent='扣分';change.innerHTML='<span class="cn">'+data.change+'</span>';
   } else {
-    card.classList.add('result-neutral');
-    emoji.textContent = '😐';
-    outcome.textContent = '平局 — 无变动';
-    change.innerHTML = `<span class="change-zero">±0</span>`;
+    card.classList.add('rneut');emoji.textContent='⚖️';outcome.textContent='天平持平';change.innerHTML='<span class="cz">±0</span>';
   }
 
-  document.getElementById('resultTotalScore').textContent = myScore.toLocaleString();
-  document.getElementById('resultMsgCard').textContent = data.message;
-
-  showPage('resultPage');
+  document.getElementById('reTotal').textContent = myScore.toLocaleString();
+  document.getElementById('reMsg').textContent = data.message;
+  showPg('resultPage');
 });
 
-// 淘汰特效
-function showEliminatedEffect() {
-  // 碎片动画
-  createFragments();
-  document.getElementById('elimName').textContent = myName + (myNum ? ` #${myNum}` : '');
-  showPage('eliminatedPage');
-}
-
-function createFragments() {
-  const container = document.getElementById('fragmentsContainer');
-  container.innerHTML = '';
-  for (let i = 0; i < 30; i++) {
-    const f = document.createElement('div');
-    f.className = 'fragment';
-    f.style.left = Math.random() * 100 + '%';
-    f.style.top = -10 + 'px';
-    f.style.width = (4 + Math.random() * 12) + 'px';
-    f.style.height = f.style.width;
-    f.style.background = ['#f87171','#ef4444','#fca5a5','#dc2626'][Math.floor(Math.random()*4)];
-    f.style.animationDelay = (Math.random() * 0.8) + 's';
-    f.style.animationDuration = (1 + Math.random() * 1.5) + 's';
-    container.appendChild(f);
-  }
-  // 清理
-  setTimeout(() => { container.innerHTML = ''; }, 3000);
-}
-
 socket.on('roundEnd', (data) => {
-  document.getElementById('rvbGold').textContent = data.result.votes.gold;
-  document.getElementById('rvbSilver').textContent = data.result.votes.silver;
-  document.getElementById('rvbRed').textContent = data.result.votes.red;
+  document.getElementById('rvG').textContent = data.result.votes.gold;
+  document.getElementById('rvS').textContent = data.result.votes.silver;
+  document.getElementById('rvR').textContent = data.result.votes.red;
 });
 
 socket.on('gameOver', (data) => {
@@ -948,33 +823,43 @@ socket.on('gameOver', (data) => {
   const myEntry = lb.find(p => p.id === myId);
   const myRank = lb.findIndex(p => p.id === myId) + 1;
 
-  document.getElementById('myFinalScore').textContent = (myEntry ? myEntry.score : myScore).toLocaleString();
-  document.getElementById('myFinalRank').textContent = myRank > 0 ? `第 ${myRank} 名` : '';
+  document.getElementById('gfSc').textContent = (myEntry ? myEntry.score : myScore).toLocaleString();
+  document.getElementById('gfRk').textContent = myRank > 0 ? '第 ' + myRank + ' 名' : '';
 
   const medals = ['🥇','🥈','🥉'];
-  document.getElementById('finalList').innerHTML = lb.slice(0,10).map((p,i) =>
-    `<li class="top-item ${p.id === myId ? 'me' : ''}">
-      <span class="top-medal">${medals[i]||i+1}</span>
-      <span class="top-name">${escHtml(p.name)}${p.id === myId ? ' (你)' : ''}</span>
-      <span class="top-score">${p.score.toLocaleString()}</span>
-    </li>`
+  document.getElementById('gfList').innerHTML = lb.slice(0,10).map((p,i) =>
+    '<li class="tpi '+(p.id === myId ? 'me' : '')+'">'+
+    '<span class="tp-md">'+(medals[i]||(i+1))+'</span>'+
+    '<span class="tp-nm">#'+String(p.num).padStart(3,'0')+(p.id === myId ? ' (你)' : '')+'</span>'+
+    '<span class="tp-sc">'+p.score.toLocaleString()+'</span></li>'
   ).join('');
-
-  showPage('gameoverPage');
+  showPg('goPage');
 });
 
 socket.on('gameReset', () => {
   location.reload();
 });
 
+// ============================================================
+//  碎片特效
+// ============================================================
+function makeFragments(){
+  const c=document.getElementById('fgBox');c.innerHTML='';
+  for(let i=0;i<35;i++){
+    const f=document.createElement('div');f.className='fg';
+    f.style.left=Math.random()*100+'%';f.style.top='-10px';
+    const s=3+Math.random()*12;f.style.width=s+'px';f.style.height=s+'px';
+    f.style.background=['#c45c5c','#b84444','#d4a853','#6bb889'][Math.floor(Math.random()*4)];
+    f.style.animationDelay=Math.random()*.7+'s';
+    f.style.animationDuration=(1+Math.random()*1.3)+'s';
+    c.appendChild(f);
+  }
+  setTimeout(()=>c.innerHTML='',3500);
+}
+
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-
-// 回车加入
-document.getElementById('nameInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') joinGame();
-});
 </script>
 </body>
 </html>

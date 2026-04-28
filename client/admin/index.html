@@ -318,14 +318,23 @@ socket.emit('joinAdmin');
 
 let currentStatus = 'waiting';
 
-// 加载链接
+// 加载链接和二维码
 fetch('/serverinfo').then(r=>r.json()).then(info => {
   const base = `http://${info.ip}:${info.port}`;
+  document.getElementById('playerUrl').textContent = `${base}/player/`;
+  document.getElementById('displayUrl').textContent = `${base}/display/`;
+}).catch(() => {
+  // 备用：使用当前页面的 origin
+  const base = window.location.origin;
   document.getElementById('playerUrl').textContent = `${base}/player/`;
   document.getElementById('displayUrl').textContent = `${base}/display/`;
 });
 fetch('/qrcode').then(r=>r.json()).then(d => {
   if(d.qr) document.getElementById('qrSmall').src = d.qr;
+  if(d.url) document.getElementById('playerUrl').textContent = d.url;
+}).catch(() => {
+  document.getElementById('qrSmall').alt = '二维码加载失败';
+  document.getElementById('playerUrl').textContent = window.location.origin + '/player/';
 });
 
 function showToast(msg, type='success') {

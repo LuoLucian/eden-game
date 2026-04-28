@@ -3,255 +3,183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>伊甸园 — 大屏展示</title>
+<title>🏛️ 伊甸园 — 大屏展示</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #0a0e1a;
-    color: #fff;
-    font-family: 'Noto Serif SC', serif;
-    height: 100vh;
-    overflow: hidden;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(34,197,94,0.06) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(251,191,36,0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 60% 80%, rgba(239,68,68,0.06) 0%, transparent 50%);
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0c0f1a;--card:rgba(18,22,40,.92);--border:rgba(196,165,107,.18);
+    --text:#e8dcc8;--muted:#8a7e6e;--gold:#d4a853;--gold-light:#f0d48a;
+    --silver:#a8b4c4;--red:#c45c5c;--green:#6bb889;--purple:#a78bfa;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',Georgia,serif;height:100vh;overflow:hidden;background-image:radial-gradient(ellipse at 20% 50%,rgba(107,184,137,.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(212,168,83,.05) 0%,transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(196,92,92,.04) 0%,transparent 50%)}
+
+  #particles{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .container{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:12px 28px}
+
+  /* 顶栏 */
+  .header{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)}
+  .game-title{font-size:38px;font-weight:900;background:linear-gradient(135deg,#f0d48a 0%,#d4a853 40%,#6bb889 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:5px;display:flex;align-items:center;gap:12px}
+  .game-title-icon{width:44px;height:44px;flex-shrink:0}
+  .game-sub{font-size:13px;color:var(--muted);letter-spacing:4px;margin-top:3px;text-transform:uppercase;padding-left:56px}
+  .round-badge{background:linear-gradient(135deg,rgba(212,168,83,.15),rgba(212,168,83,.04));border:1.5px solid rgba(212,168,83,.35);border-radius:12px;padding:7px 20px;font-size:19px;color:var(--gold);font-weight:700;display:none}
+  .round-badge.final{background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.06));border-color:rgba(167,139,250,.55);color:#c084fc;animation:gf 2s infinite alternate}
+  @keyframes gf{from{box-shadow:0 0 8px rgba(167,139,250,.25)}to{box-shadow:0 0 22px rgba(167,139,250,.55)}}
+  .p-info{text-align:right;font-size:15px;color:var(--muted)}
+  .p-info .num{color:var(--green);font-size:24px;font-weight:700}
+  .p-info .elim{color:var(--red);font-size:13px;margin-top:3px}
+
+  /* ★ 等待界面 — 中间文字居中 ★ */
+  .wait-sec{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+  /* 呼吸光环 */
+  .wait-aura{position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(212,168,83,.08) 0%,rgba(107,184,137,.04) 40%,transparent 70%);animation:auraPulse 5s ease-in-out infinite;pointer-events:none}
+  @keyframes auraPulse{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.15);opacity:1}}
+
+  /* 旋转装饰环 */
+  .wait-ring{position:absolute;width:480px;height:480px;border:1px solid rgba(212,168,83,.08);border-radius:50%;animation:waitSpin 40s linear infinite;pointer-events:none}
+  .wait-ring::before{content:'';position:absolute;top:-3px;left:50%;width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(212,168,83,.4)}
+  .wait-ring2{position:absolute;width:340px;height:340px;border:1px solid rgba(107,184,137,.06);border-radius:50%;animation:waitSpin 25s linear infinite reverse;pointer-events:none}
+  .wait-ring2::before{content:'';position:absolute;bottom:-2px;left:50%;width:4px;height:4px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(107,184,137,.3)}
+  @keyframes waitSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+  /* 二维码区域 — 右下角固定定位，不占用中间空间 */
+  .qr-area{position:absolute;right:40px;bottom:40px;z-index:5;text-align:center;background:rgba(18,22,40,.85);border:1px solid rgba(212,168,83,.2);border-radius:16px;padding:16px;backdrop-filter:blur(8px)}
+  .qr-img{width:160px;height:160px;border-radius:10px;background:#fff;padding:6px;box-shadow:0 0 20px rgba(212,168,83,.12)}
+  .qr-label{margin-top:10px;font-size:14px;color:var(--gold-light);letter-spacing:2px;font-weight:700}
+  .qr-url{margin-top:4px;font-size:13px;color:var(--green);font-weight:700;letter-spacing:1px}
+
+  .wait-content{position:relative;z-index:2;text-align:center}
+  .wait-logo{margin-bottom:18px;animation:waitFloat 3.5s ease-in-out infinite;filter:drop-shadow(0 0 36px rgba(212,168,83,.45))}
+  @keyframes waitFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.03)}}
+  .wait-logo svg{width:72px;height:72px}
+
+  .wait-big{
+    font-size:100px;font-weight:900;text-align:center;
+    color:#f0d48a;
+    letter-spacing:6px;line-height:1.1;
+    text-shadow:
+      0 0 20px rgba(240,212,138,.7),
+      0 0 48px rgba(212,168,83,.4),
+      0 0 80px rgba(212,168,83,.15);
+    animation:waitNumGlow 2s ease-in-out infinite alternate;
+  }
+  @keyframes waitNumGlow{
+    0%{text-shadow:0 0 20px rgba(240,212,138,.6),0 0 40px rgba(212,168,83,.35),0 0 70px rgba(212,168,83,.12);color:#f0d48a}
+    100%{text-shadow:0 0 28px rgba(240,212,138,.9),0 0 60px rgba(212,168,53,.55),0 0 100px rgba(212,168,83,.22);color:#ffe8a0}
   }
 
-  /* 粒子背景 */
-  #particles { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  .wait-lbl{font-size:22px;color:var(--gold-light);margin-top:12px;letter-spacing:8px;text-align:center;font-weight:700;text-shadow:0 0 16px rgba(240,212,138,.25);animation:lblFade 3s ease-in-out infinite}
+  @keyframes lblFade{0%,100%{opacity:.65}100%{opacity:1}}
 
-  .container { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; padding: 14px 32px; }
+  .wait-hint{margin-top:24px;font-size:16px;color:rgba(232,220,200,.5);text-align:center;letter-spacing:3px;animation:hintPulse 3.5s ease-in-out infinite;font-weight:400}
+  @keyframes hintPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:.7;transform:scale(1.01)}}
 
-  /* 顶部标题区 */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
+  /* 排行主体 — 双列网格 */
+  .main{flex:1;display:flex;flex-direction:column;padding-top:12px;overflow:hidden}
+  .lb-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .lb-t{font-size:22px;font-weight:900;letter-spacing:3px;color:var(--muted)}
+  .lb-t span{color:var(--gold)}
 
-  .title-area { display: flex; align-items: center; gap: 18px; }
-  .game-title {
-    font-size: 40px;
-    font-weight: 900;
-    background: linear-gradient(135deg, #f6d365 0%, #fda085 50%, #a8edea 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color:transparent;
-    letter-spacing: 5px;
-  }
-  .game-subtitle { font-size: 13px; color: rgba(255,255,255,0.35); letter-spacing: 3px; }
+  .lb-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:7px;overflow:hidden;align-content:start}
+  .lb-item{display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(232,220,200,.02);border:1px solid rgba(232,220,200,.04);border-radius:10px;transition:all .3s;font-size:17px}
+  .lb-item.elim{opacity:.25;text-decoration:line-through}
+  .lb-item.top10{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.35);box-shadow:0 0 12px rgba(212,168,83,.08)}
+  .lb-rk{font-size:18px;font-weight:900;width:30px;text-align:center;color:var(--muted);flex-shrink:0;opacity:.4;font-variant-numeric:tabular-nums}
+  .lb-item.top10 .lb-rk{color:var(--gold);font-size:20px;opacity:.9}
+  .lb-num{font-size:13.5px;color:var(--gold);font-weight:700;opacity:.55;min-width:38px;font-variant-numeric:tabular-nums}
+  .lb-nm{flex:1;font-size:17px;color:rgba(232,220,200,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+  .lb-sc{font-size:18px;font-weight:800;color:var(--green);flex-shrink:0;font-variant-numeric:tabular-nums}
+  .lb-item.elim .lb-sc{color:var(--red)}
 
-  .round-badge {
-    background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.05));
-    border: 1.5px solid rgba(251,191,36,0.4);
-    border-radius: 12px;
-    padding: 7px 20px;
-    font-size: 19px;
-    color: #fbbf24;
-    font-weight: 700;
-  }
+  /* ★★★ 超大投票进度区 ★★★ */
+  .vote-mega{display:none;flex-direction:column;align-items:center;padding:18px 24px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(212,168,83,.08));border:1px solid rgba(167,139,250,.28);border-radius:16px;margin-top:10px;position:relative;overflow:hidden}
+  .vote-mega::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.1),transparent 70%);pointer-events:none}
+  .vote-mega.show{animation:vmGlow 2.5s infinite alternate;display:flex!important}
+  @keyframes vmGlow{from{box-shadow:0 0 8px rgba(167,139,250,.15),inset 0 0 30px rgba(167,139,250,.03)}to{box-shadow:0 0 28px rgba(167,139,250,.35),inset 0 0 50px rgba(167,139,250,.06)}}
 
-  .final-round-badge {
-    background: linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.08));
-    border: 1px solid rgba(168,85,247,0.6);
-    border-radius: 12px;
-    padding: 6px 18px;
-    font-size: 17px;
-    color: #c084fc;
-    font-weight: 700;
-    display: none;
-    animation: glowPurple 2s infinite alternate;
-  }
-  @keyframes glowPurple {
-    from { box-shadow: 0 0 6px rgba(168,85,247,0.3); }
-    to { box-shadow: 0 0 18px rgba(168,85,247,0.6); }
-  }
+  .vm-top{display:flex;align-items:center;justify-content:center;gap:32px;width:100%;margin-bottom:14px}
 
-  /* 轮次进度点 */
-  .round-dots { display: flex; gap: 6px; align-items: center; justify-content: center; }
-  .round-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.18);
-    transition: all 0.3s;
-  }
-  .round-dot.done { background: #4ade80; border-color: #4ade80; }
-  .round-dot.current { background: #fbbf24; border-color: #fbbf24; transform: scale(1.3); }
-  .round-dot.final { background: rgba(168,85,247,0.5); border-color: #c084fc; }
+  .vm-cd-circle{position:relative;width:72px;height:72px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .vm-cd-svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .vm-cd-svg circle{fill:none;stroke-width:5;cx:36;cy:36;r:31}
+  .vm-cd-bg{stroke:rgba(255,255,255,.05)}
+  .vm-cd-prog{stroke:#a78bfa;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
+  .vm-cd-prog.warn{stroke:#fb923c}.vm-cd-prog.danger{stroke:#ef4444}
+  .vm-cd-num-inner{font-size:28px;font-weight:900;color:#c4b5fd;font-family:Georgia,'Noto Serif SC',serif;font-variant-numeric:tabular-nums;z-index:1;line-height:1;letter-spacing:1px}
+  .vm-cd-num-inner.warn{color:#fb923c}.vm-cd-num-inner.danger{color:#ef4444;animation:cdPulse .4s infinite alternate}
+  @keyframes cdPulse{from{transform:scale(1)}to{transform:scale(1.06)}}
 
-  .player-count { font-size: 15px; color: rgba(255,255,255,0.45); text-align: right; }
-  .player-count span { color: #4ade80; font-size: 26px; font-weight: 700; }
-  .active-count { color: #fbbf24; font-size: 19px; font-weight: 600; margin-top: 2px; }
-  .eliminated-count { color: #f87171; font-size: 13px; margin-top: 1px; }
+  .vm-cd-info{display:flex;flex-direction:column;gap:1px}
+  .vm-cd-label{font-size:14px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-style:italic}
 
-  /* 主内容区：排行榜占主体 */
-  .main-content { flex: 1; display: flex; flex-direction: column; padding-top: 14px; overflow: hidden; }
+  .vm-stat{display:flex;align-items:center;gap:8px;font-size:19px;color:var(--muted);font-family:Georgia,'Noto Serif SC',serif}
+  .vm-stat-v{font-size:42px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;font-family:'Noto Serif SC',Georgia,serif}
+  .vm-stat-t{font-size:23px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .vm-stat-slash{font-size:20px;color:var(--muted);margin:0 2px}
+  .vm-stat-lbl{font-size:14px;color:var(--muted);margin-left:4px;font-style:italic}
 
-  .lb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .lb-title { font-size: 24px; font-weight: 900; letter-spacing: 3px; color: rgba(255,255,255,0.7); }
-  .lb-title span { color: #fbbf24; }
+  .vm-bar{width:100%;height:18px;background:rgba(255,255,255,.05);border-radius:9px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,.04)}
+  .vm-bar-fill{height:100%;border-radius:9px;transition:width .4s ease-out;background:linear-gradient(90deg,#7c3aed,#d4a853,#6bb889);position:relative;min-width:6px}
+  .vm-bar-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 20%,rgba(255,255,255,.2) 50%,transparent 80%);animation:shimmer 1.8s infinite}
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 
-  /* 排行榜双列网格 */
-  .lb-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    overflow: hidden;
-    align-content: start;
-  }
+  .vm-pct{font-size:19px;color:var(--gold);font-weight:900;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:1px;font-family:Georgia,'Noto Serif SC',serif}
 
-  .lb-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 15px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 11px;
-    transition: all 0.3s ease;
-    font-size: 17px;
-  }
-  .lb-item.top1 { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.35); }
-  .lb-item.top2 { background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.25); }
-  .lb-item.top3 { background: rgba(234,179,8,0.07); border-color: rgba(234,179,8,0.2); }
+  /* 时间到大屏提示 */
+  .vm-ended{display:none;width:100%;padding:14px 20px;background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.03));border:1.5px solid rgba(239,68,68,.35);border-radius:12px;margin-top:8px;text-align:center;animation:vmEndIn .4s ease}
+  @keyframes vmEndIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+  .vm-ended.show{display:flex;align-items:center;justify-content:center;gap:12px}
+  .vm-ended-icon{font-size:36px;animation:ceShake .8s ease-in-out infinite}
+  @keyframes ceShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-10deg)}75%{transform:rotate(10deg)}}
+  .vm-ended-txt{font-size:26px;font-weight:900;color:var(--red);font-family:Georgia,'Noto Serif SC',serif}
+  .vm-ended-sub{font-size:15px;color:var(--muted);font-style:italic}
 
-  .lb-rank { font-size: 19px; font-weight: 900; width: 32px; text-align: center; color: rgba(255,255,255,0.25); flex-shrink: 0; }
-  .lb-item.top1 .lb-rank { color: #fbbf24; font-size: 23px; }
-  .lb-item.top2 .lb-rank { color: #94a3b8; font-size: 21px; }
-  .lb-item.top3 .lb-rank { color: #d97706; font-size: 20px; }
-
-  .lb-num { font-size: 14px; color: #fbbf24; font-weight: 700; opacity: 0.6; min-width: 30px; }
-  .lb-name { flex: 1; font-size: 17px; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lb-score { font-size: 19px; font-weight: 800; color: #4ade80; flex-shrink: 0; }
-  .lb-item.eliminated { opacity: 0.35; text-decoration: line-through; border-color: rgba(248,113,113,0.15); }
-  .lb-item.eliminated .lb-score { color: #f87171; }
-
-  /* 投票进度条（底部） */
-  .vote-status-bar {
-    display: none;
-    align-items: center;
-    gap: 18px;
-    padding: 12px 20px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 13px;
-    margin-top: 10px;
-  }
-  .vsb-label { font-size: 15px; color: rgba(255,255,255,0.38); white-space: nowrap; }
-  .vsb-progress { flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
-  .vsb-fill { height: 100%; background: linear-gradient(90deg,#4ade80,#22c55e); border-radius: 4px; transition: width 0.5s; min-width: 4px; }
-  .vsb-count { font-size: 17px; font-weight: 700; color: #4ade80; }
-
-  /* 等待界面 */
-  .waiting-section { display: flex; align-items: center; justify-content: center; gap: 60px; flex: 1; }
-  .qr-area { text-align: center; }
-  .qr-img { width: 220px; height: 220px; border-radius: 16px; background: #fff; padding: 8px; }
-  .qr-label { margin-top: 14px; font-size: 17px; color: rgba(255,255,255,0.35); letter-spacing: 2px; }
-  .qr-url { margin-top: 8px; font-size: 19px; color: #4ade80; font-weight: 700; }
-  .waiting-info { text-align: center; }
-  .waiting-big { font-size: 90px; font-weight: 900; color: #fbbf24; }
-  .waiting-label { font-size: 22px; color: rgba(255,255,255,0.35); margin-top: 10px; letter-spacing: 3px; }
-
-  /* ===== 内嵌结算区（排行榜下方） ===== */
-  .result-inline {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    padding: 16px 24px;
-    background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(74,222,128,0.06));
-    border: 1.5px solid rgba(251,191,36,0.35);
-    border-radius: 14px;
-    margin-top: 10px;
-    animation: riIn 0.45s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  .result-inline::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.1), transparent 70%);
-    pointer-events: none;
-  }
-  @keyframes riIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-  .result-inline.show { display: flex; }
-  .ri-hd { font-size: 15px; color: rgba(255,255,255,0.4); margin-bottom: 3px; font-style: italic; position: relative; z-index: 1; }
-  .ri-msg { font-size: 26px; font-weight: 900; color: #fbbf24; margin-bottom: 4px; line-height: 1.3; text-align: center; position: relative; z-index: 1; }
-  .ri-expl { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.5; margin-bottom: 10px; max-width: 500px; margin-left: auto; margin-right: auto; font-style: italic; text-align: center; position: relative; z-index: 1; }
-  .ri-row { display: flex; gap: 14px; justify-content: center; position: relative; z-index: 1; }
-  .ri-vi { padding: 10px 22px; border-radius: 12px; text-align: center; min-width: 100px; }
-  .ri-gold { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.35); }
-  .ri-silver { background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.35); }
-  .ri-red { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
-  .ri-name { font-size: 14px; margin-bottom: 3px; }
-  .ri-gold .ri-name { color: #fbbf24; }
-  .ri-silver .ri-name { color: #94a3b8; }
-  .ri-red .ri-name { color: #f87171; }
-  .ri-count { font-size: 32px; font-weight: 900; }
-  .ri-gold .ri-count { color: #fbbf24; }
-  .ri-silver .ri-count { color: #94a3b8; }
-  .ri-red .ri-count { color: #f87171; }
-  .ri-tag { font-size: 12px; margin-top: 2px; font-weight: 700; }
-  .ri-tag.win { color: #4ade80; }
-  .ri-tag.lose { color: #f87171; }
-  .ri-wait { font-size: 14px; color: rgba(255,255,255,0.3); margin-top: 6px; font-style: italic; position: relative; z-index: 1; }
+  /* ===== 内嵌结算区 ===== */
+  .result-inline{display:none;flex-direction:column;align-items:center;padding:16px 24px;background:linear-gradient(135deg,rgba(212,168,83,.12),rgba(107,184,137,.06));border:1.5px solid rgba(212,168,83,.35);border-radius:14px;margin-top:10px;animation:riIn .45s ease;position:relative;overflow:hidden}
+  .result-inline::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(212,168,83,.1),transparent 70%);pointer-events:none}
+  @keyframes riIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .result-inline.show{display:flex}
+  .ri-hd{font-size:14px;color:var(--muted);margin-bottom:3px;font-style:italic;position:relative;z-index:1}
+  .ri-msg{font-size:26px;font-weight:900;color:var(--gold);margin-bottom:4px;line-height:1.3;text-align:center;position:relative;z-index:1}
+  .ri-expl{font-size:14px;color:rgba(232,220,200,.5);line-height:1.5;margin-bottom:10px;max-width:500px;margin-left:auto;margin-right:auto;font-style:italic;text-align:center;position:relative;z-index:1}
+  .ri-row{display:flex;gap:12px;justify-content:center;position:relative;z-index:1}
+  .ri-vi{padding:10px 22px;border-radius:12px;text-align:center;min-width:100px}
+  .ri-g{background:rgba(212,168,83,.1);border:1px solid rgba(212,168,83,.3)}
+  .ri-s{background:rgba(168,180,196,.1);border:1px solid rgba(168,180,196,.3)}
+  .ri-r{background:rgba(196,92,92,.1);border:1px solid rgba(196,92,92,.3)}
+  .ri-n{font-size:13px;margin-bottom:3px}
+  .ri-g .ri-n{color:var(--gold)}.ri-s .ri-n{color:var(--silver)}.ri-r .ri-n{color:var(--red)}
+  .ri-c{font-size:32px;font-weight:900;font-variant-numeric:tabular-nums}
+  .ri-g .ri-c{color:var(--gold)}.ri-s .ri-c{color:var(--silver)}.ri-r .ri-c{color:var(--red)}
+  .ri-t{font-size:12px;margin-top:2px;font-weight:700}
+  .ri-t.win{color:var(--green)}.ri-t.lose{color:var(--red)}
+  .ri-wait{font-size:13px;color:rgba(232,220,200,.3);margin-top:6px;font-style:italic;position:relative;z-index:1}
 
   /* 全体胜利 */
-  .all-win-overlay {
-    position: fixed; inset: 0; z-index: 200;
-    display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(34,197,94,0.3) 0%, rgba(10,14,26,0.95) 70%);
-  }
-  .all-win-overlay.hidden { display: none; }
-  .all-win-card { text-align: center; animation: allWin 1s ease; }
-  @keyframes allWin { from{opacity:0;transform:scale(0.5)} to{opacity:1;transform:scale(1)} }
-  .all-win-emoji { font-size: 110px; animation: bounce 0.8s infinite alternate; display: block; }
-  .all-win-title {
-    font-size: 64px; font-weight: 900;
-    background: linear-gradient(135deg, #4ade80, #22d3ee, #a78bfa);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    margin: 20px 0; letter-spacing: 5px;
-  }
-  .all-win-sub { font-size: 20px; color: rgba(255,255,255,0.6); }
-  @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-15px)} }
+  .aw-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(107,184,137,.25) 0%,rgba(12,15,26,.93) 70%)}
+  .aw-ov.hidden{display:none}
+  .aw-e{font-size:100px;animation:bnc .8s infinite alternate;display:block}
+  .aw-t{font-size:60px;font-weight:900;background:linear-gradient(135deg,#6bb889,var(--gold),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:16px 0;letter-spacing:4px}
+  .aw-s{font-size:20px;color:rgba(232,220,200,.55);font-style:italic}
+  @keyframes bnc{from{transform:translateY(0)}to{transform:translateY(-14px)}}
 
   /* 游戏结束 */
-  .gameover-overlay {
-    position: fixed; inset: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(10,14,26,0.95);
-  }
-  .gameover-overlay.hidden { display: none; }
-  .gameover-card { text-align: center; padding: 40px; max-width: 800px; width: 90%; }
-  .gameover-title { font-size: 54px; font-weight: 900; color: #fbbf24; margin-bottom: 24px; letter-spacing: 5px; }
-  .final-lb { list-style: none; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
-  .final-lb::-webkit-scrollbar { width: 4px; }
-  .final-lb::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-  .final-lb-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 13px 22px; border-radius: 13px;
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-    font-size: 18px;
-  }
-  .final-lb-item.gold-bg { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.35); }
-  .final-lb-item.silver-bg { background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.25); }
-  .final-lb-item.bronze-bg { background: rgba(234,179,8,0.07); border-color: rgba(234,179,8,0.2); }
-  .final-rank { font-size: 24px; width: 34px; }
-  .final-name { flex: 1; text-align: left; }
-  .final-score { color: #4ade80; font-weight: 700; font-size: 20px; }
-
-  .status-bar {
-    display: flex; align-items: center; justify-content: center;
-    gap: 8px; padding: 6px 0; font-size: 14px;
-    color: rgba(255,255,255,0.22); letter-spacing: 1px;
-  }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: sparkle 2s infinite; }
-  @keyframes sparkle { 0%,100%{opacity:.3} 50%{opacity:1} }
+  .go-ov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(12,15,26,.93)}
+  .go-ov.hidden{display:none}
+  .go-card{text-align:center;padding:36px;max-width:720px;width:90%}
+  .go-t{font-size:50px;font-weight:900;color:var(--gold);margin-bottom:24px;letter-spacing:4px}
+  .flb{list-style:none;display:flex;flex-direction:column;gap:7px;max-height:58vh;overflow-y:auto}
+  .flb::-webkit-scrollbar{width:3px}
+  .flb::-webkit-scrollbar-thumb{background:rgba(232,220,200,.12);border-radius:2px}
+  .fli{display:flex;align-items:center;gap:13px;padding:12px 18px;border-radius:12px;background:rgba(232,220,200,.03);border:1px solid rgba(232,220,200,.06);font-size:17px}
+  .fli.gbg{background:rgba(212,168,83,.08);border-color:rgba(212,168,83,.25)}
+  .fli.sbg{background:rgba(168,180,196,.06);border-color:rgba(168,180,196,.2)}
+  .fli.bbg{background:rgba(212,168,83,.05);border-color:rgba(212,168,83,.18)}
+  .fl-rk{font-size:22px;width:30px}
+  .fl-nm{flex:1;text-align:left;font-variant-numeric:tabular-nums}
+  .fl-sc{color:var(--green);font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -259,386 +187,465 @@
 <canvas id="particles"></canvas>
 
 <div class="container">
-  <!-- 顶部 -->
   <div class="header">
-    <div class="title-area">
-      <div>
-        <div class="game-title">🌿 伊甸园</div>
-        <div class="game-subtitle">EDEN · TEAM GAME</div>
+    <div>
+      <div class="game-title">
+        <svg class="game-title-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="dtAppleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#f0d48a"/><stop offset="40%" style="stop-color:#d4a853"/><stop offset="80%" style="stop-color:#b8860b"/><stop offset="100%" style="stop-color:#9a7209"/>
+            </linearGradient>
+            <linearGradient id="dtLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6bb889"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#dtAppleGrad)"/>
+          <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.2)" transform="rotate(-15 23 32)"/>
+          <path d="M32 17 Q33 10 35 6" stroke="#8b6914" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="url(#dtLeafGrad)"/>
+        </svg>
+        伊甸园
       </div>
+      <div class="game-sub">EDEN · THE ANCIENT GAME</div>
     </div>
-    <div style="text-align:center">
-      <div id="roundBadge" class="round-badge" style="display:none">第 <span id="roundNum">1</span> 轮 / <span id="totalRoundsNum">8</span></div>
-      <div id="finalRoundBadge" class="final-round-badge">🏁 最终轮</div>
-      <div class="round-dots" id="roundDots"></div>
-    </div>
-    <div class="player-count">
-      在线玩家<br><span id="playerCount">0</span> 人
-      <div class="active-count" id="activeCountDisplay" style="display:none">有效: <span id="activeCountNum">0</span></div>
-      <div class="eliminated-count" id="eliminatedDisplay" style="display:none">淘汰: <span id="eliminatedNum">0</span></div>
+    <div id="roundBadge" class="round-badge">第 <span id="rndNum">1</span> 轮 / <span id="rndTotal">8</span></div>
+    <div class="p-info">
+      有效 <span class="num" id="actCnt">0</span> 人
+      <div class="elim" id="elimInfo" style="display:none">淘汰 <span id="elimCnt">0</span></div>
     </div>
   </div>
 
-  <!-- 等待界面 -->
-  <div id="waitingSection" class="waiting-section">
+  <!-- ★ 等待区 — 中间文字居中 ★ -->
+  <div id="waitSec" class="wait-sec">
+    <div class="wait-aura"></div>
+    <div class="wait-ring"></div>
+    <div class="wait-ring2"></div>
+    <!-- ★ 二维码 — 右下角 -->
     <div class="qr-area">
       <img id="qrImg" class="qr-img" src="" alt="二维码加载中...">
-      <div class="qr-label">手机扫码加入游戏</div>
+      <div class="qr-label">📱 扫码加入游戏</div>
       <div class="qr-url" id="qrUrl">加载中...</div>
     </div>
-    <div class="waiting-info">
-      <div class="waiting-big" id="waitCount">0</div>
-      <div class="waiting-label">位勇士已就绪</div>
-      <div style="margin-top:24px;font-size:16px;color:rgba(255,255,255,0.25)">等待主持人开始游戏</div>
+    <!-- 中心内容 -->
+    <div class="wait-content">
+      <div class="wait-logo">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="wAppleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#f0d48a"/><stop offset="40%" style="stop-color:#d4a853"/><stop offset="80%" style="stop-color:#b8860b"/><stop offset="100%" style="stop-color:#9a7209"/>
+            </linearGradient>
+            <linearGradient id="wLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6bb889"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#wAppleGrad)"/>
+          <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.2)" transform="rotate(-15 23 32)"/>
+          <path d="M32 17 Q33 10 35 6" stroke="#8b6914" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="url(#wLeafGrad)"/>
+        </svg>
+      </div>
+      <div class="wait-big" id="waitCnt">0</div>
+      <div class="wait-lbl">位玩家已就绪</div>
+      <div class="wait-hint">请等待主持人添加玩家并开始游戏</div>
     </div>
   </div>
 
-  <!-- 游戏中：排行榜为主 -->
-  <div id="gameSection" class="main-content" style="display:none">
-    <div class="lb-header">
-      <div class="lb-title">🏆 积分排行 <span>TOP 20</span></div>
+  <!-- 游戏区 -->
+  <div id="gameSec" style="display:none" class="main">
+    <div class="lb-hd">
+      <div class="lb-t">🏆 排名 <span>TOP 10</span></div>
     </div>
     <div class="lb-grid" id="lbGrid"></div>
-    <div class="vote-status-bar" id="voteStatusBar">
-      <div class="vsb-label">投票进度</div>
-      <div class="vsb-progress"><div class="vsb-fill" id="vsbFill" style="width:0%"></div></div>
-      <div class="vsb-count"><span id="vsbVoted">0</span>/<span id="vsbTotal">0</span></div>
+
+    <!-- ★★★ 超大投票进度区 ★★★ -->
+    <div class="vote-mega" id="voteMega">
+      <div class="vm-top">
+        <div class="vm-cd-circle" id="vmCdCircle">
+          <svg class="vm-cd-svg" viewBox="0 0 72 72">
+            <circle class="vm-cd-bg"/>
+            <circle class="vm-cd-prog" id="vmCdProg" stroke-dasharray="194.8" stroke-dashoffset="0"/>
+          </svg>
+          <div class="vm-cd-num-inner" id="vmCdNum">60</div>
+        </div>
+        <div class="vm-cd-info"><div class="vm-cd-label">投票倒计时</div></div>
+        <div class="vm-stat">
+          <span class="vm-stat-v" id="vmV">0</span>
+          <span class="vm-stat-slash">/</span>
+          <span class="vm-stat-t" id="vmT">0</span>
+          <span class="vm-stat-lbl">已投票</span>
+        </div>
+      </div>
+      <div class="vm-bar"><div class="vm-bar-fill" id="vmFill" style="width:0%"></div></div>
+      <div class="vm-pct" id="vmPct">0%</div>
+      <!-- 时间到提示 -->
+      <div class="vm-ended" id="vmEnded">
+        <span class="vm-ended-icon">⏳</span>
+        <div><div class="vm-ended-txt">时间到！请主持人及时结算</div><div class="vm-ended-sub">Waiting for settlement</div></div>
+      </div>
     </div>
-    <!-- ★ 内嵌结算区（排行榜下方） -->
+
+    <!-- ★★★ 内嵌结算区 ★★★ -->
     <div class="result-inline" id="resultInline">
-      <div class="ri-hd">第 <span id="resultRound">1</span> 轮结算</div>
-      <div class="ri-msg" id="resultMessage"></div>
-      <div class="ri-expl" id="resultExplain"></div>
+      <div class="ri-hd">第 <span id="resRd">1</span> 轮结算</div>
+      <div class="ri-msg" id="resMsg"></div>
+      <div class="ri-expl" id="resExpl"></div>
       <div class="ri-row">
-        <div class="ri-vi ri-gold">
-          <div class="ri-name">🍎 金苹果</div>
-          <div class="ri-count" id="resultGold">0</div>
-          <div class="ri-tag" id="resultGoldTag"></div>
+        <div class="ri-vi ri-g">
+          <div class="ri-n">🍎 金苹果</div>
+          <div class="ri-c" id="resGold">0</div>
+          <div class="ri-t" id="resGoldT"></div>
         </div>
-        <div class="ri-vi ri-silver">
-          <div class="ri-name">🍎 银苹果</div>
-          <div class="ri-count" id="resultSilver">0</div>
-          <div class="ri-tag" id="resultSilverTag"></div>
+        <div class="ri-vi ri-s">
+          <div class="ri-n">🍎 银苹果</div>
+          <div class="ri-c" id="resSilver">0</div>
+          <div class="ri-t" id="resSilverT"></div>
         </div>
-        <div class="ri-vi ri-red">
-          <div class="ri-name">🍎 红苹果</div>
-          <div class="ri-count" id="resultRed">0</div>
-          <div class="ri-tag" id="resultRedTag"></div>
+        <div class="ri-vi ri-r">
+          <div class="ri-n">🍎 红苹果</div>
+          <div class="ri-c" id="resRed">0</div>
+          <div class="ri-t" id="resRedT"></div>
         </div>
       </div>
       <div class="ri-wait">等待下一轮...</div>
     </div>
   </div>
-
-  <div class="status-bar"><div class="status-dot"></div>实时数据同步中</div>
 </div>
 
-<!-- 结果已改为内嵌到排行榜下方（resultInline），不再使用覆盖层 -->
-
-<!-- 全体胜利特效 -->
-<div id="allWinOverlay" class="all-win-overlay hidden">
-  <div class="all-win-card">
-    <span class="all-win-emoji">🎉</span>
-    <div class="all-win-title">全体胜利！</div>
-    <div class="all-win-sub">所有勇士共同守护了伊甸园<br>恭喜大家！</div>
+<!-- 全体胜利 -->
+<div id="awOv" class="aw-ov hidden">
+  <div style="text-align:center">
+    <span class="aw-e">🍎</span>
+    <div class="aw-t">全体胜利！</div>
+    <div class="aw-s">所有人选择了红苹果，团队胜利！</div>
   </div>
 </div>
 
 <!-- 游戏结束 -->
-<div id="gameoverOverlay" class="gameover-overlay hidden">
-  <div class="gameover-card">
-    <div class="gameover-title">🏆 游戏结束</div>
-    <ul class="final-lb" id="finalLb"></ul>
+<div id="goOv" class="go-ov hidden">
+  <div class="go-card">
+    <div class="go-t">🏆 游戏结束</div>
+    <ul class="flb" id="flb"></ul>
   </div>
 </div>
 
 <script>
 const socket = io();
-
 socket.emit('joinDisplay');
 
 // 加载二维码
 fetch('/qrcode').then(r=>r.json()).then(data => {
   if (data.qr) document.getElementById('qrImg').src = data.qr;
-  document.getElementById('qrUrl').textContent = data.url;
+  if (data.url) document.getElementById('qrUrl').textContent = data.url;
+}).catch(() => {
+  document.getElementById('qrImg').alt = '二维码加载失败';
+  document.getElementById('qrUrl').textContent = window.location.origin + '/player/';
 });
 
-// ===== 高级粒子系统 =====
-(function initParticles() {
-  const canvas = document.getElementById('particles');
-  const ctx = canvas.getContext('2d');
-  let w, h;
-  function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
-  resize(); window.addEventListener('resize', resize);
+// ===== 高级粒子系统（与测试版一致）=====
+(function(){
+  const cv=document.getElementById('particles'),ctx=cv.getContext('2d');
+  let w,h;
+  function rs(){w=cv.width=window.innerWidth;h=cv.height=window.innerHeight}
+  rs();window.addEventListener('resize',rs);
 
-  const layers = [
-    Array.from({length:40}, () => ({
-      x:Math.random()*w, y:Math.random()*h,
-      r:Math.random()*1+0.3,
-      dx:(Math.random()-0.5)*0.15, dy:-Math.random()*0.2-0.05,
-      alpha:Math.random()*0.3+0.05,
-      color:['#fbbf24','#94a3b8','#f87171','#4ade80'][Math.floor(Math.random()*4)],
-      pulse:Math.random()*Math.PI*2, pulseSpeed:0.01+Math.random()*0.02
-    })),
-    Array.from({length:25}, () => ({
-      x:Math.random()*w, y:Math.random()*h,
-      r:Math.random()*1.5+0.5,
-      dx:(Math.random()-0.5)*0.3, dy:-Math.random()*0.35-0.1,
-      alpha:Math.random()*0.4+0.1,
-      color:['#fbbf24','#94a3b8','#f87171','#4ade80','#c084fc'][Math.floor(Math.random()*5)],
-      pulse:Math.random()*Math.PI*2, pulseSpeed:0.015+Math.random()*0.025
-    })),
-    Array.from({length:10}, () => ({
-      x:Math.random()*w, y:Math.random()*h,
-      r:Math.random()*2.5+1,
-      dx:(Math.random()-0.5)*0.5, dy:-Math.random()*0.5-0.15,
-      alpha:Math.random()*0.2+0.05,
-      color:['#fbbf24','#4ade80','#c084fc'][Math.floor(Math.random()*3)],
-      pulse:Math.random()*Math.PI*2, pulseSpeed:0.02+Math.random()*0.03
-    }))
+  const layers=[
+    Array.from({length:60},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*.5+.15,dx:(Math.random()-.5)*.08,dy:-Math.random()*.12-.02,a:Math.random()*.15+.03,cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)],ph:Math.random()*6.28,ps:.005+Math.random()*.01})),
+    Array.from({length:45},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*.8+.2,dx:(Math.random()-.5)*.12,dy:-Math.random()*.18-.04,a:Math.random()*.25+.04,cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)],ph:Math.random()*6.28,ps:.008+Math.random()*.015})),
+    Array.from({length:28},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.3+.4,dx:(Math.random()-.5)*.25,dy:-Math.random()*.3-.08,a:Math.random()*.35+.08,cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889','#a78bfa'][Math.floor(Math.random()*5)],ph:Math.random()*6.28,ps:.012+Math.random()*.02})),
+    Array.from({length:12},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2.2+.8,dx:(Math.random()-.5)*.45,dy:-Math.random()*.45-.12,a:Math.random()*.18+.04,cl:['#d4a853','#6bb889','#a78bfa'][Math.floor(Math.random()*3)],ph:Math.random()*6.28,ps:.018+Math.random()*.025})),
+    Array.from({length:8},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*3+1.5,dx:(Math.random()-.5)*.15,dy:(Math.random()-.5)*.1,a:Math.random()*.12+.03,cl:'#d4a853',ph:Math.random()*6.28,ps:.006+Math.random()*.01})),
+    Array.from({length:6},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2.5+1,dx:(Math.random()-.5)*.12,dy:(Math.random()-.5)*.08,a:Math.random()*.1+.02,cl:'#a78bfa',ph:Math.random()*6.28,ps:.008+Math.random()*.012}))
   ];
 
-  const LINE_DIST = 120;
+  const ripples = [];
+  function addRipple(){if(ripples.length>4)return;ripples.push({x:Math.random()*w,y:Math.random()*h,r:0,maxR:80+Math.random()*120,a:.05+Math.random()*.04,speed:.3+Math.random()*.4,cl:['#d4a853','#6bb889','#a78bfa','#c45c5c'][Math.floor(Math.random()*4)]});}
+  setInterval(addRipple, 3000);
 
-  function draw() {
+  const meteors = [];
+  function addMeteor(){if(meteors.length>1)return;meteors.push({x:Math.random()*w,y:-20,dx:2+Math.random()*3,dy:3+Math.random()*4,len:40+Math.random()*80,a:.1+Math.random()*.1,life:1});}
+  setInterval(addMeteor, 6000);
+
+  const LD=110;
+
+  function draw(){
     ctx.clearRect(0,0,w,h);
-    const allPs = layers.flat();
-
-    // 连线
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < layers[1].length; i++) {
-      for (let j = i+1; j < layers[1].length; j++) {
-        const a = layers[1][i], b = layers[1][j];
-        const dx = a.x - b.x, dy = a.y - b.y;
-        if (Math.sqrt(dx*dx+dy*dy) < LINE_DIST) {
-          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-          ctx.strokeStyle = `rgba(255,255,255,${(1-Math.sqrt(dx*dx+dy*dy)/LINE_DIST)*0.08})`;
-          ctx.stroke();
-        }
-      }
+    for(let i=ripples.length-1;i>=0;i--){
+      const rp=ripples[i];rp.r+=rp.speed;const fadeA=rp.a*(1-rp.r/rp.maxR);
+      if(rp.r>=rp.maxR){ripples.splice(i,1);continue}
+      ctx.beginPath();ctx.arc(rp.x,rp.y,rp.r,0,Math.PI*2);ctx.strokeStyle=rp.cl;ctx.globalAlpha=fadeA;ctx.lineWidth=1.5;ctx.stroke();
     }
-
-    layers.forEach(layer => {
-      layer.forEach(p => {
-        p.pulse += p.pulseSpeed;
-        const pa = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
-
-        const grad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
-        grad.addColorStop(0, p.color); grad.addColorStop(1, 'transparent');
-        ctx.globalAlpha = pa * 0.3;
-        ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(p.x,p.y,p.r*4,0,Math.PI*2); ctx.fill();
-
-        ctx.globalAlpha = pa;
-        ctx.fillStyle = p.color;
-        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-
-        p.x += p.dx; p.y += p.dy;
-        if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
-        if (p.x < -10) p.x = w + 10;
-        if (p.x > w + 10) p.x = -10;
-      });
-    });
-
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(draw);
+    for(let i=meteors.length-1;i>=0;i--){
+      const m=meteors[i];m.x+=m.dx;m.y+=m.dy;m.life-=.008;
+      if(m.life<=0||m.y>h+50){meteors.splice(i,1);continue}
+      const grd=ctx.createLinearGradient(m.x,m.y,m.x-m.dx*m.len/5,m.y-m.dy*m.len/5);
+      grd.addColorStop(0,`rgba(232,220,200,${m.a*m.life})`);grd.addColorStop(1,'transparent');
+      ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x-m.dx*m.len/5,m.y-m.dy*m.len/5);
+      ctx.strokeStyle=grd;ctx.globalAlpha=1;ctx.lineWidth=1.5;ctx.stroke();
+      ctx.beginPath();ctx.arc(m.x,m.y,2,0,Math.PI*2);ctx.fillStyle='#f0d48a';ctx.globalAlpha=m.a*m.life*2;ctx.fill();
+    }
+    ctx.lineWidth=.4;
+    for(let i=0;i<layers[2].length;i++){for(let j=i+1;j<layers[2].length;j++){const a=layers[2][i],b=layers[2][j];const dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);if(d<LD){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(232,220,200,${(1-d/LD)*.06})`;ctx.globalAlpha=1;ctx.stroke();}}}
+    layers.forEach(l=>{l.forEach(p=>{p.ph+=p.ps;const pa=p.a*(.6+.4*Math.sin(p.ph));const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3.5);g.addColorStop(0,p.cl);g.addColorStop(1,'transparent');ctx.globalAlpha=pa*.25;ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*3.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=pa;ctx.fillStyle=p.cl;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();p.x+=p.dx;p.y+=p.dy;if(p.y<-12){p.y=h+12;p.x=Math.random()*w}if(p.x<-12)p.x=w+12;if(p.x>w+12)p.x=-12;});});
+    ctx.globalAlpha=1;requestAnimationFrame(draw);
   }
   draw();
 })();
 
-function buildRoundDots(currentRound, total) {
-  const dots = document.getElementById('roundDots');
-  if (!dots) return;
-  dots.innerHTML = '';
-  for (let i = 1; i <= total; i++) {
-    const d = document.createElement('div');
-    d.className = 'round-dot';
-    if (i === total) d.classList.add('final');
-    if (i < currentRound) d.classList.add('done');
-    else if (i === currentRound) d.classList.add('current');
-    dots.appendChild(d);
-  }
-}
-
-function showRoundBadge(round, total, isFinal) {
-  document.getElementById('roundBadge').style.display = isFinal ? 'none' : 'block';
-  document.getElementById('finalRoundBadge').style.display = isFinal ? 'block' : 'none';
-  document.getElementById('roundNum').textContent = round;
-  document.getElementById('totalRoundsNum').textContent = total;
-  buildRoundDots(round, total);
-}
-
-function getExplain(winners, losers) {
-  if (winners.includes('red') && losers.includes('gold') && losers.includes('silver'))
-    return '红苹果票数最少，少数派获胜！红色阵营+1000，金银阵营各-2000。';
-  if (winners.includes('gold') && winners.includes('silver') && losers.includes('red'))
-    return '金或银苹果中有一方票数少于红苹果，金银阵营整体获胜！金银各+1000，红苹果-2000。';
-  if (winners.includes('gold') && losers.includes('silver') && !winners.includes('red') && !losers.includes('red'))
-    return '金苹果票数最少，少数派获胜！金苹果+1000，银苹果-2000。';
-  if (winners.includes('silver') && losers.includes('gold') && !winners.includes('red') && !losers.includes('red'))
-    return '银苹果票数最少，少数派获胜！银苹果+1000，金苹果-2000。';
-  if (winners.includes('gold') && losers.includes('red') && losers.includes('silver'))
-    return '金苹果票数最少，少数派获胜！金苹果+1000，红/银各-2000。';
-  if (winners.includes('silver') && losers.includes('red') && losers.includes('gold'))
-    return '银苹果票数最少，少数派获胜！银苹果+1000，红/金各-2000。';
-  if (winners.length === 0)
-    return '票数相同，平局！所有参与者各扣2000积分。';
+// ===== 辅助函数 =====
+function getExplain(w,l){
+  if(w.includes('red')&&l.includes('gold')&&l.includes('silver'))return '红苹果票数最少，少数派获胜！红+1000，金-2000，银-2000。';
+  if(w.includes('gold')&&w.includes('silver')&&l.includes('red'))return '金或银有一方票数少于红苹果，金银各自+1000，红-2000。';
+  if(w.includes('gold')&&l.includes('silver')&&!w.includes('red')&&!l.includes('red'))return '金苹果票数最少，少数派获胜！金+1000，银-2000。';
+  if(w.includes('silver')&&l.includes('gold')&&!w.includes('red')&&!l.includes('red'))return '银苹果票数最少，少数派获胜！银+1000，金-2000。';
+  if(w.length===0) return '票数相同，平局！所有参与者各扣2000积分。';
   return '';
 }
 
-// ===== 排行榜渲染 =====
-function updateLeaderboard(lb) {
-  const grid = document.getElementById('lbGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  lb.slice(0,20).forEach((p,i) => {
-    const cls = i===0?'top1':i===1?'top2':i===2?'top3':'';
-    const elimClass = p.eliminated ? 'eliminated' : '';
-    const numTag = p.num ? `#${p.num}` : '';
-    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
-    grid.innerHTML += `<div class="lb-item ${cls} ${elimClass}">
-      <div class="lb-rank">${medal}</div>
-      <div class="lb-num">${numTag}</div>
-      <div class="lb-name">${p.name}</div>
-      <div class="lb-score">${p.score.toLocaleString()}</div>
-    </div>`;
-  });
-}
+// ★ 倒计时更新 — 圆环进度
+const VM_CD_CIRCUMFERENCE = 2 * Math.PI * 31;
+let vmLastCd = -1;
 
-function updatePlayerCounts(playerCount, activeCount) {
-  document.getElementById('playerCount').textContent = playerCount || 0;
-  if (activeCount !== undefined && playerCount > activeCount) {
-    document.getElementById('activeCountNum').textContent = activeCount;
-    document.getElementById('activeCountDisplay').style.display = 'block';
-    document.getElementById('eliminatedNum').textContent = playerCount - activeCount;
-    document.getElementById('eliminatedDisplay').style.display = 'block';
-  } else {
-    document.getElementById('activeCountDisplay').style.display = 'none';
-    document.getElementById('eliminatedDisplay').style.display = 'none';
+function updateCountdown(timer) {
+  const mega = document.getElementById('voteMega');
+  const cdCircle = document.getElementById('vmCdCircle');
+  const endedEl = document.getElementById('vmEnded');
+  const cdNum = document.getElementById('vmCdNum');
+  const cdProg = document.getElementById('vmCdProg');
+
+  if (timer <= 0) {
+    if (vmLastCd !== 0) {
+      cdNum.textContent = '0';
+      cdNum.className = 'vm-cd-num-inner danger';
+      cdProg.style.strokeDashoffset = VM_CD_CIRCUMFERENCE;
+      cdProg.className = 'vm-cd-prog danger';
+      endedEl.classList.add('show');
+      cdCircle.style.opacity = '1';
+      vmLastCd = 0;
+    }
+    return;
+  }
+
+  cdCircle.style.opacity = '1';
+  endedEl.classList.remove('show');
+
+  if (timer !== vmLastCd) {
+    vmLastCd = timer;
+    cdNum.textContent = timer;
+    const danger = timer <= 10;
+    const warn = timer <= 20 && !danger;
+    cdNum.className = 'vm-cd-num-inner' + (danger ? ' danger' : warn ? ' warn' : '');
+    cdProg.className = 'vm-cd-prog' + (danger ? ' danger' : warn ? ' warn' : '');
+    const pct = timer / 60;
+    const offset = VM_CD_CIRCUMFERENCE * (1 - pct);
+    cdProg.style.strokeDashoffset = offset;
   }
 }
 
-// 更新投票进度条
-function updateVoteProgress(votedCount, totalCount) {
-  const bar = document.getElementById('voteStatusBar');
-  bar.style.display = 'flex';
-  const pct = totalCount > 0 ? (votedCount / totalCount * 100) : 0;
-  document.getElementById('vsbFill').style.width = pct + '%';
-  document.getElementById('vsbVoted').textContent = votedCount || 0;
-  document.getElementById('vsbTotal').textContent = totalCount || 0;
-}
-
-// ===== Socket事件 =====
+// ===== Socket 事件 =====
 socket.on('gameStateSync', (state) => {
   const pc = state.playerCount || 0;
   const ac = state.activePlayerCount !== undefined ? state.activePlayerCount : pc;
-  updatePlayerCounts(pc, ac);
-  document.getElementById('waitCount').textContent = pc;
+  const elim = pc - ac;
+  document.getElementById('actCnt').textContent = ac;
+  if(elim > 0){document.getElementById('elimInfo').style.display='block';document.getElementById('elimCnt').textContent=elim;}
+  else{document.getElementById('elimInfo').style.display='none';}
+  document.getElementById('waitCnt').textContent = pc;
 
   if (state.status === 'waiting') {
-    document.getElementById('waitingSection').style.display = 'flex';
-    document.getElementById('gameSection').style.display = 'none';
-    document.getElementById('voteStatusBar').style.display = 'none';
-  } else if (state.status === 'voting' || state.status === 'result') {
-    document.getElementById('waitingSection').style.display = 'none';
-    document.getElementById('gameSection').style.display = 'flex';
-    showRoundBadge(state.round, state.totalRounds || 8, state.isFinalRound);
-    if (state.status === 'voting') {
-      updateVoteProgress(state.votedCount || 0, state.totalCount || state.activePlayerCount || 0);
-    }
+    document.getElementById('waitSec').style.display = 'flex';
+    document.getElementById('gameSec').style.display = 'none';
+    document.getElementById('roundBadge').style.display = 'none';
+    document.getElementById('resultInline').classList.remove('show');
+    document.getElementById('voteMega').classList.remove('show');
+    document.getElementById('voteMega').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('waitSec').style.display = 'none';
+  document.getElementById('gameSec').style.display = 'flex';
+
+  const isFinal = state.isFinalRound || false;
+  const badge = document.getElementById('roundBadge');
+  badge.style.display = 'block';
+  badge.className = isFinal ? 'round-badge final' : 'round-badge';
+  document.getElementById('rndNum').textContent = state.round;
+  document.getElementById('rndTotal').textContent = state.totalRounds || 8;
+
+  // 排行榜
+  if (state.leaderboard) {
     updateLeaderboard(state.leaderboard);
-  } else if (state.status === 'gameover') {
-    showGameover(state.leaderboard);
+  }
+
+  if (state.status === 'voting') {
+    // 投票中
+    document.getElementById('resultInline').classList.remove('show');
+    const mega = document.getElementById('voteMega');
+    mega.style.display = 'flex';
+    mega.classList.add('show');
+    vmLastCd = -1;
+    updateCountdown(state.timer);
+    
+    const voted = state.votedCount || 0;
+    const total = state.totalCount || state.activePlayerCount || ac;
+    updateVoteProgress(voted, total, ac);
+  } else if (state.status === 'result') {
+    // 结算中
+    document.getElementById('voteMega').classList.remove('show');
+    document.getElementById('voteMega').style.display = 'none';
   }
 });
 
 socket.on('playerListUpdate', (data) => {
-  updatePlayerCounts(data.count, data.count);
-  document.getElementById('waitCount').textContent = data.count;
-  updateLeaderboard(data.players);
+  document.getElementById('waitCnt').textContent = data.count;
+  if (data.players) updateLeaderboard(data.players);
 });
 
 socket.on('gameStart', (data) => {
-  document.getElementById('waitingSection').style.display = 'none';
-  document.getElementById('gameSection').style.display = 'flex';
-  // ★ 清除内嵌结算区
+  document.getElementById('waitSec').style.display = 'none';
+  document.getElementById('gameSec').style.display = 'flex';
   document.getElementById('resultInline').classList.remove('show');
-  showRoundBadge(data.round, data.totalRounds || 8, data.isFinalRound);
-  updateVoteProgress(0, data.activePlayerCount || 0);
-  updateLeaderboard([]);
+  
+  const isFinal = data.isFinalRound || false;
+  const badge = document.getElementById('roundBadge');
+  badge.style.display = 'block';
+  badge.className = isFinal ? 'round-badge final' : 'round-badge';
+  document.getElementById('rndNum').textContent = data.round;
+  document.getElementById('rndTotal').textContent = data.totalRounds || 8;
+
+  const mega = document.getElementById('voteMega');
+  mega.style.display = 'flex';
+  mega.classList.add('show');
+  vmLastCd = -1;
+  updateCountdown(data.timer);
+  
+  const ac = data.activePlayerCount || 0;
+  updateVoteProgress(0, ac, ac);
 });
 
 socket.on('nextRound', (data) => {
-  // ★ 隐藏内嵌结算区
   document.getElementById('resultInline').classList.remove('show');
-  showRoundBadge(data.round, data.totalRounds || 8, data.isFinalRound);
-  updateVoteProgress(0, 0);
+  
+  const isFinal = data.isFinalRound || false;
+  const badge = document.getElementById('roundBadge');
+  badge.style.display = 'block';
+  badge.className = isFinal ? 'round-badge final' : 'round-badge';
+  document.getElementById('rndNum').textContent = data.round;
+  document.getElementById('rndTotal').textContent = data.totalRounds || 8;
+
+  const mega = document.getElementById('voteMega');
+  mega.style.display = 'flex';
+  mega.classList.add('show');
+  vmLastCd = -1;
+  updateCountdown(data.timer);
+  
+  const ac = data.activePlayerCount || 0;
+  updateVoteProgress(0, ac, ac);
 });
 
-socket.on('timerUpdate', (data) => {});
+socket.on('timerUpdate', (data) => {
+  updateCountdown(data.timer);
+});
 
 socket.on('voteUpdate', (data) => {
   if (data.votedCount !== undefined) {
-    updateVoteProgress(data.votedCount, data.totalCount);
+    const ac = data.totalCount || 0;
+    updateVoteProgress(data.votedCount, data.totalCount, ac);
   }
 });
 
 socket.on('roundEnd', (data) => {
   const { result, leaderboard, round } = data;
-  updateLeaderboard(leaderboard);
 
+  // 更新排行榜
+  if (leaderboard) updateLeaderboard(leaderboard);
+
+  // 更新淘汰信息
   if (data.activePlayerCount !== undefined) {
-    updatePlayerCounts(
-      Object.keys(gameState?.players || {}).length || leaderboard.length,
-      data.activePlayerCount
-    );
+    const total = leaderboard ? leaderboard.length : 0;
+    const ac = data.activePlayerCount;
+    const elim = total - ac;
+    document.getElementById('actCnt').textContent = ac;
+    if(elim > 0){document.getElementById('elimInfo').style.display='block';document.getElementById('elimCnt').textContent=elim;}
+    else{document.getElementById('elimInfo').style.display='none';}
   }
 
-  // ★ 隐藏投票进度条
-  document.getElementById('voteStatusBar').style.display = 'none';
+  // 隐藏投票进度区
+  document.getElementById('voteMega').classList.remove('show');
+  document.getElementById('voteMega').style.display = 'none';
+  document.getElementById('vmEnded').classList.remove('show');
+  vmLastCd = -1;
 
   if (result.specialEvent === 'all_red') {
-    document.getElementById('allWinOverlay').classList.remove('hidden');
+    document.getElementById('awOv').classList.remove('hidden');
     document.getElementById('resultInline').classList.remove('show');
     return;
   }
 
-  // ★ 显示内嵌结算区（不是覆盖层）
+  // ★ 显示内嵌结算区
   const ri = document.getElementById('resultInline');
   ri.classList.add('show');
-  document.getElementById('allWinOverlay').classList.add('hidden');
+  document.getElementById('awOv').classList.add('hidden');
 
-  document.getElementById('resultRound').textContent = round + (data.isFinalRound ? '（最终轮）' : '');
-  document.getElementById('resultMessage').textContent = result.message;
+  document.getElementById('resRd').textContent = round + (data.isFinalRound ? '（最终轮）' : '');
+  document.getElementById('resMsg').textContent = result.message;
 
   const winners = result.winners || [];
   const losers = result.losers || [];
-  document.getElementById('resultGold').textContent = result.votes.gold;
-  document.getElementById('resultGoldTag').textContent = winners.includes('gold') ? '✅ 胜' : losers.includes('gold') ? '❌ 败' : '';
-  document.getElementById('resultGoldTag').className = 'ri-tag ' + (winners.includes('gold') ? 'win' : losers.includes('gold') ? 'lose' : '');
-  document.getElementById('resultSilver').textContent = result.votes.silver;
-  document.getElementById('resultSilverTag').textContent = winners.includes('silver') ? '✅ 胜' : losers.includes('silver') ? '❌ 败' : '';
-  document.getElementById('resultSilverTag').className = 'ri-tag ' + (winners.includes('silver') ? 'win' : losers.includes('silver') ? 'lose' : '');
-  document.getElementById('resultRed').textContent = result.votes.red;
-  document.getElementById('resultRedTag').textContent = winners.includes('red') ? '✅ 胜' : losers.includes('red') ? '❌ 败' : '';
-  document.getElementById('resultRedTag').className = 'ri-tag ' + (winners.includes('red') ? 'win' : losers.includes('red') ? 'lose' : '');
+  document.getElementById('resGold').textContent = result.votes.gold;
+  document.getElementById('resGoldT').textContent = winners.includes('gold') ? '✅ 胜' : losers.includes('gold') ? '❌ 败' : '';
+  document.getElementById('resGoldT').className = 'ri-t ' + (winners.includes('gold') ? 'win' : losers.includes('gold') ? 'lose' : '');
+  document.getElementById('resSilver').textContent = result.votes.silver;
+  document.getElementById('resSilverT').textContent = winners.includes('silver') ? '✅ 胜' : losers.includes('silver') ? '❌ 败' : '';
+  document.getElementById('resSilverT').className = 'ri-t ' + (winners.includes('silver') ? 'win' : losers.includes('silver') ? 'lose' : '');
+  document.getElementById('resRed').textContent = result.votes.red;
+  document.getElementById('resRedT').textContent = winners.includes('red') ? '✅ 胜' : losers.includes('red') ? '❌ 败' : '';
+  document.getElementById('resRedT').className = 'ri-t ' + (winners.includes('red') ? 'win' : losers.includes('red') ? 'lose' : '');
 
-  document.getElementById('resultExplain').textContent = getExplain(winners, losers);
+  document.getElementById('resExpl').textContent = getExplain(winners, losers);
 });
 
-socket.on('gameOver', (data) => { showGameover(data.leaderboard); });
+socket.on('gameOver', (data) => {
+  document.getElementById('resultInline').classList.remove('show');
+  document.getElementById('awOv').classList.add('hidden');
+  showGameover(data.leaderboard);
+});
+
+// ===== 排行榜渲染 =====
+function updateLeaderboard(lb) {
+  if (!lb) return;
+  document.getElementById('lbGrid').innerHTML = lb.slice(0, 20).map((p, i) => {
+    const rankNum = i + 1;
+    const top10Cls = rankNum <= 10 ? ' top10' : '';
+    const elCls = p.eliminated ? ' elim' : '';
+    const numTag = p.num ? '#' + String(p.num).padStart(3, '0') : '';
+    return `<div class="lb-item${top10Cls}${elCls}">
+      <div class="lb-rk">${rankNum}</div>
+      <div class="lb-nm">${numTag}</div>
+      <div class="lb-sc">${p.score.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateVoteProgress(votedCount, totalCount, activeCount) {
+  const pct = totalCount > 0 ? (votedCount / totalCount * 100) : 0;
+  document.getElementById('vmV').textContent = votedCount;
+  document.getElementById('vmT').textContent = totalCount;
+  document.getElementById('vmFill').style.width = pct + '%';
+  document.getElementById('vmPct').textContent = Math.round(pct) + '%';
+}
 
 function showGameover(lb) {
-  document.getElementById('gameoverOverlay').classList.remove('hidden');
-  const medals = ['🥇','🥈','🥉'];
-  const bgCls = ['gold-bg','silver-bg','bronze-bg'];
-  document.getElementById('finalLb').innerHTML = lb.slice(0,20).map((p,i) => {
-    const numTag = p.num ? `#${p.num} ` : '';
-    const elimStyle = p.eliminated ? 'style="opacity:0.35;text-decoration:line-through"' : '';
-    return `<li class="final-lb-item ${bgCls[i]||''}" ${elimStyle}>
-      <span class="final-rank">${medals[i]||i+1}</span>
-      <span class="final-name">${numTag}${p.name}</span>
-      <span class="final-score">${p.score.toLocaleString()} 分</span>
+  document.getElementById('goOv').classList.remove('hidden');
+  const sorted = lb || [];
+  function goCls(i) { if (i===0) return 'gbg'; if (i===1) return 'sbg'; if (i===2) return 'bbg'; return ''; }
+  document.getElementById('flb').innerHTML = sorted.slice(0, 20).map((p, i) => {
+    const rankNum = i + 1;
+    const eStyle = p.eliminated ? 'style="opacity:.25;text-decoration:line-through"' : '';
+    const numTag = p.num ? '#' + String(p.num).padStart(3, '0') : '';
+    return `<li class="fli ${goCls(i)}" ${eStyle}>
+      <span class="fl-rk">${rankNum}</span>
+      <span class="fl-nm">${numTag}</span>
+      <span class="fl-sc">${p.score.toLocaleString()} 分</span>
     </li>`;
   }).join('');
 }

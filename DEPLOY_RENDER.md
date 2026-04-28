@@ -33,9 +33,24 @@
 4. 点击 **"Create repository"**
 5. 页面会显示一串命令，复制保留备用
 
-### 1.4 上传代码
+### 1.4 创建 Personal Access Token（PAT）
 
-打开命令提示符，输入以下命令（把 `你的GitHub用户名` 替换成你的）：
+⚠️ **GitHub 已不支持密码推送代码，必须用 PAT 代替密码！**
+
+1. 登录 GitHub → 点击右上角头像 → **Settings**
+2. 左侧最底部 → **Developer settings**
+3. 选择 **Personal access tokens** → **Tokens (classic)**
+4. 点击 **Generate new token** → **Generate new token (classic)**
+5. 填写：
+   - Note（备注）：`eden-game-deploy`
+   - Expiration（过期时间）：选 30 days 或 60 days
+   - 勾选 **repo**（完整的仓库访问权限）
+6. 点击 **Generate token**
+7. ⚠️ **立刻复制这个 token！**（格式类似 `ghp_xxxxxxxxxxxx`，离开页面后无法再看到）
+
+### 1.5 上传代码
+
+打开命令提示符（或 PowerShell），输入以下命令：
 
 ```bash
 cd C:\Users\DELL\WorkBuddy\Claw\eden-game
@@ -48,12 +63,13 @@ git remote add origin https://github.com/你的GitHub用户名/eden-game.git
 git push -u origin main
 ```
 
-输入 GitHub 用户名和密码后，代码就上传完成了。
+当提示输入密码时：
+- **Username**：输入你的 GitHub 用户名
+- **Password**：**粘贴刚才复制的 PAT**（不是 GitHub 登录密码！）
 
-> 💡 如果密码输入后失败，GitHub 需要使用 **Personal Access Token** 代替密码：
-> 1. GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-> 2. 点击 Generate new token，勾选 `repo`，生成后复制
-> 3. 用这个 Token 作为密码输入
+> 💡 密码输入时屏幕不会显示任何字符，这是正常的，粘贴后直接按回车。
+
+推送成功后，代码就上传到 GitHub 了。
 
 ---
 
@@ -134,11 +150,16 @@ git commit -m "更新游戏"
 git push
 ```
 
-Render 会自动检测到更新并重新部署。
+> 💡 如果 git push 提示输入密码，仍然使用 PAT。
+
+Render 会自动检测到更新并重新部署（约2分钟）。
 
 ---
 
 ## ❓ 常见问题
+
+### Q：git push 报错 "remote: Support for password authentication was removed"
+A：你需要使用 PAT 代替密码，参见 1.4 节创建 PAT。
 
 ### Q：部署失败怎么办？
 A：在 Render 控制台查看 "Logs"，把错误信息告诉我。
@@ -151,6 +172,9 @@ A：Render 免费版单实例处理 100 人 WebSocket 没有问题。
 
 ### Q：游戏数据重启后丢失？
 A：是的，Render 免费版不持久化内存数据。每次游戏重新开始即可，之后有需要我们可以加数据库。
+
+### Q：怎么删除 GitHub 上的 PAT？
+A：GitHub → Settings → Developer settings → Personal access tokens → 找到对应的 token → Delete。建议部署完成后删除旧的 PAT。
 
 ---
 
