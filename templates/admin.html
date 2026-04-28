@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>管理员控制台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: gold;
+      text-align: center;
+    }
+    .status {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      padding: 12px 25px;
+      margin: 8px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .start { background: #4caf50; color: white; }
+    .end { background: #f44336; color: white; }
+    .reset { background: #ff9800; color: white; }
+    .rollback { background: #2196f3; color: white; }
+    .danger { background: #d32f2f; color: white; }
+    .leaderboard {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+
+    /* 新增：投票进度样式 */
+    #voteProgress {
+      margin-top: 8px;
+      font-weight: bold;
+      color: #66ccff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>👑 伊甸园 · 管理员控制台</h1>
+    
+    <div class="status">
+      {% if game_ended %}
+        {% if won_by_all %}
+          <p><strong>🎉 游戏状态：</strong>全体胜利！游戏已结束。</p>
+        {% else %}
+          <p><strong>🏁 游戏状态：</strong>游戏已结束（正常结算）。</p>
+        {% endif %}
+        <p><strong>最终轮次：</strong>第 {{ current_round }} 轮</p>
+      {% else %}
+        <p><strong>当前轮次：</strong>第 {{ current_round }} 轮</p>
+        <p><strong>游戏状态：</strong>
+          {% if round_status == 'waiting' %}
+            ⏳ 等待开始
+          {% elif round_status == 'voting' %}
+            🗳️ 投票中（剩余 {{ remaining_time }} 秒）
+          {% else %}
+            ✅ 结算完成
+          {% endif %}
+        </p>
+        <p><strong>玩家总数：</strong>{{ total_players }} / {{ max_players }}</p>
+
+        {% if round_status == 'voting' %}
+          <p><strong>未投票人数：</strong>{{ not_voted_count }}</p>
+        {% endif %}
+
+        <!-- 动态投票进度 -->
+        <div id="voteProgress" style="display:none;">
+          🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 控制按钮（仅在游戏未结束且非全体胜利时显示） -->
+    {% if not game_ended %}
+      <div>
+        {% if round_status == 'waiting' %}
+          <button class="btn start" onclick="startRound()">▶️ 开始本轮投票</button>
+        {% elif round_status == 'voting' %}
+          <button class="btn end" onclick="endRound()">⏹️ 手动结算本轮</button>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- 调试与重置（始终可用，即使游戏结束） -->
+    <div style="margin-top: 30px; padding: 15px; background: #222; border-radius: 8px;">
+      <h3>🔧 调试与重置</h3>
+      
+      <button onclick="resetCurrentRound()" class="btn reset">
+        🔄 重置本轮（清空投票）
+      </button>
+
+      <button onclick="rollbackToPrevious()" class="btn rollback" 
+              {% if current_round <= 1 %}disabled{% endif %}>
+        ⏪ 回退到上一轮
+      </button>
+
+      <button onclick="resetAllData()" class="btn danger">
+        💥 重置全部数据（慎用！）
+      </button>
+    </div>
+
+    <!-- 排行榜 -->
+    <div class="leaderboard">
+      <h3>🏆 实时排行榜（Top 15）</h3>
+      {% for p in top15 %}
+        <div>#{{ p.id }}：¥{{ p.balance }}</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    const gameEnded = {{ game_ended | tojson }};
+    const roundStatus = "{{ round_status }}";
+
+    function startRound() {
+      if (gameEnded) {
+        alert('游戏已结束，无法开始新轮次。');
+        return;
+      }
+      fetch('/admin/start_round', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert('❌ ' + data.message);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('网络错误');
+        });
+    }
+
+    function endRound() {
+      if (gameEnded) {
+        alert('游戏已结束。');
+        return;
+      }
+      if (!confirm('确定要手动结算本轮吗？')) return;
+      fetch('/admin/end_round', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            location.reload();
+          } else {
+            alert('❌ ' + data.message);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('网络错误');
+        });
+    }
+
+    function resetCurrentRound() {
+      if (!confirm('确定要重置本轮吗？所有本轮投票将被清空，但玩家余额保留。')) return;
+      fetch('/admin/reset_current_round', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          alert(data.message);
+          location.reload();
+        })
+        .catch(err => {
+          console.error(err);
+          alert('操作失败');
+        });
+    }
+
+    function rollbackToPrevious() {
+      if (!confirm('⚠️ 确定要回退到上一轮吗？当前轮次所有数据将丢失！')) return;
+      fetch('/admin/rollback_to_previous', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          alert(data.message);
+          location.reload();
+        })
+        .catch(err => {
+          console.error(err);
+          alert('操作失败');
+        });
+    }
+
+    function resetAllData() {
+      if (!confirm('💥 警告：这将删除所有玩家和游戏进度！\n确定要彻底重置吗？')) return;
+      fetch('/admin/reset_all', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          alert(data.message);
+          location.reload();
+        })
+        .catch(err => {
+          console.error(err);
+          alert('操作失败');
+        });
+    }
+
+    // === 投票进度轮询 ===
+    function updateVoteStatus() {
+      if (roundStatus !== 'voting') return;
+
+      fetch('/api/vote-status')
+        .then(r => r.json())
+        .then(data => {
+          const voteProgress = document.getElementById('voteProgress');
+          if (data.in_voting) {
+            voteProgress.style.display = 'block';
+            const votedEl = document.getElementById('votedCount');
+            const totalEl = document.getElementById('totalCount');
+            if (votedEl && totalEl) {
+              votedEl.textContent = data.voted_players;
+              totalEl.textContent = data.total_players;
+
+              if (data.voted_players === data.total_players && data.total_players > 0) {
+                voteProgress.innerHTML = '✅ 全员已投票，正在结算...';
+              }
+            }
+          } else {
+            voteProgress.style.display = 'none';
+          }
+        })
+        .catch(() => {});
+    }
+
+    if (roundStatus === 'voting') {
+      updateVoteStatus();
+      setInterval(updateVoteStatus, 2000);
+    }
+  </script>
+</body>
+</html>

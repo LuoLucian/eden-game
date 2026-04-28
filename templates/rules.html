@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>伊甸园 · 游戏规则</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #f9f7f0;
+      color: #2c3e50;
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    .container {
+      width: 100%;
+      max-width: 960px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #2c5530;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 26px;
+      font-weight: bold;
+    }
+    .content {
+      padding: 20px;
+      font-size: 18px;
+    }
+    h2 {
+      color: #2c5530;
+      margin: 20px 0 12px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    p, li {
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+    ul {
+      padding-left: 24px;
+      margin: 10px 0;
+    }
+
+    .apple {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      margin: 0 5px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+    .red { background: #e74c3c; }
+    .gold { background: #f1c40f; }
+    .silver { background: #bdc3c7; }
+
+    .plus { color: #27ae60; font-weight: bold; }
+    .minus { color: #e74c3c; font-weight: bold; }
+
+    .rule-card {
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+      border-left: 3px solid #2c5530;
+      font-size: 18px;
+    }
+
+    .example-bar {
+      display: flex;
+      align-items: flex-end;
+      height: 55px;
+      margin: 10px 0;
+      gap: 8px;
+    }
+    .bar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+    .bar-fill {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+    }
+    .bar-label {
+      margin-top: 4px;
+      font-size: 15px;
+      color: #2c3e50;
+    }
+    .red-bar { background: #e74c3c; }
+    .gold-bar { background: #f1c40f; }
+    .silver-bar { background: #bdc3c7; }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0;
+      font-size: 15px;
+    }
+    .result-table th,
+    .result-table td {
+      border: 1px solid #ddd;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .result-table th {
+      background-color: #f1f8e9;
+      color: #2c5530;
+    }
+    .result-table .outcome-win { background-color: #e8f5e9; }
+    .result-table .outcome-lose { background-color: #ffebee; }
+
+    .win {
+      background: #fdf2f2;
+      border-left: 4px solid #e74c3c;
+      padding: 12px;
+      margin: 16px 0;
+      border-radius: 0 6px 6px 0;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .metaphor {
+      font-style: italic;
+      color: #7f8c8d;
+      font-size: 16px;
+      margin-top: 8px;
+      padding-left: 4px;
+      line-height: 1.4;
+    }
+
+    footer {
+      text-align: center;
+      padding: 14px;
+      background: #f8f9fa;
+      font-size: 15px;
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+    .footer-text {
+      line-height: 1.4;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>伊甸园 · 游戏规则</header>
+    <div style="padding: 12px 20px; background: #e8f5e9; text-align: center;">
+      <a href="/" style="
+        display: inline-block;
+        padding: 6px 16px;
+        background: #2c5530;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 16px;
+      ">⬅ 返回投票</a>
+    </div>
+
+    <div class="content">
+      <p><strong>初始资金：</strong>¥10,000 &nbsp;&nbsp;｜&nbsp;&nbsp; <strong>共 8 轮</strong> &nbsp;&nbsp;｜&nbsp;&nbsp; <strong>每轮 60 秒</strong></p>
+
+      <h2>三种选择</h2>
+      <p>
+        <span class="apple red"></span> 红苹果（纯真）&nbsp;&nbsp;
+        <span class="apple gold"></span> 金苹果（贪婪）&nbsp;&nbsp;
+        <span class="apple silver"></span> 银苹果（背叛）
+      </p>
+
+      <h2>结算规则</h2>
+
+      <!-- 新增：第1–7轮全体胜利条件（必须全员红） -->
+      <div class="rule-card">
+        <p style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+          🌟 第1–7轮：全体胜利的唯一条件
+        </p>
+        <p style="font-size: 18px; line-height: 1.6;">
+          <strong>只有当所有玩家都选择红苹果</strong>（即无人选择金或银），才会触发<strong>全体胜利</strong>，游戏提前结束，所有人瓜分奖金池。
+        </p>
+        <div class="example-bar" style="height: 55px; margin: 12px 0;">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 100%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple red"></span>100人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 0%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple gold"></span>0人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 0%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple silver"></span>0人</div>
+          </div>
+        </div>
+        <p style="font-size: 18px; color: #27ae60; font-weight: bold;">
+          ✅ 全员红 → 全体胜利！
+        </p>
+        <div class="metaphor" style="font-size: 16px; margin-top: 8px;">
+          💖 纯真若非绝对，便只是多数人的幻觉。
+        </div>
+      </div>
+
+      <div class="rule-card">
+        <p><strong>若有人选择红苹果：</strong></p>
+        <p style="margin-bottom: 4px;"><em>红苹果人数最少时</em></p>
+        <div class="example-bar">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 20%;"></div>
+            <div class="bar-label"><span class="apple red"></span>2人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 60%;"></div>
+            <div class="bar-label"><span class="apple gold"></span>50人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 40%;"></div>
+            <div class="bar-label"><span class="apple silver"></span>30人</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 红苹果每人 <span class="plus">+1000</span>，金/银苹果每人 <span class="minus">-2000</span></p>
+
+        <p style="margin-top: 12px; margin-bottom: 4px;"><em>红苹果人数非最少时</em></p>
+        <div class="example-bar">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 60%;"></div>
+            <div class="bar-label"><span class="apple red"></span>50人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 30%;"></div>
+            <div class="bar-label"><span class="apple gold"></span>25人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 20%;"></div>
+            <div class="bar-label"><span class="apple silver"></span>17人</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 红苹果每人 <span class="minus">-2000</span>，金/银苹果每人 <span class="plus">+1000</span></p>
+      </div>
+
+      <div class="rule-card">
+        <p><strong>若无人选择红苹果（仅金苹果 vs 银苹果）：</strong></p>
+        <p style="margin-bottom: 4px;"><em>人数较少的一方获胜</em></p>
+        <div class="example-bar">
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 60%;"></div>
+            <div class="bar-label"><span class="apple gold"></span>45人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 80%;"></div>
+            <div class="bar-label"><span class="apple silver"></span>60人</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 金苹果 <span class="plus">+1000</span>，银苹果 <span class="minus">-2000</span></p>
+
+        <p style="margin-top: 12px; font-size: 18px;">
+          若金苹果 = 银苹果（包括全金或全银），则<strong>全员扣除 ¥2000</strong>。
+        </p>
+      </div>
+
+      <!-- 第8轮规则（保持宽松条件） -->
+      <div class="rule-card">
+        <p style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+          🔚 第8轮（最终轮）规则
+        </p>
+        <p style="font-size: 18px; line-height: 1.6;">
+          若满足：<strong>红苹果人数 ≥（总投票人数 − 10）</strong>。则实现<strong>全体胜利</strong>，所有人瓜分奖金池。
+        </p>
+        <div class="example-bar" style="height: 55px; margin: 12px 0;">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 80%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple red"></span>92人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 30%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple gold"></span>8人</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 20%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple silver"></span>5人</div>
+          </div>
+        </div>
+        <p style="font-size: 18px; color: #27ae60; font-weight: bold;">
+          ✅ 总票 = 105，红 = 92 ≥ (105 − 10) → 全体胜利！
+        </p>
+
+        <p style="font-size: 18px; font-weight: bold; margin: 16px 0 10px;">
+          ❗若未达成全体胜利，则按以下4种情况结算：
+        </p>
+
+        <!-- 情况1：三色相等 -->
+        <p style="font-size: 18px; margin: 14px 0 6px;"><em>① 三色人数完全相同</em></p>
+        <div class="example-bar" style="height: 50px;">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 50%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple red"></span>20</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 50%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple gold"></span>20</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 50%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple silver"></span>20</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 全员 <span class="minus">−2000</span></p>
+
+        <!-- 情况2：金 = 银 ≠ 红 -->
+        <p style="font-size: 18px; margin: 14px 0 6px;"><em>② 金 = 银，但红不同</em></p>
+        <div class="example-bar" style="height: 50px;">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 60%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple red"></span>30</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 30%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple gold"></span>15</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 30%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple silver"></span>15</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 红胜：<span class="plus">+1000</span>，金银 <span class="minus">−2000</span></p>
+
+        <!-- 情况3：红严格最少 -->
+        <p style="font-size: 18px; margin: 14px 0 6px;"><em>③ 红比金和银都少</em></p>
+        <div class="example-bar" style="height: 50px;">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 20%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple red"></span>8</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 70%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple gold"></span>40</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 60%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple silver"></span>35</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 红胜：<span class="plus">+1000</span>，金银 <span class="minus">−2000</span></p>
+
+        <!-- 情况4：红非最少 → 较少的非红胜 -->
+        <p style="font-size: 18px; margin: 14px 0 6px;"><em>④ 红不是最少 → 金/银中较少者赢</em></p>
+        <div class="example-bar" style="height: 50px;">
+          <div class="bar-item">
+            <div class="bar-fill red-bar" style="height: 60%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple red"></span>45</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill gold-bar" style="height: 30%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple gold"></span>20</div>
+          </div>
+          <div class="bar-item">
+            <div class="bar-fill silver-bar" style="height: 50%;"></div>
+            <div class="bar-label" style="font-size: 15px;"><span class="apple silver"></span>38</div>
+          </div>
+        </div>
+        <p style="font-size: 18px;">→ 金较少：金 <span class="plus">+1000</span>，红/银 <span class="minus">−2000</span></p>
+
+        <div class="metaphor" style="margin-top: 12px; font-size: 16px;">
+          🔚 最终轮没有默认答案——乐园只奖励“最稀缺的立场”。
+        </div>
+      </div>
+
+      <div class="rule-card">
+        <p><strong>超时未投票：</strong>自动扣除 <span class="minus">¥2000</span></p>
+        <div class="metaphor">
+          🙈 拒绝选择，即是放弃身为人之责任。
+        </div>
+      </div>
+
+      <div class="win">
+        🏆 <strong>最终奖励</strong>：<br>
+        若未达成全体胜利，则<strong>余额最高的前10名玩家获胜</strong>，并<strong>共同瓜分奖金池</strong>。
+      </div>
+
+      <h2>参与方式</h2>
+      <p>1. 扫码加入游戏，获取 playerId<br>
+         2. 每轮在手机上秘密选择一颗苹果<br>
+         3. 提交后不可更改<br>
+         4. 大屏实时显示投票分布与排行榜</p>
+    </div>
+
+    <footer>
+      <div class="footer-text">《伊甸园》· 在纯真、贪婪与背叛之间，照见人性</div>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>大屏展示</title>
+  <meta http-equiv="refresh" content="1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: "Arial", sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      font-size: 2.8em;
+      margin-bottom: 20px;
+      color: gold;
+      text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+    }
+
+    .timer {
+      font-size: 3.5em;
+      margin: 20px 0;
+      font-weight: bold;
+      text-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+    }
+    
+    .timer.countdown { color: #ff6b6b; }
+    .timer.votes { 
+      color: #66ccff;
+      /* 固定高度，确保始终占位 */
+      min-height: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .round-info {
+      font-size: 1.4em;
+      margin-bottom: 25px;
+      color: #ccc;
+    }
+
+    .leaderboard-container {
+      background: rgba(30, 30, 30, 0.85);
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 900px;
+      width: 100%;
+      margin: 10px auto 30px;
+    }
+
+    .leaderboard-header {
+      color: #d4af37;
+      margin-bottom: 15px;
+      font-size: 1.4em;
+      text-align: center;
+    }
+
+    .leaderboard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 40px;
+      font-size: 1.15em;
+      line-height: 1.4;
+    }
+
+    @media (min-width: 1800px) {
+      .leaderboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px 50px;
+      }
+    }
+
+    .player-item {
+      white-space: nowrap;
+      text-align: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(40, 40, 40, 0.15);
+      border-radius: 4px;
+    }
+
+    .player-item:nth-child(even) {
+      background: rgba(50, 50, 50, 0.15);
+    }
+
+    .results {
+      padding: 25px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 12px;
+      max-width: 600px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .results h2 {
+      color: #ff6b6b;
+      margin-bottom: 20px;
+      font-size: 1.6em;
+      text-align: center;
+    }
+
+    .apple-row {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin: 20px 0;
+    }
+
+    .apple-item {
+      text-align: center;
+    }
+
+    .apple-icon {
+      width: 80px;
+      height: 80px;
+    }
+
+    .apple-count {
+      font-size: 1.4em;
+      margin-top: 8px;
+      font-weight: bold;
+    }
+
+    .gold .apple-count { color: gold; }
+    .silver .apple-count { color: silver; }
+    .red .apple-count { color: #ff6b6b; }
+
+    .message {
+      margin-top: 20px;
+      font-size: 1.4em;
+      color: gold;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍎 伊甸园 · 实时排行榜</h1>
+
+    {% if won_by_all %}
+      <!-- 全体胜利界面 -->
+      <div style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        height: 80vh;
+        text-align: center;
+        padding: 30px;
+        gap: 40px;
+      ">
+        <div style="
+          font-size: 5em;
+          color: gold;
+          text-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+          animation: pulse 2s infinite;
+        ">🎉</div>
+        
+        <div style="
+          font-size: 3.2em;
+          color: white;
+          font-weight: bold;
+          line-height: 1.4;
+          max-width: 800px;
+        ">
+          全体胜利！<br/>
+          <span style="color: #66ff99; font-size: 1.2em;">伊甸园重归和平 🌿</span>
+        </div>
+
+        {% if round_results %}
+        <div style="
+          background: rgba(0,0,0,0.4);
+          padding: 25px 50px;
+          border-radius: 16px;
+          max-width: 600px;
+          width: 100%;
+          margin-top: 20px;
+        ">
+          <h2 style="color: #ffcc66; margin: 0 0 20px;">📊 本轮投票统计</h2>
+          <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+            <div style="text-align: center;">
+              <div style="
+                width: 70px; height: 70px;
+                background: #8b0000;
+                border-radius: 50%;
+                margin: 0 auto 10px;
+                display: flex; align-items: center; justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 1.4em;
+              ">{{ round_results.votes.red }}</div>
+              <div style="color: #ff9999; font-size: 1.1em;">红苹果</div>
+            </div>
+            
+            <div style="text-align: center;">
+              <div style="
+                width: 70px; height: 70px;
+                background: #d4af37;
+                border-radius: 50%;
+                margin: 0 auto 10px;
+                display: flex; align-items: center; justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 1.4em;
+              ">{{ round_results.votes.gold }}</div>
+              <div style="color: #ffd700; font-size: 1.1em;">金苹果</div>
+            </div>
+            
+            <div style="text-align: center;">
+              <div style="
+                width: 70px; height: 70px;
+                background: #c0c0c0;
+                border-radius: 50%;
+                margin: 0 auto 10px;
+                display: flex; align-items: center; justify-content: center;
+                color: black;
+                font-weight: bold;
+                font-size: 1.4em;
+              ">{{ round_results.votes.silver }}</div>
+              <div style="color: #cccccc; font-size: 1.1em;">银苹果</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <style>
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+      </style>
+
+    {% else %}
+      <!-- 倒计时（仅投票中显示） -->
+      {% if in_voting and countdown is not none %}
+      <div class="timer countdown">
+        ⏳ 投票剩余：{{ "%02d:%02d"|format(countdown // 60, countdown % 60) }}
+      </div>
+      {% endif %}
+
+      <!-- ✅ 关键修改：固定高度 + visibility 控制 -->
+      <div id="voteProgress" class="timer votes">
+        <span id="voteText" style="display: none;">
+          🗳️ 已投票：<span id="votedCount">0</span> / <span id="totalCount">0</span>
+        </span>
+      </div>
+
+      <!-- 轮次状态 -->
+      <div class="round-info">
+        {% if game_ended %}
+          🏁 游戏已结束！最终排名如下：
+        {% else %}
+          第 {{ current_round }} 轮
+          {% if round_status == 'waiting' %}
+            · 等待主持人开始
+          {% elif round_status == 'voting' %}
+            · 投票进行中
+          {% else %}
+            · 结算完成
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <!-- 排行榜 -->
+      <div class="leaderboard-container">
+        <div class="leaderboard-header">🏆 排行榜（Top {{ top15|length }}）</div>
+        <div class="leaderboard-grid">
+          {% for p in top15 %}
+            <div class="player-item">#{{ p.id }} ¥{{ p.balance }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- 上一轮结果 -->
+      {% if round_results %}
+      <div class="results">
+        <h2>📊 上一轮结果</h2>
+        <div class="apple-row">
+          <div class="apple-item gold">
+            <svg class="apple-icon" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="#d4af37" />
+              <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="apple-count">{{ round_results.votes.gold }}</div>
+          </div>
+          
+          <div class="apple-item silver">
+            <svg class="apple-icon" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="#c0c0c0" />
+              <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="apple-count">{{ round_results.votes.silver }}</div>
+          </div>
+          
+          <div class="apple-item red">
+            <svg class="apple-icon" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="#8b0000" />
+              <path d="M50,10 L55,5 L60,10" stroke="#2e8b57" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="apple-count">{{ round_results.votes.red }}</div>
+          </div>
+        </div>
+        <div class="message">{{ round_results.message }}</div>
+      </div>
+      {% endif %}
+
+    {% endif %}
+  </div>
+
+  <!-- ✅ 投票进度控制脚本（使用 visibility 避免布局跳动） -->
+  <script>
+    const roundStatus = "{{ round_status }}";
+    const gameEnded = {{ game_ended | tojson }};
+
+    function updateVoteStatus() {
+      const voteProgress = document.getElementById('voteProgress');
+      const voteText = document.getElementById('voteText');
+      const votedEl = document.getElementById('votedCount');
+      const totalEl = document.getElementById('totalCount');
+
+      // 如果不在投票阶段，隐藏但保持占位
+      if (roundStatus !== 'voting' || gameEnded) {
+        voteProgress.style.visibility = 'hidden';
+        voteText.style.display = 'none';
+        return;
+      }
+
+      // 在投票阶段，尝试获取数据
+      fetch('/api/vote-status')
+        .then(response => response.json())
+        .then(data => {
+          const voted = data.voted_players || data.voted || 0;
+          const total = data.total_players || data.total || 0;
+
+          if (votedEl && totalEl) {
+            votedEl.textContent = voted;
+            totalEl.textContent = total;
+          }
+
+          // 显示文字
+          voteText.style.display = 'inline';
+
+          // 全员投完提示
+          if (total > 0 && voted >= total) {
+            voteText.innerHTML = '✅ 全员已投票！';
+          }
+
+          // 确保容器可见
+          voteProgress.style.visibility = 'visible';
+        })
+        .catch(err => {
+          console.warn('获取投票状态失败:', err);
+          // 出错时隐藏文字，但保留占位
+          voteText.style.display = 'none';
+          voteProgress.style.visibility = 'hidden';
+        });
+    }
+
+    // 初始化
+    if (roundStatus === 'voting' && !gameEnded) {
+      updateVoteStatus();
+    } else {
+      // 非投票阶段，直接隐藏
+      const voteProgress = document.getElementById('voteProgress');
+      const voteText = document.getElementById('voteText');
+      if (voteProgress) voteProgress.style.visibility = 'hidden';
+      if (voteText) voteText.style.display = 'none';
+    }
+  </script>
+</body>
+</html>
