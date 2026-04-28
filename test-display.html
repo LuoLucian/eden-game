@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏛️ 伊甸园 — 大屏展示</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0c0f1a;--card:rgba(18,22,40,.92);--border:rgba(196,165,107,.18);
+    --text:#e8dcc8;--muted:#8a7e6e;--gold:#d4a853;--gold-light:#f0d48a;
+    --silver:#a8b4c4;--red:#c45c5c;--green:#6bb889;--purple:#a78bfa;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',Georgia,serif;height:100vh;overflow:hidden;background-image:radial-gradient(ellipse at 20% 50%,rgba(107,184,137,.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(212,168,83,.05) 0%,transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(196,92,92,.04) 0%,transparent 50%)}
+
+  #particles{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .container{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;padding:12px 28px}
+
+  /* 顶栏 */
+  .header{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--border)}
+  .game-title{font-size:38px;font-weight:900;background:linear-gradient(135deg,#f0d48a 0%,#d4a853 40%,#6bb889 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:5px;display:flex;align-items:center;gap:12px}
+  .game-title-icon{width:44px;height:44px;flex-shrink:0}
+  .game-sub{font-size:13px;color:var(--muted);letter-spacing:4px;margin-top:3px;text-transform:uppercase;padding-left:56px}
+  .round-badge{background:linear-gradient(135deg,rgba(212,168,83,.15),rgba(212,168,83,.04));border:1.5px solid rgba(212,168,83,.35);border-radius:12px;padding:7px 20px;font-size:19px;color:var(--gold);font-weight:700;display:none}
+  .round-badge.final{background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.06));border-color:rgba(167,139,250,.55);color:#c084fc;animation:gf 2s infinite alternate}
+  @keyframes gf{from{box-shadow:0 0 8px rgba(167,139,250,.25)}to{box-shadow:0 0 22px rgba(167,139,250,.55)}}
+  .p-info{text-align:right;font-size:15px;color:var(--muted)}
+  .p-info .num{color:var(--green);font-size:24px;font-weight:700}
+  .p-info .elim{color:var(--red);font-size:13px;margin-top:3px}
+
+  /* ★ 等待界面 — 高亮可读版 ★ */
+  .wait-sec{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+  /* 呼吸光环 */
+  .wait-aura{position:absolute;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(212,168,83,.08) 0%,rgba(107,184,137,.04) 40%,transparent 70%);animation:auraPulse 5s ease-in-out infinite;pointer-events:none}
+  @keyframes auraPulse{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.15);opacity:1}}
+
+  /* 旋转装饰环 */
+  .wait-ring{position:absolute;width:480px;height:480px;border:1px solid rgba(212,168,83,.08);border-radius:50%;animation:waitSpin 40s linear infinite;pointer-events:none}
+  .wait-ring::before{content:'';position:absolute;top:-3px;left:50%;width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(212,168,83,.4)}
+  .wait-ring2{position:absolute;width:340px;height:340px;border:1px solid rgba(107,184,137,.06);border-radius:50%;animation:waitSpin 25s linear infinite reverse;pointer-events:none}
+  .wait-ring2::before{content:'';position:absolute;bottom:-2px;left:50%;width:4px;height:4px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(107,184,137,.3)}
+
+  @keyframes waitSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+  .wait-content{position:relative;z-index:2;text-align:center}
+  .wait-logo{margin-bottom:18px;animation:waitFloat 3.5s ease-in-out infinite;filter:drop-shadow(0 0 36px rgba(212,168,83,.45))}
+  @keyframes waitFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.03)}}
+  .wait-logo svg{width:72px;height:72px}
+
+  /* ★ 大字 — 高亮实色 + 强发光，不用 background-clip（太暗）*/
+  .wait-big{
+    font-size:100px;font-weight:900;text-align:center;
+    color:#f0d48a;
+    letter-spacing:6px;line-height:1.1;
+    text-shadow:
+      0 0 20px rgba(240,212,138,.7),
+      0 0 48px rgba(212,168,83,.4),
+      0 0 80px rgba(212,168,83,.15);
+    animation:waitNumGlow 2s ease-in-out infinite alternate;
+  }
+  @keyframes waitNumGlow{
+    0%{text-shadow:0 0 20px rgba(240,212,138,.6),0 0 40px rgba(212,168,83,.35),0 0 70px rgba(212,168,83,.12);color:#f0d48a}
+    100%{text-shadow:0 0 28px rgba(240,212,138,.9),0 0 60px rgba(212,168,53,.55),0 0 100px rgba(212,168,83,.22);color:#ffe8a0}
+  }
+
+  /* ★ 副标题 — 高亮可见 */
+  .wait-lbl{font-size:22px;color:var(--gold-light);margin-top:12px;letter-spacing:8px;text-align:center;font-weight:700;text-shadow:0 0 16px rgba(240,212,138,.25);animation:lblFade 3s ease-in-out infinite}
+  @keyframes lblFade{0%,100%{opacity:.65}100%{opacity:1}}
+
+  /* ★ 提示文字 — 明亮可读 */
+  .wait-hint{margin-top:24px;font-size:16px;color:rgba(232,220,200,.5);text-align:center;letter-spacing:3px;animation:hintPulse 3.5s ease-in-out infinite;font-weight:400}
+  @keyframes hintPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:.7;transform:scale(1.01)}}
+
+  /* 排行主体 — 双列网格，前10名统一标记突出 */
+  .main{flex:1;display:flex;flex-direction:column;padding-top:12px;overflow:hidden}
+  .lb-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .lb-t{font-size:22px;font-weight:900;letter-spacing:3px;color:var(--muted)}
+  .lb-t span{color:var(--gold)}
+
+  /* 双列网格 */
+  .lb-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:7px;overflow:hidden;align-content:start}
+  .lb-item{display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(232,220,200,.02);border:1px solid rgba(232,220,200,.04);border-radius:10px;transition:all .3s;font-size:17px}
+  .lb-item.elim{opacity:.25;text-decoration:line-through}
+
+  /* ★ 前十名统一重点标记 — 相同的边框和透明背景色 */
+  .lb-item.top10{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.35);box-shadow:0 0 12px rgba(212,168,83,.08)}
+
+  /* ★ 数字排名 */
+  .lb-rk{font-size:18px;font-weight:900;width:30px;text-align:center;color:var(--muted);flex-shrink:0;opacity:.4;font-variant-numeric:tabular-nums}
+  /* 前十名排名数字更醒目 */
+  .lb-item.top10 .lb-rk{color:var(--gold);font-size:20px;opacity:.9}
+  .lb-num{font-size:13.5px;color:var(--gold);font-weight:700;opacity:.55;min-width:38px;font-variant-numeric:tabular-nums}
+  .lb-nm{flex:1;font-size:17px;color:rgba(232,220,200,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+  .lb-sc{font-size:18px;font-weight:800;color:var(--green);flex-shrink:0;font-variant-numeric:tabular-nums}
+  .lb-item.elim .lb-sc{color:var(--red)}
+  .lb-ch{font-size:12px;font-weight:700;flex-shrink:0;min-width:42px;text-align:right}
+  .lb-ch.pos{color:var(--green)}.lb-ch.neg{color:var(--red)}
+
+  /* ★★★ 超大投票进度区 ★★★ */
+  .vote-mega{display:none;flex-direction:column;align-items:center;padding:18px 24px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(212,168,83,.08));border:1px solid rgba(167,139,250,.28);border-radius:16px;margin-top:10px;position:relative;overflow:hidden}
+  .vote-mega::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.1),transparent 70%);pointer-events:none}
+  .vote-mega.show{animation:vmGlow 2.5s infinite alternate;display:flex!important}
+  @keyframes vmGlow{from{box-shadow:0 0 8px rgba(167,139,250,.15),inset 0 0 30px rgba(167,139,250,.03)}to{box-shadow:0 0 28px rgba(167,139,250,.35),inset 0 0 50px rgba(167,139,250,.06)}}
+
+  .vm-top{display:flex;align-items:center;justify-content:center;gap:32px;width:100%;margin-bottom:14px}
+
+  /* 圆形倒计时 — 大屏版更大 */
+  .vm-cd-circle{position:relative;width:72px;height:72px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .vm-cd-svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .vm-cd-svg circle{fill:none;stroke-width:5;cx:36;cy:36;r:31}
+  .vm-cd-bg{stroke:rgba(255,255,255,.05)}
+  .vm-cd-prog{stroke:#a78bfa;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
+  .vm-cd-prog.warn{stroke:#fb923c}.vm-cd-prog.danger{stroke:#ef4444}
+  .vm-cd-num-inner{font-size:28px;font-weight:900;color:#c4b5fd;font-family:Georgia,'Noto Serif SC',serif;font-variant-numeric:tabular-nums;z-index:1;line-height:1;letter-spacing:1px}
+  .vm-cd-num-inner.warn{color:#fb923c}.vm-cd-num-inner.danger{color:#ef4444;animation:cdPulse .4s infinite alternate}
+
+  .vm-cd-info{display:flex;flex-direction:column;gap:1px}
+  .vm-cd-label{font-size:14px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-style:italic}
+
+  /* 统计数字 */
+  .vm-stat{display:flex;align-items:center;gap:8px;font-size:19px;color:var(--muted);font-family:Georgia,'Noto Serif SC',serif}
+  .vm-stat-v{font-size:42px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;font-family:'Noto Serif SC',Georgia,serif}
+  .vm-stat-t{font-size:23px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .vm-stat-slash{font-size:20px;color:var(--muted);margin:0 2px}
+  .vm-stat-lbl{font-size:14px;color:var(--muted);margin-left:4px;font-style:italic}
+
+  /* 超大进度条 — 更粗更醒目 */
+  .vm-bar{width:100%;height:18px;background:rgba(255,255,255,.05);border-radius:9px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,.04)}
+  .vm-bar-fill{height:100%;border-radius:9px;transition:width .4s ease-out;background:linear-gradient(90deg,#7c3aed,#d4a853,#6bb889);position:relative;min-width:6px}
+  .vm-bar-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 20%,rgba(255,255,255,.2) 50%,transparent 80%);animation:shimmer 1.8s infinite}
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+  .vm-pct{font-size:19px;color:var(--gold);font-weight:900;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:1px;font-family:Georgia,'Noto Serif SC',serif}
+
+  /* 时间到大屏提示 */
+  .vm-ended{display:none;width:100%;padding:14px 20px;background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.03));border:1.5px solid rgba(239,68,68,.35);border-radius:12px;margin-top:8px;text-align:center;animation:vmEndIn .4s ease}
+  @keyframes vmEndIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+  .vm-ended.show{display:flex;align-items:center;justify-content:center;gap:12px}
+  .vm-ended-icon{font-size:36px;animation:ceShake .8s ease-in-out infinite}
+  @keyframes ceShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-10deg)}75%{transform:rotate(10deg)}}
+  .vm-ended-txt{font-size:26px;font-weight:900;color:var(--red);font-family:Georgia,'Noto Serif SC',serif}
+  .vm-ended-sub{font-size:15px;color:var(--muted);font-style:italic}
+
+  /* ===== 内嵌结算区（排行榜下方） ===== */
+  .result-inline{display:none;flex-direction:column;align-items:center;padding:16px 24px;background:linear-gradient(135deg,rgba(212,168,83,.12),rgba(107,184,137,.06));border:1.5px solid rgba(212,168,83,.35);border-radius:14px;margin-top:10px;animation:riIn .45s ease;position:relative;overflow:hidden}
+  .result-inline::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(212,168,83,.1),transparent 70%);pointer-events:none}
+  @keyframes riIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .result-inline.show{display:flex}
+  .ri-hd{font-size:14px;color:var(--muted);margin-bottom:3px;font-style:italic;position:relative;z-index:1}
+  .ri-msg{font-size:26px;font-weight:900;color:var(--gold);margin-bottom:4px;line-height:1.3;text-align:center;position:relative;z-index:1}
+  .ri-expl{font-size:14px;color:rgba(232,220,200,.5);line-height:1.5;margin-bottom:10px;max-width:500px;margin-left:auto;margin-right:auto;font-style:italic;text-align:center;position:relative;z-index:1}
+  .ri-row{display:flex;gap:12px;justify-content:center;position:relative;z-index:1}
+  .ri-vi{padding:10px 22px;border-radius:12px;text-align:center;min-width:100px}
+  .ri-g{background:rgba(212,168,83,.1);border:1px solid rgba(212,168,83,.3)}
+  .ri-s{background:rgba(168,180,196,.1);border:1px solid rgba(168,180,196,.3)}
+  .ri-r{background:rgba(196,92,92,.1);border:1px solid rgba(196,92,92,.3)}
+  .ri-n{font-size:13px;margin-bottom:3px}
+  .ri-g .ri-n{color:var(--gold)}.ri-s .ri-n{color:var(--silver)}.ri-r .ri-n{color:var(--red)}
+  .ri-c{font-size:32px;font-weight:900;font-variant-numeric:tabular-nums}
+  .ri-g .ri-c{color:var(--gold)}.ri-s .ri-c{color:var(--silver)}.ri-r .ri-c{color:var(--red)}
+  .ri-t{font-size:12px;margin-top:2px;font-weight:700}
+  .ri-t.win{color:var(--green)}.ri-t.lose{color:var(--red)}
+  .ri-wait{font-size:13px;color:rgba(232,220,200,.3);margin-top:6px;font-style:italic;position:relative;z-index:1}
+
+  /* 全体胜利 */
+  .aw-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(107,184,137,.25) 0%,rgba(12,15,26,.93) 70%)}
+  .aw-ov.hidden{display:none}
+  .aw-e{font-size:100px;animation:bnc .8s infinite alternate;display:block}
+  .aw-t{font-size:60px;font-weight:900;background:linear-gradient(135deg,#6bb889,var(--gold),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:16px 0;letter-spacing:4px}
+  .aw-s{font-size:20px;color:rgba(232,220,200,.55);font-style:italic}
+  @keyframes bnc{from{transform:translateY(0)}to{transform:translateY(-14px)}}
+
+  /* 游戏结束 */
+  .go-ov{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(12,15,26,.93)}
+  .go-ov.hidden{display:none}
+  .go-card{text-align:center;padding:36px;max-width:720px;width:90%}
+  .go-t{font-size:50px;font-weight:900;color:var(--gold);margin-bottom:24px;letter-spacing:4px}
+  .flb{list-style:none;display:flex;flex-direction:column;gap:7px;max-height:58vh;overflow-y:auto}
+  .flb::-webkit-scrollbar{width:3px}
+  .flb::-webkit-scrollbar-thumb{background:rgba(232,220,200,.12);border-radius:2px}
+  .fli{display:flex;align-items:center;gap:13px;padding:12px 18px;border-radius:12px;background:rgba(232,220,200,.03);border:1px solid rgba(232,220,200,.06);font-size:17px}
+  .fli.gbg{background:rgba(212,168,83,.08);border-color:rgba(212,168,83,.25)}
+  .fli.sbg{background:rgba(168,180,196,.06);border-color:rgba(168,180,196,.2)}
+  .fli.bbg{background:rgba(212,168,83,.05);border-color:rgba(212,168,83,.18)}
+  .fl-rk{font-size:22px;width:30px}
+  .fl-nm{flex:1;text-align:left;font-variant-numeric:tabular-nums}
+  .fl-sc{color:var(--green);font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<div class="container">
+  <div class="header">
+    <div>
+      <div class="game-title">
+        <svg class="game-title-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="dtAppleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#f0d48a"/><stop offset="40%" style="stop-color:#d4a853"/><stop offset="80%" style="stop-color:#b8860b"/><stop offset="100%" style="stop-color:#9a7209"/>
+            </linearGradient>
+            <linearGradient id="dtLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6bb889"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#dtAppleGrad)"/>
+          <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.2)" transform="rotate(-15 23 32)"/>
+          <path d="M32 17 Q33 10 35 6" stroke="#8b6914" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="url(#dtLeafGrad)"/>
+        </svg>
+        伊甸园
+      </div>
+      <div class="game-sub">EDEN · THE ANCIENT GAME</div>
+    </div>
+    <div id="roundBadge" class="round-badge">第 <span id="rndNum">1</span> 轮 / <span id="rndTotal">8</span></div>
+    <div class="p-info">
+      有效 <span class="num" id="actCnt">0</span> 人
+      <div class="elim" id="elimInfo" style="display:none">淘汰 <span id="elimCnt">0</span></div>
+    </div>
+  </div>
+
+  <!-- 等待区（干净酷炫版） -->
+  <div id="waitSec" class="wait-sec">
+    <!-- 呼吸光环 + 旋转装饰环 -->
+    <div class="wait-aura"></div>
+    <div class="wait-ring"></div>
+    <div class="wait-ring2"></div>
+    <!-- 中心内容 -->
+    <div class="wait-content">
+      <div class="wait-logo">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="wAppleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#f0d48a"/><stop offset="40%" style="stop-color:#d4a853"/><stop offset="80%" style="stop-color:#b8860b"/><stop offset="100%" style="stop-color:#9a7209"/>
+            </linearGradient>
+            <linearGradient id="wLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6bb889"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#wAppleGrad)"/>
+          <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.2)" transform="rotate(-15 23 32)"/>
+          <path d="M32 17 Q33 10 35 6" stroke="#8b6914" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="url(#wLeafGrad)"/>
+        </svg>
+      </div>
+      <div class="wait-big" id="waitCnt">0</div>
+      <div class="wait-lbl">位玩家已就绪</div>
+      <div class="wait-hint">请等待主持人添加玩家并开始游戏</div>
+    </div>
+  </div>
+
+  <!-- 游戏区 -->
+  <div id="gameSec" style="display:none" class="main">
+    <div class="lb-hd">
+      <div class="lb-t">🏆 排名 <span>TOP 10</span></div>
+    </div>
+    <!-- 双列网格排行榜（前十名加边框和背景色突出） -->
+    <div class="lb-grid" id="lbGrid"></div>
+
+    <!-- ★★★ 超大投票进度区 ★★★ -->
+    <div class="vote-mega" id="voteMega">
+      <div class="vm-top">
+        <div class="vm-cd-circle" id="vmCdCircle">
+          <svg class="vm-cd-svg" viewBox="0 0 72 72">
+            <circle class="vm-cd-bg"/>
+            <circle class="vm-cd-prog" id="vmCdProg" stroke-dasharray="194.8" stroke-dashoffset="0"/>
+          </svg>
+          <div class="vm-cd-num-inner" id="vmCdNum">60</div>
+        </div>
+        <div class="vm-cd-info"><div class="vm-cd-label">投票倒计时</div></div>
+        <div class="vm-stat">
+          <span class="vm-stat-v" id="vmV">0</span>
+          <span class="vm-stat-slash">/</span>
+          <span class="vm-stat-t" id="vmT">0</span>
+          <span class="vm-stat-lbl">已投票</span>
+        </div>
+      </div>
+      <div class="vm-bar"><div class="vm-bar-fill" id="vmFill" style="width:0%"></div></div>
+      <div class="vm-pct" id="vmPct">0%</div>
+      <!-- 时间到提示 -->
+      <div class="vm-ended" id="vmEnded">
+        <span class="vm-ended-icon">⏳</span>
+        <div><div class="vm-ended-txt">时间到！请主持人及时结算</div><div class="vm-ended-sub">Waiting for settlement</div></div>
+      </div>
+    </div>
+
+    <!-- ★★★ 内嵌结算区（排行榜下方，不再使用覆盖层）★★★ -->
+    <div class="result-inline" id="resultInline">
+      <div class="ri-hd">第 <span id="resRd">1</span> 轮结算</div>
+      <div class="ri-msg" id="resMsg"></div>
+      <div class="ri-expl" id="resExpl"></div>
+      <div class="ri-row">
+        <div class="ri-vi ri-g">
+          <div class="ri-n">🍎 金苹果</div>
+          <div class="ri-c" id="resGold">0</div>
+          <div class="ri-t" id="resGoldT"></div>
+        </div>
+        <div class="ri-vi ri-s">
+          <div class="ri-n">🍎 银苹果</div>
+          <div class="ri-c" id="resSilver">0</div>
+          <div class="ri-t" id="resSilverT"></div>
+        </div>
+        <div class="ri-vi ri-r">
+          <div class="ri-n">🍎 红苹果</div>
+          <div class="ri-c" id="resRed">0</div>
+          <div class="ri-t" id="resRedT"></div>
+        </div>
+      </div>
+      <div class="ri-wait">等待下一轮...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 结果已改为内嵌到排行榜下方（resultInline），不再使用覆盖层 -->
+
+<!-- 全体胜利 -->
+<div id="awOv" class="aw-ov hidden">
+  <div style="text-align:center">
+    <span class="aw-e">🍎</span>
+    <div class="aw-t">全体胜利！</div>
+    <div class="aw-s">所有人选择了红苹果，团队胜利！</div>
+  </div>
+</div>
+
+<!-- 游戏结束 -->
+<div id="goOv" class="go-ov hidden">
+  <div class="go-card">
+    <div class="go-t">🏆 游戏结束</div>
+    <ul class="flb" id="flb"></ul>
+  </div>
+</div>
+
+<script>
+const S_KEY = 'eden_test_data';
+const COUNTDOWN_SEC = 60;
+let lastRR = -1;
+
+// ===== 粒子系统（干净版：6层粒子 + 涟漪 + 流星）=====
+(function(){
+  const cv=document.getElementById('particles'),ctx=cv.getContext('2d');
+  let w,h;
+  function rs(){w=cv.width=window.innerWidth;h=cv.height=window.innerHeight}
+  rs();window.addEventListener('resize',rs);
+
+  const layers=[
+    Array.from({length:60},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*.5+.15,dx:(Math.random()-.5)*.08,dy:-Math.random()*.12-.02,a:Math.random()*.15+.03,cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)],ph:Math.random()*6.28,ps:.005+Math.random()*.01})),
+    Array.from({length:45},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*.8+.2,dx:(Math.random()-.5)*.12,dy:-Math.random()*.18-.04,a:Math.random()*.25+.04,cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)],ph:Math.random()*6.28,ps:.008+Math.random()*.015})),
+    Array.from({length:28},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.3+.4,dx:(Math.random()-.5)*.25,dy:-Math.random()*.3-.08,a:Math.random()*.35+.08,cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889','#a78bfa'][Math.floor(Math.random()*5)],ph:Math.random()*6.28,ps:.012+Math.random()*.02})),
+    Array.from({length:12},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2.2+.8,dx:(Math.random()-.5)*.45,dy:-Math.random()*.45-.12,a:Math.random()*.18+.04,cl:['#d4a853','#6bb889','#a78bfa'][Math.floor(Math.random()*3)],ph:Math.random()*6.28,ps:.018+Math.random()*.025})),
+    Array.from({length:8},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*3+1.5,dx:(Math.random()-.5)*.15,dy:(Math.random()-.5)*.1,a:Math.random()*.12+.03,cl:'#d4a853',ph:Math.random()*6.28,ps:.006+Math.random()*.01})),
+    Array.from({length:6},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2.5+1,dx:(Math.random()-.5)*.12,dy:(Math.random()-.5)*.08,a:Math.random()*.1+.02,cl:'#a78bfa',ph:Math.random()*6.28,ps:.008+Math.random()*.012}))
+  ];
+
+  const ripples = [];
+  function addRipple(){
+    if(ripples.length > 4) return;
+    ripples.push({x:Math.random()*w,y:Math.random()*h,r:0,maxR:80+Math.random()*120,a:.05+Math.random()*.04,speed:.3+Math.random()*.4,cl:['#d4a853','#6bb889','#a78bfa','#c45c5c'][Math.floor(Math.random()*4)]});
+  }
+  setInterval(addRipple, 3000);
+
+  const meteors = [];
+  function addMeteor(){
+    if(meteors.length > 1) return;
+    meteors.push({x:Math.random()*w,y:-20,dx:2+Math.random()*3,dy:3+Math.random()*4,len:40+Math.random()*80,a:.1+Math.random()*.1,life:1});
+  }
+  setInterval(addMeteor, 6000);
+
+  const LD=110;
+
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+
+    // ★ 涟漪
+    for(let i=ripples.length-1;i>=0;i--){
+      const rp=ripples[i];
+      rp.r+=rp.speed;
+      const fadeA=rp.a*(1-rp.r/rp.maxR);
+      if(rp.r>=rp.maxR){ripples.splice(i,1);continue}
+      ctx.beginPath();ctx.arc(rp.x,rp.y,rp.r,0,Math.PI*2);
+      ctx.strokeStyle=rp.cl;ctx.globalAlpha=fadeA;ctx.lineWidth=1.5;ctx.stroke();
+    }
+
+    // ★ 流星
+    for(let i=meteors.length-1;i>=0;i--){
+      const m=meteors[i];
+      m.x+=m.dx;m.y+=m.dy;m.life-=.008;
+      if(m.life<=0||m.y>h+50){meteors.splice(i,1);continue}
+      const grd=ctx.createLinearGradient(m.x,m.y,m.x-m.dx*m.len/5,m.y-m.dy*m.len/5);
+      grd.addColorStop(0,`rgba(232,220,200,${m.a*m.life})`);
+      grd.addColorStop(1,'transparent');
+      ctx.beginPath();ctx.moveTo(m.x,m.y);
+      ctx.lineTo(m.x-m.dx*m.len/5,m.y-m.dy*m.len/5);
+      ctx.strokeStyle=grd;ctx.globalAlpha=1;ctx.lineWidth=1.5;ctx.stroke();
+      // 流星头部发光
+      ctx.beginPath();ctx.arc(m.x,m.y,2,0,Math.PI*2);
+      ctx.fillStyle='#f0d48a';ctx.globalAlpha=m.a*m.life*2;ctx.fill();
+    }
+
+    // 连线（层2）
+    ctx.lineWidth=.4;
+    for(let i=0;i<layers[2].length;i++){
+      for(let j=i+1;j<layers[2].length;j++){
+        const a=layers[2][i],b=layers[2][j];
+        const dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+        if(d<LD){
+          ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+          ctx.strokeStyle=`rgba(232,220,200,${(1-d/LD)*.06})`;
+          ctx.globalAlpha=1;ctx.stroke();
+        }
+      }
+    }
+
+    // 粒子层渲染
+    layers.forEach(l=>{
+      l.forEach(p=>{
+        p.ph+=p.ps;
+        const pa=p.a*(.6+.4*Math.sin(p.ph));
+        const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3.5);
+        g.addColorStop(0,p.cl);g.addColorStop(1,'transparent');
+        ctx.globalAlpha=pa*.25;ctx.fillStyle=g;
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r*3.5,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=pa;ctx.fillStyle=p.cl;
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+        p.x+=p.dx;p.y+=p.dy;
+        if(p.y<-12){p.y=h+12;p.x=Math.random()*w}
+        if(p.x<-12)p.x=w+12;if(p.x>w+12)p.x=-12;
+      });
+    });
+
+    ctx.globalAlpha=1;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ===== 数据 =====
+function ld(){
+  try{const r=localStorage.getItem(S_KEY);if(r)return JSON.parse(r);}catch(e){}
+  return null;
+}
+
+function getExplain(w,l){
+  if(w.includes('red')&&l.includes('gold')&&l.includes('silver'))
+    return '红苹果票数最少，少数派获胜！红+1000，金-2000，银-2000。';
+  if(w.includes('gold')&&w.includes('silver')&&l.includes('red'))
+    return '金或银有一方票数少于红苹果，金银各自+1000，红-2000。';
+  if(w.includes('gold')&&l.includes('silver')&&!w.includes('red')&&!l.includes('red'))
+    return '金苹果票数最少，少数派获胜！金+1000，银-2000。';
+  if(w.includes('silver')&&l.includes('gold')&&!w.includes('red')&&!l.includes('red'))
+    return '银苹果票数最少，少数派获胜！银+1000，金-2000。';
+  if(w.length===0) return '票数相同，平局！所有参与者各扣2000积分。';
+  return '';
+}
+
+// ★ 倒计时更新 — 圆环进度 + 时间到提示（每200ms刷新）
+const VM_CD_CIRCUMFERENCE = 2 * Math.PI * 31; // ≈ 194.8
+let vmLastCd = -1;
+
+function updateCountdown(data) {
+  const mega = document.getElementById('voteMega');
+  const cdCircle = document.getElementById('vmCdCircle');
+  const endedEl = document.getElementById('vmEnded');
+  const cdNum = document.getElementById('vmCdNum');
+  const cdProg = document.getElementById('vmCdProg');
+
+  // ★ 关键：gameActive=true 且有有效时间戳才显示
+  if (!data.gameActive || !data.countdownEndTs || data.countdownEndTs <= Date.now()) {
+    if (data.gameActive && mega && mega.classList.contains('show')) {
+      // gameActive 但倒计时已结束或无时间戳 → 显示时间到
+      if (data.countdownEndTs && data.countdownEndTs <= Date.now() && data.countdownEndTs > 0 && vmLastCd !== 0) {
+        // 刚变为0 → 触发一次时间到
+        cdNum.textContent = '0';
+        cdNum.className = 'vm-cd-num-inner danger';
+        cdProg.style.strokeDashoffset = VM_CD_CIRCUMFERENCE;
+        cdProg.className = 'vm-cd-prog danger';
+        endedEl.classList.add('show');
+        cdCircle.style.opacity = '1';
+        vmLastCd = 0;
+        return;
+      }
+    }
+    cdCircle.style.opacity = '.3';
+    endedEl.classList.remove('show');
+    return;
+  }
+
+  cdCircle.style.opacity = '1';
+  const remaining = Math.max(0, Math.ceil((data.countdownEndTs - Date.now()) / 1000));
+
+  if (remaining <= 0) {
+    // ★ 时间到！显示醒目提示（只触发一次）
+    if (vmLastCd !== 0) {
+      cdNum.textContent = '0';
+      cdNum.className = 'vm-cd-num-inner danger';
+      cdProg.style.strokeDashoffset = VM_CD_CIRCUMFERENCE;
+      cdProg.className = 'vm-cd-prog danger';
+      endedEl.classList.add('show');
+      vmLastCd = 0;
+    }
+    return;
+  }
+
+  endedEl.classList.remove('show');
+
+  // 只在变化时更新DOM（性能优化）
+  if (remaining !== vmLastCd) {
+    vmLastCd = remaining;
+    cdNum.textContent = remaining;
+    
+    const danger = remaining <= 10;
+    const warn = remaining <= 20 && !danger;
+    cdNum.className = 'vm-cd-num-inner' + (danger ? ' danger' : warn ? ' warn' : '');
+    cdProg.className = 'vm-cd-prog' + (danger ? ' danger' : warn ? ' warn' : '');
+    
+    const pct = remaining / COUNTDOWN_SEC;
+    const offset = VM_CD_CIRCUMFERENCE * (1 - pct);
+    cdProg.style.strokeDashoffset = offset;
+  }
+}
+
+function refresh(){
+  const data=ld();
+  if(!data)return;
+  const{players,currentRound,totalRounds,gameActive,lastResult,countdownEndTs}=data;
+  const pList=Object.values(players||{});
+  const total=pList.length;
+  const active=pList.filter(p=>!p.eliminated).length;
+  const elim=total-active;
+
+  document.getElementById('actCnt').textContent=active;
+  if(elim>0){document.getElementById('elimInfo').style.display='block';document.getElementById('elimCnt').textContent=elim;}
+  else{document.getElementById('elimInfo').style.display='none';}
+
+  if(!gameActive||total===0){
+    document.getElementById('waitSec').style.display='flex';
+    document.getElementById('gameSec').style.display='none';
+    document.getElementById('waitCnt').textContent=total;
+    document.getElementById('roundBadge').style.display='none';
+    return;
+  }
+
+  document.getElementById('waitSec').style.display='none';
+  document.getElementById('gameSec').style.display='flex';
+
+  const isFinal=currentRound>=totalRounds;
+  const badge=document.getElementById('roundBadge');
+  badge.style.display='block';
+  badge.className=isFinal?'round-badge final':'round-badge';
+  document.getElementById('rndNum').textContent=currentRound;
+  document.getElementById('rndTotal').textContent=totalRounds;
+
+  // ★★★ 投票进度区 ★★★
+  const voted=pList.filter(p=>!p.eliminated&&p.voted).length;
+  const mega=document.getElementById('voteMega');
+
+  // 游戏进行中且非结果阶段 → 显示（包含倒计时结束后）
+  if (gameActive) {
+    // 如果有结算结果显示中 → 保持隐藏（被内嵌结算区替代）
+    const riShown = document.getElementById('resultInline').classList.contains('show');
+    if (riShown) {
+      mega.style.display = 'none';
+      mega.classList.remove('show');
+    } else {
+      mega.style.display = 'flex';
+      mega.classList.add('show');
+    }
+  } else {
+    mega.style.display = 'none';
+    mega.classList.remove('show');
+    document.getElementById('vmEnded').classList.remove('show');
+    vmLastCd = -1;
+  }
+
+  const pct=active>0?(voted/active*100):0;
+  document.getElementById('vmV').textContent=voted;
+  document.getElementById('vmT').textContent=active;
+  document.getElementById('vmFill').style.width=pct+'%';
+  document.getElementById('vmPct').textContent=Math.round(pct)+'%';
+
+  // ★ 倒计时
+  updateCountdown({gameActive, countdownEndTs, lastResult});
+
+  // ★ 排行榜 — 双列网格，只显示前20名，前10名统一加边框和背景色标记
+  const sorted=[...pList].sort((a,b)=>b.score-a.score).slice(0, 20);
+  document.getElementById('lbGrid').innerHTML=sorted.map((p, i) => {
+    const rankNum = i + 1;
+    const top10Cls = rankNum <= 10 ? ' top10' : '';
+    const elCls = p.eliminated ? ' elim' : '';
+    const chHtml = p.lastChange !== undefined
+      ? (p.lastChange > 0 ? `<div class="lb-ch pos">+${p.lastChange}</div>`
+         : p.lastChange < 0 ? `<div class="lb-ch neg">${p.lastChange}</div>` : '') : '';
+    return `<div class="lb-item${top10Cls}${elCls}">
+      <div class="lb-rk">${rankNum}</div>
+      <div class="lb-num">#${String(p.num).padStart(3,'0')}</div>
+      <div class="lb-nm">#${String(p.num).padStart(3,'0')}</div>
+      ${chHtml}
+      <div class="lb-sc">${p.score.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+
+  // 结果 — ★ 内嵌到排行榜下方，不再使用覆盖层
+  if(lastResult && lastResult.round!==lastRR){
+    lastRR=lastResult.round;
+    const r=lastResult;
+    // ★ 最终轮 — 直接显示游戏结束排行榜
+    if(r.isFinal){
+      document.getElementById('resultInline').classList.remove('show');  // 隐藏内嵌结算
+      document.getElementById('voteMega').classList.remove('show');
+      document.getElementById('voteMega').style.display='none';
+      document.getElementById('awOv').classList.add('hidden');
+      showGO(pList);
+      return;
+    }
+    if(r.result.specialEvent==='all_red'){
+      document.getElementById('awOv').classList.remove('hidden');
+      document.getElementById('resultInline').classList.remove('show');  // 隐藏内嵌结算
+    } else {
+      // ★ 显示内嵌结算区（不是覆盖层）
+      document.getElementById('resultInline').classList.add('show');
+      document.getElementById('awOv').classList.add('hidden');
+
+      // 填充结算数据
+      document.getElementById('resRd').textContent=r.round+(r.isFinal?'（最终轮）':'');
+      document.getElementById('resMsg').textContent=r.result.message;
+
+      const w=r.result.winners||[],l=r.result.losers||[];
+      document.getElementById('resGold').textContent=r.votes.gold;
+      document.getElementById('resGoldT').textContent=w.includes('gold')?'✅ 胜':l.includes('gold')?'❌ 败':'';
+      document.getElementById('resGoldT').className='ri-t '+(w.includes('gold')?'win':l.includes('gold')?'lose':'');
+      document.getElementById('resSilver').textContent=r.votes.silver;
+      document.getElementById('resSilverT').textContent=w.includes('silver')?'✅ 胜':l.includes('silver')?'❌ 败':'';
+      document.getElementById('resSilverT').className='ri-t '+(w.includes('silver')?'win':l.includes('silver')?'lose':'');
+      document.getElementById('resRed').textContent=r.votes.red;
+      document.getElementById('resRedT').textContent=w.includes('red')?'✅ 胜':l.includes('red')?'❌ 败':'';
+      document.getElementById('resRedT').className='ri-t '+(w.includes('red')?'win':l.includes('red')?'lose':'');
+
+      document.getElementById('resExpl').textContent=getExplain(w,l);
+
+      // 结算时隐藏投票进度区，让位给结算信息
+      document.getElementById('voteMega').classList.remove('show');
+      document.getElementById('voteMega').style.display='none';
+    }
+  } else if(!lastResult){
+    // 无结果 → 隐藏内嵌结算区
+    document.getElementById('resultInline').classList.remove('show');
+    document.getElementById('awOv').classList.add('hidden');
+    lastRR=-1;
+  }
+
+  // 游戏结束
+  if(!gameActive && currentRound>=(totalRounds||8) && pList.length>0){
+    showGO(pList);
+  }
+}
+
+function showGO(pList){
+  document.getElementById('goOv').classList.remove('hidden');
+  const sorted=[...pList].sort((a,b)=>b.score-a.score);
+  // ★ 前三名用特殊颜色背景
+  function goCls(i) {
+    if (i===0) return 'gbg';
+    if (i===1) return 'sbg';
+    if (i===2) return 'bbg';
+    return '';
+  }
+  document.getElementById('flb').innerHTML=sorted.slice(0,20).map((p,i)=>{
+    const rankNum = i + 1;
+    const eStyle=p.eliminated?'style="opacity:.25;text-decoration:line-through"':'';
+    return `<li class="fli ${goCls(i)}" ${eStyle}>
+      <span class="fl-rk">${rankNum}</span>
+      <span class="fl-nm">#${String(p.num).padStart(3,'0')}</span>
+      <span class="fl-sc">${p.score.toLocaleString()} 分</span>
+    </li>`;
+  }).join('');
+}
+
+// ★ 200ms 刷新（倒计时需要更高精度 + 流畅动画）
+setInterval(refresh, 200);
+window.addEventListener('storage',e=>{if(e.key===S_KEY||e.key==='eden_data_tick')refresh();});
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,486 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+const QRCode = require('qrcode');
+const os = require('os');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: '*' },
+  transports: ['websocket', 'polling']
+});
+
+// 静态文件服务
+app.use('/display', express.static(path.join(__dirname, '../client/display')));
+app.use('/admin', express.static(path.join(__dirname, '../client/admin')));
+app.use('/player', express.static(path.join(__dirname, '../client/player')));
+
+// 健康检查（Render 需要）
+app.get('/', (req, res) => {
+  res.redirect('/display/');
+});
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// 获取本机局域网IP（本地使用）
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+// ==================== 游戏常量 ====================
+const INITIAL_SCORE = 10000;
+const WIN_REWARD = 1000;
+const LOSE_PENALTY = 2000;
+const NO_VOTE_PENALTY = 2000;  // 未投票扣分
+const ROUND_TIME = 60;
+const TOTAL_ROUNDS = 8;
+
+// ==================== 编号管理 ====================
+let nextPlayerNum = 1;
+function assignPlayerNum() {
+  return nextPlayerNum++;
+}
+
+// ==================== 游戏状态 ====================
+let gameState = {
+  status: 'waiting',   // waiting | voting | result | gameover
+  round: 0,
+  totalRounds: TOTAL_ROUNDS,
+  players: {},         // { socketId: { name, num, score, eliminated, voted, voteChoice } }
+  votes: { red: 0, gold: 0, silver: 0 },
+  timer: ROUND_TIME,
+  roundResult: null,
+  roundHistory: [],
+  publicUrl: ''
+};
+
+let timerInterval = null;
+
+// ==================== 有效玩家（未淘汰）====================
+function getActivePlayers() {
+  return Object.entries(gameState.players)
+    .filter(([_, p]) => !p.eliminated)
+    .map(([id, p]) => ({ id, ...p }));
+}
+
+function getActivePlayerCount() {
+  return Object.values(gameState.players).filter(p => !p.eliminated).length;
+}
+
+// ==================== 规则计算 ====================
+
+/**
+ * 第1-7轮规则（少数派获胜）：
+ *
+ * 有人投红时：
+ *   - 红 < 金 且 红 < 银（红最少）→ 红+1000，金-2000，银-2000
+ *   - 金或银任意一个 ≤ 红（即红不是最少）→ 金银阵营赢：金+1000，银+1000，红-2000
+ *
+ * 无人投红（仅金 vs 银）：
+ *   - 金 < 银 → 金+1000，银-2000
+ *   - 银 < 金 → 银+1000，金-2000
+ *   - 金 = 银 → 全员-2000
+ *
+ * 全员投红 → 全体胜利
+ */
+function calcNormalRound(votes) {
+  const { red, gold, silver } = votes;
+  const total = red + gold + silver;
+
+  // 特殊：全员投红
+  if (red === total && total > 0) {
+    return { specialEvent: 'all_red', winners: [], losers: [], message: '🎉 全员选择红苹果 — 全体胜利！游戏提前结束！' };
+  }
+
+  // 无人投红：仅金 vs 银
+  if (red === 0) {
+    if (gold === 0 && silver === 0) {
+      return { winners: [], losers: ['gold', 'silver'], message: '无人投票，全员扣分' };
+    }
+    if (gold === silver) {
+      return { winners: [], losers: ['gold', 'silver'], message: `金苹果 = 银苹果（各 ${gold} 人），平局全员扣除 ${LOSE_PENALTY} 积分` };
+    }
+    if (gold < silver) {
+      return { winners: ['gold'], losers: ['silver'], message: `金苹果（${gold}人）少于银苹果（${silver}人）→ 金苹果少数派胜！金+${WIN_REWARD}，银-${LOSE_PENALTY}` };
+    }
+    return { winners: ['silver'], losers: ['gold'], message: `银苹果（${silver}人）少于金苹果（${gold}人）→ 银苹果少数派胜！银+${WIN_REWARD}，金-${LOSE_PENALTY}` };
+  }
+
+  // 有人投红时
+  if (red < gold && red < silver) {
+    return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）最少 → 红苹果胜！红+${WIN_REWARD}，金-${LOSE_PENALTY}，银-${LOSE_PENALTY}` };
+  }
+
+  // 金或银任意一个 ≤ 红 → 金银阵营整体获胜
+  return {
+    winners: ['gold', 'silver'],
+    losers: ['red'],
+    message: `金银阵营（金${gold}人、银${silver}人）中有一方少于红苹果（${red}人）→ 金银阵营胜！金+${WIN_REWARD}，银+${WIN_REWARD}，红-${LOSE_PENALTY}`
+  };
+}
+
+/**
+ * 最终轮规则：
+ * - 红票数 >= (总票数 - 10) → 全体胜利
+ * - 否则：三色单独比，最少者获胜
+ */
+function calcFinalRound(votes) {
+  const { red, gold, silver } = votes;
+  const total = red + gold + silver;
+
+  if (total > 0 && red >= total - 10) {
+    return { specialEvent: 'all_red', winners: [], losers: [], message: `🎉 红苹果（${red}人）≥ 总票数（${total}）- 10 → 全体胜利！` };
+  }
+
+  if (red === gold && gold === silver) {
+    return { winners: [], losers: ['red', 'gold', 'silver'], message: `三色人数完全相同（各${red}人）→ 全员扣除 ${LOSE_PENALTY} 积分` };
+  }
+
+  if (red < gold && red < silver) {
+    return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）比金（${gold}）和银（${silver}）都少 → 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
+  }
+
+  if (gold === silver) {
+    if (red < gold) {
+      return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）< 金=银（${gold}人）→ 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
+    }
+    return { winners: ['gold', 'silver'], losers: ['red'], message: `金=银（${gold}人）< 红苹果（${red}人）→ 金/银+${WIN_REWARD}，红-${LOSE_PENALTY}` };
+  }
+
+  if (gold < silver) {
+    return { winners: ['gold'], losers: ['red', 'silver'], message: `金苹果（${gold}人）最少 → 金+${WIN_REWARD}，红/银-${LOSE_PENALTY}` };
+  }
+  if (silver < gold) {
+    return { winners: ['silver'], losers: ['red', 'gold'], message: `银苹果（${silver}人）最少 → 银+${WIN_REWARD}，红/金-${LOSE_PENALTY}` };
+  }
+  return { winners: ['gold', 'silver'], losers: ['red'], message: `金=银均为最少 → 金/银+${WIN_REWARD}，红-${LOSE_PENALTY}` };
+}
+
+function calculateResult(votes, round) {
+  const isFinalRound = round >= gameState.totalRounds;
+  const base = isFinalRound ? calcFinalRound(votes) : calcNormalRound(votes);
+  return { ...base, isFinalRound, votes: { ...votes } };
+}
+
+// 将结果应用到玩家积分（仅有效玩家参与）
+function applyResult(result) {
+  const scoreChanges = {};
+  const newlyEliminated = [];
+
+  for (const id in gameState.players) {
+    const player = gameState.players[id];
+    let change = 0;
+
+    // 已淘汰玩家不参与
+    if (player.eliminated) {
+      scoreChanges[id] = { name: player.name, num: player.num, change: 0, total: player.score, eliminated: true };
+      continue;
+    }
+
+    if (result.specialEvent === 'all_red') {
+      // 全体胜利：不做任何加减（投票是免费的）
+      change = 0;
+    } else if (!player.voted) {
+      // 未投票：扣2000
+      player.score -= NO_VOTE_PENALTY;
+      change = -NO_VOTE_PENALTY;
+    } else {
+      const choice = player.voteChoice;
+      if (result.winners.includes(choice)) {
+        player.score += WIN_REWARD;
+        change = WIN_REWARD;
+      } else if (result.losers.includes(choice)) {
+        player.score -= LOSE_PENALTY;
+        change = -LOSE_PENALTY;
+      }
+    }
+
+    // 检查淘汰：积分 <= 0
+    if (player.score <= 0 && !player.eliminated) {
+      player.eliminated = true;
+      player.score = 0;  // 钳位到0
+      newlyEliminated.push(id);
+    }
+
+    scoreChanges[id] = { name: player.name, num: player.num, change, total: player.score, eliminated: player.eliminated };
+  }
+
+  return { scoreChanges, newlyEliminated };
+}
+
+function getLeaderboard() {
+  return Object.entries(gameState.players)
+    .map(([id, p]) => ({ id, name: p.name, num: p.num, score: p.score, eliminated: p.eliminated }))
+    .sort((a, b) => b.score - a.score);
+}
+
+// ==================== 定时器 ====================
+function startTimer() {
+  clearInterval(timerInterval);
+  gameState.timer = ROUND_TIME;
+
+  timerInterval = setInterval(() => {
+    gameState.timer--;
+    io.emit('timerUpdate', { timer: gameState.timer });
+    if (gameState.timer <= 0) {
+      clearInterval(timerInterval);
+      endVoting();
+    }
+  }, 1000);
+}
+
+function endVoting() {
+  gameState.status = 'result';
+
+  // 投票是免费的，直接计算结果（未投票在applyResult中扣分）
+  const result = calculateResult(gameState.votes, gameState.round);
+  const { scoreChanges, newlyEliminated } = applyResult(result);
+  gameState.roundResult = { ...result, scoreChanges };
+  gameState.roundHistory.push({
+    round: gameState.round,
+    votes: { ...gameState.votes },
+    result: result.message,
+    specialEvent: result.specialEvent || null,
+    isFinalRound: result.isFinalRound,
+    eliminatedCount: getActivePlayerCount()
+  });
+
+  const activeCount = getActivePlayerCount();
+
+  io.emit('roundEnd', {
+    result: gameState.roundResult,
+    leaderboard: getLeaderboard(),
+    round: gameState.round,
+    isFinalRound: result.isFinalRound,
+    activePlayerCount: activeCount,
+    newlyEliminated: newlyEliminated.map(id => ({
+      id, name: gameState.players[id].name, num: gameState.players[id].num
+    }))
+  });
+
+  // 通知每个玩家个人结果
+  for (const id in gameState.players) {
+    const player = gameState.players[id];
+    const change = scoreChanges[id];
+    const sock = io.sockets.sockets.get(id);
+    if (sock) {
+      sock.emit('myResult', {
+        voted: player.voted,
+        choice: player.voteChoice,
+        change: change ? change.change : 0,
+        total: player.score,
+        eliminated: player.eliminated,
+        specialEvent: result.specialEvent || null,
+        message: result.message,
+        isFinalRound: result.isFinalRound
+      });
+    }
+  }
+
+  // 全体胜利 → 自动结束
+  if (result.specialEvent === 'all_red') {
+    setTimeout(() => triggerGameOver(), 4000);
+  }
+}
+
+function triggerGameOver() {
+  clearInterval(timerInterval);
+  gameState.status = 'gameover';
+  io.emit('gameOver', { leaderboard: getLeaderboard(), history: gameState.roundHistory });
+}
+
+// ==================== Socket.io ====================
+io.on('connection', (socket) => {
+  console.log('新连接:', socket.id);
+
+  socket.on('joinGame', ({ name }) => {
+    // 游戏进行中禁止加入（仅waiting状态可以）
+    if (gameState.status !== 'waiting') {
+      socket.emit('joinError', { message: '游戏已经开始，无法加入。请等待游戏重置。' });
+      return;
+    }
+    const trimName = (name || '').trim().slice(0, 10) || ('玩家' + socket.id.slice(0, 4));
+    const num = assignPlayerNum();
+    gameState.players[socket.id] = { name: trimName, num, score: INITIAL_SCORE, eliminated: false, voted: false, voteChoice: null };
+    socket.emit('joinSuccess', { name: trimName, num, score: INITIAL_SCORE, playerId: socket.id });
+    io.emit('playerListUpdate', { players: getLeaderboard(), count: Object.keys(gameState.players).length });
+    console.log(`玩家 ${trimName}(#${num}) 加入，当前人数: ${Object.keys(gameState.players).length}`);
+  });
+
+  socket.on('vote', ({ choice }) => {
+    const player = gameState.players[socket.id];
+    if (!player) { socket.emit('voteError', { message: '你还没有加入游戏' }); return; }
+    if (gameState.status !== 'voting') { socket.emit('voteError', { message: '当前不在投票阶段' }); return; }
+    if (player.eliminated) { socket.emit('voteError', { message: '你已被淘汰，无法投票' }); return; }
+    if (player.voted) { socket.emit('voteError', { message: '你已经投过票了' }); return; }
+    if (!['gold', 'silver', 'red'].includes(choice)) { socket.emit('voteError', { message: '无效的投票选项' }); return; }
+
+    // 投票免费，不扣积分
+    player.voted = true;
+    player.voteChoice = choice;
+    gameState.votes[choice]++;
+
+    socket.emit('voteSuccess', { choice, score: player.score });
+
+    // 只统计有效玩家的投票数
+    const activePlayers = Object.values(gameState.players).filter(p => !p.eliminated);
+    const votedCount = activePlayers.filter(p => p.voted).length;
+    const totalCount = activePlayers.length;
+    io.to('display').emit('voteUpdate', { votes: gameState.votes, votedCount, totalCount });
+    io.to('admin').emit('voteUpdate', { votes: gameState.votes, votedCount, totalCount });
+  });
+
+  // 管理员：开始游戏
+  socket.on('adminStartGame', () => {
+    if (gameState.status !== 'waiting') return;
+    if (Object.keys(gameState.players).length === 0) {
+      socket.emit('adminError', { message: '还没有玩家加入' }); return;
+    }
+    gameState.status = 'voting';
+    gameState.round = 1;
+    gameState.votes = { red: 0, gold: 0, silver: 0 };
+    for (const id in gameState.players) {
+      const p = gameState.players[id];
+      if (!p.eliminated) {
+        p.voted = false;
+        p.voteChoice = null;
+      }
+    }
+    const isFinalRound = gameState.round >= gameState.totalRounds;
+    const activeCount = getActivePlayerCount();
+    io.emit('gameStart', { round: gameState.round, timer: ROUND_TIME, totalRounds: gameState.totalRounds, isFinalRound, activePlayerCount: activeCount });
+    startTimer();
+    console.log('游戏开始，第1轮');
+  });
+
+  // 管理员：下一轮
+  socket.on('adminNextRound', () => {
+    if (gameState.status !== 'result') return;
+
+    // 检查是否还有有效玩家
+    if (getActivePlayerCount() === 0) {
+      triggerGameOver();
+      return;
+    }
+
+    gameState.round++;
+    gameState.status = 'voting';
+    gameState.votes = { red: 0, gold: 0, silver: 0 };
+    gameState.roundResult = null;
+    for (const id in gameState.players) {
+      const p = gameState.players[id];
+      if (!p.eliminated) {
+        p.voted = false;
+        p.voteChoice = null;
+      }
+    }
+    const isFinalRound = gameState.round >= gameState.totalRounds;
+    const activeCount = getActivePlayerCount();
+    io.emit('nextRound', { round: gameState.round, timer: ROUND_TIME, totalRounds: gameState.totalRounds, isFinalRound, activePlayerCount: activeCount });
+    startTimer();
+    console.log(`开始第${gameState.round}轮${isFinalRound ? '（最终轮）' : ''}，有效玩家: ${activeCount}`);
+  });
+
+  socket.on('adminEndGame', () => { triggerGameOver(); });
+
+  socket.on('adminResetGame', () => {
+    clearInterval(timerInterval);
+    nextPlayerNum = 1;  // 重置编号
+    gameState = {
+      status: 'waiting', round: 0, totalRounds: gameState.totalRounds,
+      players: {}, votes: { red: 0, gold: 0, silver: 0 },
+      timer: ROUND_TIME, roundResult: null, roundHistory: [], publicUrl: gameState.publicUrl
+    };
+    io.emit('gameReset');
+    console.log('游戏已重置');
+  });
+
+  socket.on('adminForceEnd', () => {
+    if (gameState.status !== 'voting') return;
+    clearInterval(timerInterval);
+    endVoting();
+  });
+
+  // 设置总轮数
+  socket.on('adminSetRounds', ({ rounds }) => {
+    if (gameState.status !== 'waiting') return;
+    const r = parseInt(rounds);
+    if (r >= 1 && r <= 20) {
+      gameState.totalRounds = r;
+      io.to('admin').emit('settingsUpdate', { totalRounds: gameState.totalRounds });
+    }
+  });
+
+  socket.on('joinDisplay', () => {
+    socket.join('display');
+    socket.emit('gameStateSync', {
+      status: gameState.status, round: gameState.round, timer: gameState.timer,
+      votes: gameState.votes, leaderboard: getLeaderboard(),
+      roundHistory: gameState.roundHistory,
+      playerCount: Object.keys(gameState.players).length,
+      activePlayerCount: getActivePlayerCount(),
+      totalRounds: gameState.totalRounds,
+      isFinalRound: gameState.round >= gameState.totalRounds
+    });
+  });
+
+  socket.on('joinAdmin', () => {
+    socket.join('admin');
+    socket.emit('gameStateSync', {
+      status: gameState.status, round: gameState.round, timer: gameState.timer,
+      votes: gameState.votes, leaderboard: getLeaderboard(),
+      roundHistory: gameState.roundHistory,
+      playerCount: Object.keys(gameState.players).length,
+      activePlayerCount: getActivePlayerCount(),
+      totalRounds: gameState.totalRounds,
+      isFinalRound: gameState.round >= gameState.totalRounds
+    });
+  });
+
+  socket.on('disconnect', () => {
+    if (gameState.players[socket.id]) {
+      console.log(`玩家 ${gameState.players[socket.id].name}(#${gameState.players[socket.id].num}) 断线（保留数据）`);
+    }
+  });
+});
+
+// ==================== 二维码接口（支持Render） ====================
+app.get('/qrcode', async (req, res) => {
+  const protocol = req.headers['x-forwarded-proto'] || 'http';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
+  const url = `${protocol}://${host}/player/`;
+  try {
+    const qr = await QRCode.toDataURL(url, { width: 300, margin: 2 });
+    res.json({ qr, url });
+  } catch (e) {
+    res.json({ qr: '', url });
+  }
+});
+
+app.get('/serverinfo', (req, res) => {
+  const protocol = req.headers['x-forwarded-proto'] || 'http';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
+  const base = `${protocol}://${host}`;
+  const localIP = getLocalIP();
+  res.json({ base, ip: localIP, port: PORT });
+});
+
+// ==================== 启动 ====================
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
+  const localIP = getLocalIP();
+  console.log('\n🌿 ========== 伊甸园游戏服务器已启动 ==========');
+  console.log(`📺 大屏展示端: http://${localIP}:${PORT}/display/`);
+  console.log(`🎮 后台控制端: http://${localIP}:${PORT}/admin/`);
+  console.log(`📱 玩家扫码端: http://${localIP}:${PORT}/player/`);
+  console.log('=============================================\n');
+});

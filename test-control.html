@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 伊甸园 — 控制台</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#0a0e17; --card:#12162a; --border:#1c2340; --text:#e2e8f0; --muted:#5a6478;
+    --gold:#fbbf24; --silver:#8892a6; --red:#ef4444; --green:#34d399;
+    --purple:#a78bfa; --blue:#60a5fa; --orange:#fb923c;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'Inter','PingFang SC',sans-serif; min-height:100vh; padding:14px; font-size:13px; }
+
+  .top-bar { display:flex; align-items:center; justify-content:space-between; padding-bottom:12px; border-bottom:1px solid var(--border); margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+  .top-title { font-size:20px; font-weight:900; background:linear-gradient(135deg,var(--gold),var(--orange)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:1.5px; }
+  .top-links { display:flex; gap:8px; }
+  .tl-btn { padding:7px 16px; border-radius:10px; font-size:12px; font-weight:700; text-decoration:none; cursor:pointer; border:none; display:inline-flex; align-items:center; gap:4px; transition:all .15s; }
+  .tl-player { background:rgba(52,211,153,0.1); color:var(--green); border:1px solid rgba(52,211,153,0.25); }
+  .tl-display { background:rgba(167,139,250,0.1); color:var(--purple); border:1px solid rgba(167,139,250,0.25); }
+
+  .grid { display:grid; grid-template-columns:240px 1fr 280px; gap:14px; height:calc(100vh - 90px); }
+
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; overflow:hidden; display:flex; flex-direction:column; }
+  .p-title { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+  .btn { padding:7px 14px; border-radius:8px; border:none; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; transition:all .15s; display:inline-flex; align-items:center; gap:4px; }
+  .btn:active { transform:scale(.95); } .btn:hover { filter:brightness(1.1); }
+  .btn-sm { padding:4px 9px; font-size:11px; }
+  .btn-gold { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+  .btn-green { background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; }
+  .btn-red { background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; }
+  .btn-gray { background:var(--border); color:var(--muted); }
+  .btn-purple { background:linear-gradient(135deg,#a855f7,#7c3aed); color:#fff; }
+  .btn-blue { background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; }
+  .btn-orange { background:linear-gradient(135deg,#f97316,#ea580c); color:#fff; }
+
+  /* 玩家列表 */
+  .add-row { display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; }
+  .player-list { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
+  .player-list::-webkit-scrollbar { width:3px; }
+  .player-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .pl-item { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:8px; font-size:11.5px; background:rgba(255,255,255,.02); border:1px solid transparent; transition:all .12s; }
+  .pl-item:hover { background:rgba(255,255,255,.05); }
+  .pl-item.eliminated { opacity:.28; text-decoration:line-through; }
+  .pl-num { font-weight:800; color:var(--gold); min-width:38px; font-size:13px; font-variant-numeric:tabular-nums; }
+  .pl-score { font-weight:700; color:var(--green); flex:1; text-align:right; font-variant-numeric:tabular-nums; }
+  .pl-item.eliminated .pl-score { color:var(--red); }
+  .pl-vote-tag { font-size:9px; padding:1px 5px; border-radius:4px; font-weight:600; }
+  .vt-gold { background:rgba(251,191,36,.15); color:var(--gold); }
+  .vt-silver { background:rgba(148,163,184,.15); color:var(--silver); }
+  .vt-red { background:rgba(239,68,68,.15); color:var(--red); }
+  .vt-none { background:transparent; color:var(--muted); opacity:.5; }
+  .pl-del { cursor:pointer; color:var(--muted); font-size:13px; opacity:0; transition:opacity .15s; width:14px; text-align:center; }
+  .pl-item:hover .pl-del { opacity:1; }
+  .pl-del:hover { color:var(--red); }
+  .pl-online { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .pl-on { background:var(--green); box-shadow:0 0 4px var(--green); }
+  .pl-off { background:var(--muted); opacity:.4; }
+  .stat-bar { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; padding-top:8px; border-top:1px solid var(--border); margin-top:8px; font-size:11px; }
+  .stat-cell { text-align:center; color:var(--muted); }
+  .stat-val { display:block; font-size:16px; font-weight:800; color:var(--text); margin-top:2px; }
+  .stat-val.green { color:var(--green); } .stat-val.red { color:var(--red); }
+
+  .center-col { display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+
+/* 倒计时 — 古希腊神殿风格 */
+.countdown-wrap { display:none; align-items:center; justify-content:center; gap:20px; padding:16px; background:linear-gradient(135deg,rgba(167,139,250,.1),rgba(212,168,83,.08)); border:1px solid rgba(167,139,250,.3); border-radius:14px; position:relative; overflow:hidden }
+.countdown-wrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.12),transparent 70%);pointer-events:none}
+@keyframes cdGlow { from{box-shadow:0 0 4px rgba(167,139,250,.15)} to{box-shadow:0 0 22px rgba(167,139,250,.35)} }
+.cd-active .countdown-wrap { display:flex; animation:cdGlow 2s infinite alternate }
+
+/* 圆形倒计时 */
+.cd-circle{position:relative;width:90px;height:90px;display:flex;align-items:center;justify-content:center}
+.cd-svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.cd-svg circle{fill:none;stroke-width:5;cx:45;cy:45;r:40}
+.cd-bg-stroke{stroke:rgba(255,255,255,.06)}
+.cd-progress-stroke{stroke:var(--purple);stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
+.cd-progress-stroke.warn{stroke:var(--orange)}
+.cd-progress-stroke.danger{stroke:var(--red)}
+
+.cd-num { font-size:36px; font-weight:900; color:#c4b5fd; font-family:Georgia,'Noto Serif SC',serif; font-variant-numeric:tabular-nums; letter-spacing:1px; z-index:1;text-align:center;line-height:1 }
+.cd-num.warn { color:#fb923c; animation:cdPulse .5s infinite alternate; }
+.cd-num.danger { color:#ef4444; animation:cdPulse .3s infinite alternate; }
+@keyframes cdPulse { from{transform:scale(1)}to{transform:scale(1.08)} }
+.cd-lbl { font-size:11px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase;font-style:italic }
+.cd-dot { width:10px;height:10px;border-radius:50%;background:var(--purple);animation:cdBlink 1s infinite;flex-shrink:0 }
+@keyframes cdBlink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* 时间到提示 */
+.cd-ended{display:none;align-items:center;gap:14px;padding:14px 20px;background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(239,68,68,.03));border:1.5px solid rgba(239,68,68,.4);border-radius:12px;margin-top:8px;animation:ceIn .4s ease}
+@keyframes ceIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.ce-icon{font-size:28px;animation:ceShake .6s ease-in-out infinite}
+@keyframes ceShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.ce-text{font-size:15px;font-weight:700;color:var(--red)}
+.ce-sub{font-size:11px;color:var(--muted);font-style:italic}
+
+  .ctrl-section { display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+  .ctrl-field label { display:block; font-size:11px; color:var(--muted); margin-bottom:4px; letter-spacing:.5px; }
+  .ctrl-input { padding:6px 10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; font-weight:600; width:60px; text-align:center; outline:none; transition:border-color .15s; }
+  .ctrl-input:focus { border-color:var(--gold); box-shadow:0 0 0 2px rgba(251,191,36,.1); }
+
+  .status-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700; }
+  .sb-idle { background:rgba(90,100,120,.15); color:var(--muted); }
+  .sb-running { background:rgba(52,211,153,.1); color:var(--green); border:1px solid rgba(52,211,153,.2); }
+  .sb-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .sb-idle .sb-dot { background:var(--muted); }
+  .sb-running .sb-dot { background:var(--green); animation:pulse-dot 1.4s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.25} }
+
+  .round-badge { padding:6px 18px; border-radius:10px; font-size:15px; font-weight:900; letter-spacing:1px; }
+  .rb-norm { background:rgba(251,191,36,.1); color:var(--gold); border:1px solid rgba(251,191,36,.3); }
+  .rb-final { background:rgba(167,139,250,.12); color:var(--purple); border:1px solid rgba(167,139,250,.45); animation:glow-final 2s infinite alternate; }
+  @keyframes glow-final { from{box-shadow:0 0 4px rgba(167,139,250,.2)} to{box-shadow:0 0 16px rgba(167,139,250,.5)} }
+
+  .btn-row { display:flex; gap:7px; flex-wrap:wrap; margin-top:4px; }
+  .btn-row .btn { font-size:13px; padding:9px 18px; }
+
+  /* 批量分配 */
+  .vote-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px; }
+  .va-card { padding:12px; border-radius:12px; text-align:center; }
+  .va-gold { background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.18); }
+  .va-silver { background:rgba(148,163,184,.06); border:1px solid rgba(148,163,184,.18); }
+  .va-red { background:rgba(239,68,68,.06); border:1px solid rgba(239,68,68,.18); }
+  .va-icon { font-size:26px; }
+  /* 立体苹果图标 */
+  .va-svg{width:30px;height:33px;vertical-align:middle}
+  .va-name { font-size:13px; font-weight:700; margin:3px 0; }
+  .va-gold .va-name { color:var(--gold); } .va-silver .va-name { color:var(--silver); } .va-red .va-name { color:var(--red); }
+  .va-count { font-size:26px; font-weight:900; line-height:1.2; }
+  .va-count.c-gold { color:var(--gold); } .va-count.c-silver { color:var(--silver); } .va-count.c-red { color:var(--red); }
+  .va-inp { width:54px; padding:5px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center; font-size:14px; font-weight:700; margin-top:4px; outline:none; }
+  .va-inp:focus { border-color:var(--gold); }
+  .slider-row { display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--muted); margin-top:8px; padding:8px 10px; background:rgba(255,255,255,.02); border-radius:8px; }
+  .slider-row input[type=range] { flex:1; accent-color:var(--gold); height:4px; }
+  .sl-label { min-width:42px; text-align:right; font-weight:600; }
+  .vote-info { display:flex; gap:14px; margin-top:8px; font-size:11.5px; color:var(--muted); flex-wrap:wrap; }
+  .vi-item strong { color:var(--text); }
+
+  /* 指令日志 */
+  .cmd-log-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
+  .cmd-list { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .cmd-list::-webkit-scrollbar { width:3px; }
+  .cmd-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .cmd-item { padding:7px 11px; border-radius:8px; font-size:11.5px; display:flex; align-items:center; gap:8px; animation:cmdIn .25s ease; }
+  @keyframes cmdIn { from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)} }
+  .cmd-start { background:rgba(52,211,153,.05); border:1px solid rgba(52,211,153,.15); }
+  .cmd-settle { background:rgba(251,191,36,.05); border:1px solid rgba(251,191,36,.15); }
+  .cmd-next { background:rgba(96,165,250,.05); border:1px solid rgba(96,165,250,.15); }
+  .cmd-reset { background:rgba(239,68,68,.05); border:1px solid rgba(239,68,68,.15); }
+  .cmd-clean { background:rgba(148,163,184,.05); border:1px solid rgba(148,163,184,.15); }
+  .cmd-info { background:rgba(167,139,250,.04); border:1px solid rgba(167,139,250,.12); }
+  .cmd-time { color:var(--muted); font-size:10px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .cmd-text { flex:1; }
+
+  /* 结果日志 */
+  .log-list { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .log-list::-webkit-scrollbar { width:3px; }
+  .log-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .log-card { padding:11px 13px; border-radius:11px; background:rgba(255,255,255,.018); border:1px solid var(--border); font-size:11.5px; animation:logIn .3s ease; }
+  @keyframes logIn { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+  .log-round { font-weight:800; color:var(--gold); margin-bottom:3px; font-size:12px; }
+  .log-msg { color:var(--text); line-height:1.5; margin-bottom:4px; }
+  .log-votes { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:3px; }
+  .log-vs { font-weight:700; font-size:11px; }
+  .log-explain { color:var(--muted); font-size:10.5px; line-height:1.4; margin-top:3px; padding-left:8px; border-left:2px solid var(--border); }
+  .log-elim { color:var(--red); font-size:10.5px; margin-top:3px; font-weight:600; }
+  .log-empty { text-align:center; color:var(--muted); padding:40px 0; font-size:12.5px; opacity:.6; }
+
+  @media (max-width:1100px) {
+    .grid { grid-template-columns:200px 1fr 220px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部栏 ===== -->
+<div class="top-bar">
+  <div class="top-title">🍎 EDEN 控制台</div>
+  <div class="top-links">
+    <button class="tl-btn tl-player" onclick="openPage('test-player.html',420,800)">📱 手机端</button>
+    <button class="tl-btn tl-display" onclick="openPage('test-display.html',1280,800)">📺 大屏端</button>
+  </div>
+</div>
+
+<div class="grid">
+
+<!-- ========== 左侧：玩家管理 ========== -->
+<div class="panel">
+  <div class="p-title">👥 玩家列表（编号 1-100 随机）</div>
+  <div class="add-row">
+    <button class="btn btn-gray btn-sm" onclick="addBatch(5)">+5</button>
+    <button class="btn btn-gray btn-sm" onclick="addBatch(10)">+10</button>
+    <button class="btn btn-gray btn-sm" onclick="addBatch(20)">+20</button>
+    <button class="btn btn-gray btn-sm" onclick="addBatch(50)">+50</button>
+    <button class="btn btn-red btn-sm" onclick="clearAllPlayers()">清空</button>
+  </div>
+  <div class="player-list" id="playerList"></div>
+  <div class="stat-bar">
+    <div class="stat-cell">总数<span class="stat-val" id="stTotal">0</span></div>
+    <div class="stat-cell">有效<span class="stat-val green" id="stActive">0</span></div>
+    <div class="stat-cell">淘汰<span class="stat-val red" id="stElim">0</span></div>
+  </div>
+  <div style="margin-top:8px;font-size:10.5px;color:var(--muted);line-height:1.5">
+    💡 编号范围 1-100 随机发放<br>💡 重置时所有玩家重新随机获得编号<br>💡 并发扫码保证不重复
+  </div>
+</div>
+
+<!-- ========== 中间：游戏控制 + 投票 + 倒计时 + 指令日志 ========== -->
+<div class="center-col">
+
+  <!-- ★ 倒计时 ★ -->
+  <div class="countdown-wrap" id="countdownWrap">
+    <div class="cd-dot"></div>
+    <div class="cd-circle">
+      <svg class="cd-svg" viewBox="0 0 90 90">
+        <circle class="cd-bg-stroke"/>
+        <circle class="cd-progress-stroke" id="cdStroke" stroke-dasharray="251.3" stroke-dashoffset="0"/>
+      </svg>
+      <div class="cd-num" id="cdNum">60</div>
+    </div>
+    <div><div class="cd-lbl">投票倒计时</div></div>
+    <div class="cd-dot"></div>
+  </div>
+  <!-- 时间到提示 -->
+  <div class="cd-ended" id="cdEnded">
+    <span class="ce-icon">⏳</span>
+    <div><div class="ce-text">时间到！</div><div class="ce-sub">请及时结算本轮</div></div>
+  </div>
+
+  <!-- 游戏状态 -->
+  <div class="panel" style="padding:14px 18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:11px;color:var(--muted)">状态</div>
+        <span id="statusBadge" class="status-badge sb-idle"><span class="sb-dot"></span>未开始</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="roundBadge" class="round-badge rb-norm">第 1 轮</span>
+        <div class="ctrl-field" style="margin:0">
+          <input class="ctrl-input" id="totalRoundsInput" type="number" value="8" min="1" max="30" title="总轮数">
+          <label>轮</label>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="btnStartGame" onclick="startGame()">▶ 开始游戏</button>
+      <button class="btn btn-purple" onclick="settleRound()">⚡ 结算本轮</button>
+      <button class="btn btn-blue" onclick="nextRound()">➡ 下一轮</button>
+      <button class="btn btn-orange" onclick="resetGame()">🔄 重置游戏</button>
+      <button class="btn btn-gray btn-sm" onclick="cleanEliminated()">🧹 清理淘汰</button>
+    </div>
+  </div>
+
+  <!-- 批量分配 -->
+  <div class="panel" style="flex:none">
+    <div class="p-title">🍎 批量分配投票</div>
+    <div class="vote-grid">
+      <div class="va-card va-gold">
+        <svg class="va-svg" viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="ctGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffe4a0"/><stop offset="50%" stop-color="#d4a853"/><stop offset="100%" stop-color="#9a7209"/></linearGradient><linearGradient id="ctGL" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7ec88a"/><stop offset="100%" stop-color="#3d8b5a"/></linearGradient></defs>
+          <path d="M20 10C11 8 2 16 2 28C2 39 9 43 17 41C18.5 40.6 19.3 39.8 20 39.3C20.7 39.8 21.5 40.6 23 41C31 43 38 39 38 28C38 16 29 8 20 10Z" fill="url(#ctGold)"/><ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.22)" transform="rotate(-20 13 22)"/><path d="M20 9Q21 3 23 0" stroke="#8b6914" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M22 3Q30 -2 31 5Q30 10 24 8Q21.5 7 22 3Z" fill="url(#ctGL)"/>
+        </svg>
+        <div class="va-name">金苹果</div>
+        <div class="va-count c-gold" id="vgGold">0</div>
+        <input class="va-inp" id="inGold" type="number" value="0" min="0" oninput="syncAssignCount()">
+      </div>
+      <div class="va-card va-silver">
+        <svg class="va-svg" viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="ctSilver" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e8eef5"/><stop offset="50%" stop-color="#94a3b8"/><stop offset="100%" stop-color="#5a6a7e"/></linearGradient><linearGradient id="ctSL" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7ec88a"/><stop offset="100%" stop-color="#3d8b5a"/></linearGradient></defs>
+          <path d="M20 10C11 8 2 16 2 28C2 39 9 43 17 41C18.5 40.6 19.3 39.8 20 39.3C20.7 39.8 21.5 40.6 23 41C31 43 38 39 38 28C38 16 29 8 20 10Z" fill="url(#ctSilver)"/><ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.3)" transform="rotate(-20 13 22)"/><path d="M20 9Q21 3 23 0" stroke="#6a7a8e" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M22 3Q30 -2 31 5Q30 10 24 8Q21.5 7 22 3Z" fill="url(#ctSL)"/>
+        </svg>
+        <div class="va-name">银苹果</div>
+        <div class="va-count c-silver" id="vgSilver">0</div>
+        <input class="va-inp" id="inSilver" type="number" value="0" min="0" oninput="syncAssignCount()">
+      </div>
+      <div class="va-card va-red">
+        <svg class="va-svg" viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="ctRed" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ff8888"/><stop offset="50%" stop-color="#c45c5c"/><stop offset="100%" stop-color="#7a2e2e"/></linearGradient><linearGradient id="ctRL" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7ec88a"/><stop offset="100%" stop-color="#3d8b5a"/></linearGradient></defs>
+          <path d="M20 10C11 8 2 16 2 28C2 39 9 43 17 41C18.5 40.6 19.3 39.8 20 39.3C20.7 39.8 21.5 40.6 23 41C31 43 38 39 38 28C38 16 29 8 20 10Z" fill="url(#ctRed)"/><ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.2)" transform="rotate(-20 13 22)"/><path d="M20 9Q21 3 23 0" stroke="#6e3030" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M22 3Q30 -2 31 5Q30 10 24 8Q21.5 7 22 3Z" fill="url(#ctRL)"/>
+        </svg>
+        <div class="va-name">红苹果</div>
+        <div class="va-count c-red" id="vgRed">0</div>
+        <input class="va-inp" id="inRed" type="number" value="0" min="0" oninput="syncAssignCount()">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="assignVotes()">✅ 分配执行</button>
+      <button class="btn btn-gray" onclick="randomPreview()">🎲 随机预览</button>
+      <button class="btn btn-green" id="btnConfirmVote" onclick="confirmRandomVote()" style="display:none">✅ 确认投出</button>
+      <button class="btn btn-gray" onclick="clearAllVotes()">清空投票</button>
+    </div>
+    <!-- ★ 随机预览提示 -->
+    <div id="previewHint" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(251,191,24,.08);border:1px solid rgba(251,191,24,.25);border-radius:8px;font-size:11.5px;color:var(--gold);line-height:1.5">
+      📋 预览模式：以上为随机分配结果，不满意可继续点击"随机预览"重新生成，满意后点击"✅ 确认投出"
+    </div>
+    <div class="slider-row">
+      <span>红果比例</span>
+      <input type="range" id="sliderRed" min="0" max="100" value="33" oninput="updateSliderLabel()">
+      <span class="sl-label" id="lblRed">33%</span>
+      <span>留空率</span>
+      <input type="range" id="sliderSkip" min="0" max="30" value="0" oninput="updateSliderLabel()">
+      <span class="sl-label" id="lblSkip">0%</span>
+    </div>
+    <div class="vote-info">
+      <div class="vi-item">待投：<strong id="viPending" style="color:var(--orange)">0</strong></div>
+      <div class="vi-item">已投：<strong id="viVoted" style="color:var(--green)">0</strong></div>
+      <div class="vi-item">未投：<strong id="viNotVoted" style="color:var(--red)">0</strong></div>
+    </div>
+  </div>
+
+  <!-- 指令日志 -->
+  <div class="panel cmd-log-panel">
+    <div class="p-title">📡 实时指令流</div>
+    <div class="cmd-list" id="cmdList">
+      <div style="text-align:center;color:var(--muted);padding:24px;font-size:11.5px;opacity:.6">等待操作...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== 右侧：结果日志 ========== -->
+<div class="panel log-panel">
+  <div class="p-title">📋 结算记录</div>
+  <div class="log-list" id="logList">
+    <div class="log-empty">暂无记录，结算后将在此显示</div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+//  常量 & 全局状态
+// ============================================================
+const S_KEY = 'eden_test_data';
+const C_KEY = 'eden_command_log';
+const H_KEY = 'eden_heartbeat';
+const R_KEY = 'eden_reset_flag';
+const MAX_NUM = 100;           // 最大编号
+
+const INIT_SCORE = 10000;
+const WIN_RWD = 1000;
+const LOSE_PEN = 2000;
+const NO_VOTE_PEN = 2000;
+const COUNTDOWN_SEC = 60;     // 倒计时秒数
+
+let players = {};
+let currentRound = 1;
+let totalRounds = 8;
+let gameActive = false;
+let lastResult = null;
+let resultLog = [];
+let cmdLog = [];
+let usedNums = new Set();       // 已使用的编号集合
+let countdownTimer = null;     // 倒计时定时器
+let countdownRemaining = 0;    // 剩余秒数
+let countdownEndTs = 0;        // 倒计时结束时间戳（用于跨窗口同步）
+let phase = 'idle';            // idle | ready | voting | result — 游戏阶段
+
+// ============================================================
+//  编号管理 — 从 1~100 随机取，绝不重复
+// ============================================================
+function pickRandomNum() {
+  // 收集所有可用编号
+  const available = [];
+  for (let n = 1; n <= MAX_NUM; n++) {
+    if (!usedNums.has(n)) available.push(n);
+  }
+  if (available.length === 0) return null; // 满了！
+  const idx = Math.floor(Math.random() * available.length);
+  return available[idx];
+}
+
+function reclaimNum(num) {
+  usedNums.delete(num);
+}
+
+function rebuildUsedSet() {
+  usedNums.clear();
+  Object.values(players).forEach(p => { if (p.num) usedNums.add(p.num); });
+}
+
+// ============================================================
+//  指令系统
+// ============================================================
+function pushCmd(type, msg) {
+  const ts = Date.now();
+  const timeStr = new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  const entry = { type, msg, time:timeStr, ts };
+  cmdLog.unshift(entry);
+  if (cmdLog.length > 80) cmdLog.pop();
+  localStorage.setItem(C_KEY, JSON.stringify(cmdLog));
+  localStorage.setItem('eden_cmd_tick', String(ts));
+  renderCmdLog();
+}
+
+function renderCmdLog() {
+  const el = document.getElementById('cmdList');
+  if (!el || cmdLog.length === 0) return;
+  el.innerHTML = cmdLog.slice(0, 35).map(c =>
+    `<div class="cmd-item cmd-${c.type}"><span class="cmd-time">${c.time}</span><span class="cmd-text">${c.msg}</span></div>`
+  ).join('');
+}
+
+// ============================================================
+//  倒计时系统 — 古希腊圆环 + 时间到提示
+// ============================================================
+const CD_CIRCUMFERENCE = 2 * Math.PI * 40; // 圆环周长 ≈ 251.3
+
+function startCountdown() {
+  stopCountdown();
+  countdownRemaining = COUNTDOWN_SEC;
+  countdownEndTs = Date.now() + COUNTDOWN_SEC * 1000;
+  
+  // 显示倒计时区，隐藏时间到提示
+  document.getElementById('countdownWrap').style.display = 'flex';
+  document.getElementById('cdEnded').style.display = 'none';
+  document.body.classList.add('cd-active');
+  
+  updateCountdownDisplay();
+  save(); // 写入 countdownEndTs 供其他端同步
+
+  countdownTimer = setInterval(() => {
+    const left = Math.max(0, Math.ceil((countdownEndTs - Date.now()) / 1000));
+    countdownRemaining = left;
+    updateCountdownDisplay();
+    if (left <= 0) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+      onCountdownEnd();
+    }
+  }, 200);
+}
+
+function onCountdownEnd() {
+  // 倒计时归零 → 显示醒目提示 → 自动结算
+  document.getElementById('cdEnded').style.display = 'flex';
+  document.body.classList.remove('cd-active');
+  pushCmd('info', '⏱️ 投票倒计时结束！自动结算中...');
+  // ★ 自动结算（settleRound内部会设phase和停止倒计时）
+  _forceSettle = true;  // ★ 允许结算（可能已经因phase=result被阻止过）
+  settleRound();
+}
+
+function stopCountdown() {
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  countdownRemaining = 0;
+  countdownEndTs = 0;
+  document.getElementById('countdownWrap').style.display = 'none';
+  document.getElementById('cdEnded').style.display = 'none';
+  document.body.classList.remove('cd-active');
+}
+
+function updateCountdownDisplay() {
+  const numEl = document.getElementById('cdNum');
+  const strokeEl = document.getElementById('cdStroke');
+  
+  numEl.textContent = countdownRemaining;
+  
+  // 圆环进度
+  const pct = countdownRemaining / COUNTDOWN_SEC;
+  const offset = CD_CIRCUMFERENCE * (1 - pct);
+  strokeEl.style.strokeDashoffset = offset;
+  
+  // 颜色状态
+  const danger = countdownRemaining <= 10;
+  const warn = countdownRemaining <= 20;
+  numEl.className = 'cd-num' + (danger ? ' danger' : warn ? ' warn' : '');
+  strokeEl.className = 'cd-progress-stroke' + (danger ? ' danger' : warn ? ' warn' : '');
+}
+
+// ============================================================
+//  持久化
+// ============================================================
+function save() {
+  const data = {
+    players,
+    currentRound,
+    totalRounds,
+    gameActive,
+    lastResult,
+    usedNums: Array.from(usedNums),
+    countdownEndTs,          // ★ 倒计时结束时间戳
+    phase: gameActive
+      ? (phase === 'voting' ? 'voting' : phase === 'ready' ? 'ready' : (lastResult && lastResult.round === currentRound ? 'result' : 'voting'))
+      : 'idle',
+    _ts: Date.now()
+  };
+  localStorage.setItem(S_KEY, JSON.stringify(data));
+  localStorage.setItem('eden_data_tick', String(Date.now()));
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(S_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    players = (d.players && typeof d.players === 'object') ? d.players : {};
+    currentRound = (d.currentRound && typeof d.currentRound === 'number') ? d.currentRound : 1;
+    totalRounds = (d.totalRounds && typeof d.totalRounds === 'number') ? d.totalRounds : 8;
+    gameActive = !!d.gameActive;
+    lastResult = d.lastResult || null;
+    // ★ 防御：phase 必须是有效值
+    const validPhases = ['idle','ready','voting','result'];
+    phase = (d.phase && validPhases.includes(d.phase)) ? d.phase : (gameActive ? 'voting' : 'idle');
+    // ★ 防御：usedNums 必须是数组
+    const rawNums = d.usedNums;
+    usedNums = Array.isArray(rawNums) ? new Set(rawNums) : new Set();
+    // ★ 防御：countdownEndTs 必须是有效数字
+    const rawTs = d.countdownEndTs;
+    countdownEndTs = (typeof rawTs === 'number' && isFinite(rawTs) && rawTs > 0) ? rawTs : 0;
+
+    // 如果有进行中的倒计时，恢复它
+    if (gameActive && countdownEndTs > Date.now()) {
+      document.getElementById('countdownWrap').style.display = 'flex';
+      // 由外部 poll 来更新数字
+    } else {
+      countdownEndTs = 0;
+      document.getElementById('countdownWrap').style.display = 'none';
+    }
+  } catch(e) {
+    console.warn('[EDEN] load error:', e);
+    // ★ 加载失败时重置所有状态，防止脏数据持续崩溃
+    players = {};
+    usedNums = new Set();
+    currentRound = 1;
+    gameActive = false;
+    phase = 'idle';
+    lastResult = null;
+    countdownEndTs = 0;
+  }
+}
+
+// 初始化
+// ★ 清理可能残留的重置标记（控制端不需要读 R_KEY）
+localStorage.removeItem(R_KEY);
+load();
+renderCmdLog();
+
+// 倒计时恢复轮询 + 全员投票自动结算（每200ms检查）
+setInterval(() => {
+  // ★ 自动结算：所有可投票玩家都已投票（独立于倒计时状态）
+  if (gameActive && phase === 'voting') {
+    const activePlayers = Object.values(players).filter(p => !p.eliminated);
+    const votedCount = activePlayers.filter(p => p.voted).length;
+    if (activePlayers.length > 0 && votedCount === activePlayers.length) {
+      // 所有人都投了 → 自动结算（直接调 settleRound，它会自己设 phase 和停止倒计时）
+      pushCmd('info', `✅ 全部 ${activePlayers.length} 位玩家已投票！自动结算中...`);
+      settleRound();
+      return; // 已结算，跳过后续倒计时逻辑
+    }
+  }
+
+  if (gameActive && countdownEndTs > Date.now()) {
+  } else if (countdownEndTs > 0 && countdownEndTs <= Date.now()) {
+    // ★ 倒计时已到 — 无论是否有 timer 都要处理
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+    // 确保只触发一次
+    if (countdownRemaining !== 0 || document.getElementById('countdownWrap').style.display === 'flex') {
+      countdownRemaining = 0;
+      countdownEndTs = 0; // 标记已处理
+      onCountdownEnd();
+      updateCountdownDisplay();
+    }
+  }
+}, 200);
+
+// ============================================================
+//  玩家管理（随机编号 1-100）
+// ============================================================
+function addBatch(n) {
+  let added = 0;
+  for (let i = 0; i < n; i++) {
+    const num = pickRandomNum();
+    if (num === null) {
+      alert(`已达上限 ${MAX_NUM} 位玩家！无法继续添加。`);
+      break;
+    }
+    const id = 'p_' + num + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    players[id] = {
+      num,
+      score: INIT_SCORE,
+      eliminated: false,
+      voted: false,
+      voteChoice: null,
+      online: false,
+      lastSeen: null
+    };
+    usedNums.add(num);
+    added++;
+  }
+  save();
+  if (added > 0) {
+    pushCmd('start', `➕ 添加 ${added} 位玩家（随机编号 1-${MAX_NUM}）`);
+  }
+  renderUI();
+}
+
+function removePlayer(id) {
+  const p = players[id];
+  if (p && p.num) reclaimNum(p.num);
+  delete players[id];
+  save();
+  pushCmd('clean', `🗑️ 移除 #${p?.num||'?'} `);
+  renderUI();
+}
+
+function clearAllPlayers() {
+  if (!confirm('确定清空所有玩家？')) return;
+  players = {};
+  usedNums.clear();
+  currentRound = 1;
+  gameActive = false;
+  phase = 'idle';
+  lastResult = null;
+  resultLog = [];
+  stopCountdown();
+  save();
+  pushCmd('reset', '🗑️ 已清空所有玩家');
+  renderUI();
+}
+
+function cleanEliminated() {
+  let count = 0;
+  Object.keys(players).forEach(id => {
+    if (players[id].eliminated) {
+      if (players[id].num) reclaimNum(players[id].num);
+      delete players[id];
+      count++;
+    }
+  });
+  if (count > 0) {
+    save();
+    pushCmd('clean', `🧹 已清理 ${count} 位淘汰玩家`);
+    renderUI();
+  } else {
+    pushCmd('info', '🧹 无需清理，暂无淘汰玩家');
+  }
+}
+
+// ============================================================
+//  游戏流程控制
+// ============================================================
+
+function startGame() {
+  const ids = Object.keys(players);
+  if (ids.length === 0) { alert('请先添加玩家！'); return; }
+
+  totalRounds = Math.max(1, parseInt(document.getElementById('totalRoundsInput').value) || 8);
+
+  // ★ 如果已经是 ready 阶段，说明是从"下一轮"进来的，直接开始投票
+  if (phase === 'ready') {
+    phase = 'voting';
+    gameActive = true;
+    save();
+    pushCmd('start', `▶ 第${currentRound}轮投票开始！`);
+    renderUI();
+    startCountdown();
+    return;
+  }
+
+  gameActive = true;
+  currentRound = 1;
+  phase = 'voting';
+
+  Object.values(players).forEach(p => {
+    p.score = INIT_SCORE;
+    p.eliminated = false;
+    p.voted = false;
+    p.voteChoice = null;
+    p.betAmount = 0;          // ★ 重置加注
+    p.lastChange = undefined;
+  });
+
+  lastResult = null;
+  resultLog = [];
+
+  save();
+  pushCmd('start', `▶ 游戏开始！${ids.length} 位玩家 · ${totalRounds} 轮`);
+  renderUI();
+
+  // ★ 启动倒计时
+  startCountdown();
+}
+
+function settleRound() {
+  if (!gameActive) { alert('请先开始游戏！'); return; }
+  if (Object.keys(players).length === 0) { alert('没有玩家'); return; }
+
+  // ★ 防止重复结算（但确认投出时允许强制结算）
+  if (phase === 'result' && !_forceSettle) { return; }
+  _forceSettle = false;  // 重置标志
+
+  // ★ 停止倒计时
+  stopCountdown();
+  phase = 'result';
+
+  const isFinal = currentRound >= totalRounds;
+  const allIds = Object.keys(players);
+
+  allIds.forEach(id => {
+    const p = players[id];
+    if (!p.eliminated && !p.voted) p.score -= NO_VOTE_PEN;
+  });
+
+  let gold=0, silver=0, red=0;
+  allIds.forEach(id => {
+    const p = players[id];
+    if (p.voted && !p.eliminated) {
+      if (p.voteChoice==='gold') gold++;
+      else if (p.voteChoice==='silver') silver++;
+      else if (p.voteChoice==='red') red++;
+    }
+  });
+
+  const votes = {gold, silver, red};
+  const result = isFinal ? calcFinal(votes) : calcNormal(votes);
+  const newlyEliminated = [];
+
+  allIds.forEach(id => {
+    const p = players[id];
+    let ch = 0;
+    const betAmt = p.betAmount || 0;   // ★ 加注额
+    if (result.specialEvent === 'all_red') { ch = 0; }
+    else if (p.eliminated) { ch = 0; }
+    else if (!p.voted) { ch = -NO_VOTE_PEN; }
+    else {
+      const c = p.voteChoice;
+      if (result.winners.includes(c)) {
+        // ★ 赢：基础奖励 + 加注奖励（1:1 赔率）
+        p.score += WIN_RWD + betAmt;
+        ch = WIN_RWD + betAmt;
+      } else if (result.losers.includes(c)) {
+        // ★ 输：基础惩罚 + 加注扣除（2:1 赔率 — 高风险高收益）
+        // 输了扣 2000 + 2×加注额，但保底不低于0
+        const totalPenalty = LOSE_PEN + betAmt * 2;
+        const actualPenalty = Math.min(totalPenalty, p.score);  // ★ 不扣到负数
+        p.score -= actualPenalty;
+        ch = -actualPenalty;
+      }
+    }
+    p.lastChange = ch;
+    if (p.score <= 0 && !p.eliminated) {
+      p.eliminated = true;
+      p.score = 0;
+      newlyEliminated.push(id);
+    }
+  });
+
+  lastResult = { round:currentRound, isFinal, votes, result, newlyEliminated };
+  resultLog.unshift(lastResult);
+
+  save();
+  const elimTag = newlyEliminated.length ? ` · 淘汰 ${newlyEliminated.map(id=>'#'+players[id]?.num).join(',')}` : '';
+  pushCmd('settle', `⚡ 第${currentRound}${isFinal?'【最终轮】':''}结算 · 金${gold} 银${silver} 红${red}${elimTag}`);
+  renderUI();
+}
+
+function nextRound() {
+  if (!gameActive) { alert('请先开始游戏！'); return; }
+  const activeCount = Object.values(players).filter(p=>!p.eliminated).length;
+  if (activeCount === 0) { alert('所有玩家已被淘汰！'); return; }
+
+  currentRound++;
+  phase = 'ready';
+
+  Object.values(players).forEach(p => {
+    if (!p.eliminated) {
+      p.voted = false;
+      p.voteChoice = null;
+      p.betAmount = 0;        // ★ 重置加注
+      p.lastChange = undefined;
+    }
+  });
+
+  lastResult = null;  // ★ 清空上轮结果
+
+  save();
+  pushCmd('next', `➡ 第${currentRound}轮 · 准备阶段（点击"开始游戏"开启投票）`);
+  renderUI();
+  // ★ 不自动启动倒计时！等主持人点"开始游戏"
+}
+
+function resetGame() {
+  if (!confirm('⚠️ 确定重置游戏？\n\n• 清除全部玩家数据（所有人需重新扫码加入）\n• 清除所有投票和结算记录\n• 倒计时归零')) return;
+
+  stopCountdown();
+
+  const oldCount = Object.keys(players).length;
+
+  // ★ 彻底清除：清空所有玩家、编号、结果日志
+  players = {};
+  usedNums.clear();
+  currentRound = 1;
+  gameActive = false;
+  phase = 'idle';
+  lastResult = null;
+  resultLog = [];
+  countdownEndTs = 0;
+
+  save();
+
+  // ★ 写入重置时间戳 → 通知手机端/大屏端
+  localStorage.setItem(R_KEY, String(Date.now()));
+  localStorage.setItem('eden_data_tick', String(Date.now()));
+
+  pushCmd('reset', `🔄 游戏已彻底重置！清除 ${oldCount} 位玩家 · 等待重新扫码加入`);
+  renderUI();
+}
+
+// ============================================================
+//  规则引擎
+// ============================================================
+function calcNormal({red,gold,silver}) {
+  const total = red+gold+silver;
+  if (red===total&&total>0) return {specialEvent:'all_red',winners:[],losers:[],message:'🎉 全员红苹果 — 全体胜利！'};
+  if (red===0) {
+    if (gold===0&&silver===0) return {winners:[],losers:['gold','silver'],message:'无人投票，全员扣分'};
+    if (gold===silver) return {winners:[],losers:['gold','silver'],message:`金=银（各${gold}），平局全员-${LOSE_PEN}`};
+    if (gold<silver) return {winners:['gold'],losers:['silver'],message:`金(${gold})<银(${silver})→金胜`};
+    return {winners:['silver'],losers:['gold'],message:`银(${silver})<金(${gold})→银胜`};
+  }
+  if (red<gold&&red<silver)
+    return {winners:['red'],losers:['gold','silver'],message:`红(${red})最少→红胜`};
+  return {winners:['gold','silver'],losers:['red'],message:`金银一方≤红(${red})→金银胜`};
+}
+
+function calcFinal({red,gold,silver}) {
+  const total = red+gold+silver;
+  if (total>0 && red>=total-10) return {specialEvent:'all_red',winners:[],losers:[],message:`🎉 红${red}≥总${total}-10 → 全体胜利！`};
+  if (red===gold&&gold===silver) return {winners:[],losers:['red','gold','silver'],message:`三色相同(各${red})→全员-${LOSE_PEN}`};
+  if (red<gold&&red<silver) return {winners:['red'],losers:['gold','silver'],message:`红最少→红胜`};
+  if (gold===silver) {
+    if (red<gold) return {winners:['red'],losers:['gold','silver'],message:`红<金=银→红胜`};
+    return {winners:['gold','silver'],losers:['red'],message:`金=银≥红→金银胜`};
+  }
+  if (gold<silver) return {winners:['gold'],losers:['red','silver'],message:`金最少→金胜`};
+  if (silver<gold) return {winners:['silver'],losers:['red','gold'],message:`银最少→银胜`};
+  return {winners:['gold','silver'],losers:['red'],message:'金银并列最少→金银胜'};
+}
+
+function getExplain(w,l) {
+  if (w.includes('red')&&l.includes('gold')&&l.includes('silver'))
+    return '红苹果票数最少，少数派获胜！红+1000分，金-2000分，银-2000分。';
+  if (w.includes('gold')&&w.includes('silver')&&l.includes('red'))
+    return '金或银有一方票数少于红苹果，金银各自+1000分，红-2000分。';
+  if (w.includes('gold')&&l.includes('silver')&&!w.includes('red')&&!l.includes('red'))
+    return '金苹果票数最少，少数派获胜！金+1000分，银-2000分。';
+  if (w.includes('silver')&&l.includes('gold')&&!w.includes('red')&&!l.includes('red'))
+    return '银苹果票数最少，少数派获胜！银+1000分，金-2000分。';
+  if (w.length===0) return '平局！所有参与者各扣2000分。';
+  return '';
+}
+
+// ============================================================
+//  投票分配
+// ============================================================
+function syncAssignCount() {
+  document.getElementById('vgGold').textContent = parseInt(document.getElementById('inGold').value)||0;
+  document.getElementById('vgSilver').textContent = parseInt(document.getElementById('inSilver').value)||0;
+  document.getElementById('vgRed').textContent = parseInt(document.getElementById('inRed').value)||0;
+}
+
+function assignVotes() {
+  const g = parseInt(document.getElementById('inGold').value)||0;
+  const s = parseInt(document.getElementById('inSilver').value)||0;
+  const r = parseInt(document.getElementById('inRed').value)||0;
+
+  const pool = Object.keys(players).filter(id=>!players[id].eliminated&&!players[id].voted);
+  const shuffled = pool.sort(()=>Math.random()-0.5);
+
+  let idx = 0;
+  const doAssign = (count, choice) => {
+    for(let i=0;i<count&&idx<shuffled.length;i++,idx++){
+      players[shuffled[idx]].voted=true;
+      players[shuffled[idx]].voteChoice=choice;
+    }
+  };
+  doAssign(g,'gold');
+  doAssign(s,'silver');
+  doAssign(r,'red');
+
+  save();
+  pushCmd('info', `✅ 手动分配：金${g} 银${s} 红${r}`);
+  renderUI();
+}
+
+function randomVotes() {
+  // ★ 已废弃，由 randomPreview 替代
+  randomPreview();
+}
+
+// ★ 随机预览 — 生成随机分配但不写入玩家数据
+let previewAssign = null;  // {id: choice} 预览数据
+
+function randomPreview() {
+  const redPct = parseInt(document.getElementById('sliderRed').value)/100;
+  const skipPct = parseInt(document.getElementById('sliderSkip').value)/100;
+  const remain = (1-redPct-skipPct)/2;
+
+  previewAssign = {};
+  let gC=0, sC=0, rC=0, skip=0;
+
+  Object.keys(players).forEach(id => {
+    const p = players[id];
+    if (p.eliminated || p.voted) return;
+    const rnd = Math.random();
+    if (rnd < skipPct) { skip++; }
+    else if (rnd < skipPct+redPct) { previewAssign[id]='red'; rC++; }
+    else if (rnd < skipPct+redPct+remain) { previewAssign[id]='gold'; gC++; }
+    else { previewAssign[id]='silver'; sC++; }
+  });
+
+  // ★ 显示预览提示和确认按钮
+  document.getElementById('previewHint').style.display = 'block';
+  document.getElementById('btnConfirmVote').style.display = 'inline-flex';
+
+  pushCmd('info', `🎲 随机预览：金${gC} 银${sC} 红${rC} 留空${skip}（需确认投出）`);
+  renderUI();
+}
+
+let _forceSettle = false;  // ★ 允许强制结算的标志
+
+// ★ 确认投出 — 将预览结果写入玩家数据并立即结算
+function confirmRandomVote() {
+  if (!previewAssign || Object.keys(previewAssign).length === 0) {
+    alert('请先点击"随机预览"生成分配结果');
+    return;
+  }
+
+  // ★ 如果游戏还没开始，先自动开始
+  if (!gameActive) {
+    const ids = Object.keys(players);
+    if (ids.length === 0) { alert('没有玩家！'); return; }
+    totalRounds = Math.max(1, parseInt(document.getElementById('totalRoundsInput').value) || 8);
+    gameActive = true;
+    currentRound = currentRound || 1;
+    phase = 'voting';
+    lastResult = null;
+    stopCountdown();
+  }
+
+  // 写入投票
+  Object.keys(previewAssign).forEach(id => {
+    if (players[id] && !players[id].eliminated && !players[id].voted) {
+      players[id].voted = true;
+      players[id].voteChoice = previewAssign[id];
+    }
+  });
+
+  // 清除预览状态
+  previewAssign = null;
+  document.getElementById('previewHint').style.display = 'none';
+  document.getElementById('btnConfirmVote').style.display = 'none';
+
+  // ★ 强制允许结算
+  _forceSettle = true;
+  phase = 'voting';
+
+  save();
+  pushCmd('info', `✅ 已确认投出！自动结算中...`);
+  renderUI();
+
+  // ★ 确认后立即结算
+  settleRound();
+}
+
+function clearAllVotes() {
+  Object.values(players).forEach(p=>{
+    if(!p.eliminated){p.voted=false;p.voteChoice=null;}
+  });
+  previewAssign = null;
+  document.getElementById('previewHint').style.display = 'none';
+  document.getElementById('btnConfirmVote').style.display = 'none';
+  save();
+  pushCmd('clean', '🧹 已清空所有投票');
+  renderUI();
+}
+
+// ============================================================
+//  UI 渲染
+// ============================================================
+function renderUI() {
+  const entries = Object.entries(players);
+  const active = entries.filter(([_,p])=>!p.eliminated);
+  const elim = entries.filter(([_,p])=>p.eliminated);
+  const voted = active.filter(([_,p])=>p.voted);
+  const notVoted = active.filter(([_,p])=>!p.voted);
+
+  document.getElementById('stTotal').textContent = entries.length;
+  document.getElementById('stActive').textContent = active.length;
+  document.getElementById('stElim').textContent = elim.length;
+
+  const sb = document.getElementById('statusBadge');
+  if (gameActive) {
+    if (phase === 'ready') {
+      sb.className = 'status-badge sb-idle';
+      sb.innerHTML = '<span class="sb-dot"></span>准备阶段';
+    } else {
+      sb.className = 'status-badge sb-running';
+      sb.innerHTML = '<span class="sb-dot"></span>进行中';
+    }
+  } else {
+    sb.className = 'status-badge sb-idle';
+    sb.innerHTML = '<span class="sb-dot"></span>未开始';
+  }
+
+  const isFinal = currentRound >= totalRounds;
+  const rb = document.getElementById('roundBadge');
+  rb.textContent = isFinal ? `第${currentRound}轮（最终）` : `第${currentRound}轮`;
+  rb.className = isFinal ? 'round-badge rb-final' : 'round-badge rb-norm';
+
+  // ★ 动态按钮文字
+  const startBtn = document.getElementById('btnStartGame');
+  if (startBtn) {
+    if (phase === 'ready') {
+      startBtn.innerHTML = '▶ 开始投票';
+    } else {
+      startBtn.innerHTML = '▶ 开始游戏';
+    }
+  }
+
+  const sorted = [...entries].sort((a,b)=>{
+    if(a[1].eliminated!==b[1].eliminated) return a[1].eliminated?1:-1;
+    return b[1].score-a[1].score;
+  });
+  document.getElementById('playerList').innerHTML = sorted.map(([id,p])=>{
+    const eCls = p.eliminated ? ' eliminated' : '';
+    // ★ 优先显示预览分配
+    const previewChoice = previewAssign ? previewAssign[id] : null;
+    const effectiveChoice = p.voted ? p.voteChoice : previewChoice;
+    const isPreview = !p.voted && !!previewChoice;
+    const vtCls = effectiveChoice ? ({gold:'vt-gold',silver:'vt-silver',red:'vt-red'}[effectiveChoice]||'vt-none') : 'vt-none';
+    const vtTxt = effectiveChoice ? ({gold:'金',silver:'银',red:'红'}[effectiveChoice]) + (isPreview ? '📋' : '') : '—';
+    const oCls = p.online ? ' pl-on' : ' pl-off';
+    const chHtml = p.lastChange!==undefined
+      ? (p.lastChange>0 ? `<span style="color:var(--green);font-size:9.5px;font-weight:700">+${p.lastChange}</span>`
+        : p.lastChange<0 ? `<span style="color:var(--red);font-size:9.5px;font-weight:700">${p.lastChange}</span>` : '')
+      : '';
+    return `<div class="pl-item${eCls}"${isPreview ? ' style="background:rgba(251,191,24,.04)"' : ''}>
+      <div class="pl-online${oCls}" title="${p.online?'在线':'离线'}"></div>
+      <div class="pl-num">#${String(p.num).padStart(3,'0')}</div>
+      <span class="pl-vote-tag ${vtCls}">${vtTxt}</span>
+      <div class="pl-score">${p.score.toLocaleString()}</div>${chHtml}
+      <div class="pl-del" onclick="removePlayer('${id}')">×</div>
+    </div>`;
+  }).join('');
+
+  // ★ 投票计数 — 含预览
+  let gC=0, sC=0, rC=0;
+  active.forEach(([id,p])=>{
+    const previewChoice = previewAssign ? previewAssign[id] : null;
+    const choice = p.voted ? p.voteChoice : previewChoice;
+    if(choice==='gold') gC++;
+    else if(choice==='silver') sC++;
+    else if(choice==='red') rC++;
+  });
+  // 计算已真正投票的
+  const realVoted = active.filter(([_,p])=>p.voted);
+  const previewVoted = active.filter(([id,p])=>!p.voted && previewAssign && previewAssign[id]);
+  document.getElementById('vgGold').textContent = gC;
+  document.getElementById('vgSilver').textContent = sC;
+  document.getElementById('vgRed').textContent = rC;
+  document.getElementById('viVoted').textContent = realVoted.length;
+  document.getElementById('viNotVoted').textContent = active.length - realVoted.length - previewVoted.length;
+  document.getElementById('viPending').textContent = active.length - realVoted.length;
+
+  if (resultLog.length > 0) {
+    document.getElementById('logList').innerHTML = resultLog.map(log => {
+      const w=log.result.winners, l=log.result.losers;
+      const expl = getExplain(w,l);
+      const elimNums = log.newlyEliminated.map(id=>'#'+(players[id]?.num||'?')).join(' ');
+      return `<div class="log-card">
+        <div class="log-round">第${log.round}轮${log.isFinal? '【最终轮】':''}</div>
+        <div class="log-msg">${log.result.message}</div>
+        <div class="log-votes">
+          <span class="log-vs" style="color:var(--gold)">🍎金${log.votes.gold}</span>
+          <span class="log-vs" style="color:var(--silver)">🍎银${log.votes.silver}</span>
+          <span class="log-vs" style="color:var(--red)">🍎红${log.votes.red}</span>
+        </div>
+        ${expl ? `<div class="log-explain">${expl}</div>` : ''}
+        ${elimNums ? `<div class="log-elim">💥 淘汰：${elimNums}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
+function updateSliderLabel() {
+  document.getElementById('lblRed').textContent = document.getElementById('sliderRed').value + '%';
+  document.getElementById('lblSkip').textContent = document.getElementById('sliderSkip').value + '%';
+}
+
+function openPage(url,w,h) {
+  window.open(url,'_blank',`width=${w},height=${h},resizable=yes,scrollbars=yes`);
+}
+
+window.addEventListener('storage', e => {
+  if (e.key===S_KEY || e.key==='eden_data_tick') {
+    load();
+    renderUI();
+  }
+  if (e.key===H_KEY) {
+    try {
+      const hb = JSON.parse(e.newValue||'{}');
+      if (hb.playerId && players[hb.playerId]) {
+        players[hb.playerId].online = true;
+        players[hb.playerId].lastSeen = Date.now();
+        save();
+        renderUI();
+      }
+    } catch(err){}
+  }
+});
+
+renderUI();
+updateSliderLabel();
+</script>
+</body>
+</html>

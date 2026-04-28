@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>伊甸园 — 玩家端</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0a0e1a;
+    --card: #151c2e;
+    --border: #1e2d45;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --gold: #fbbf24;
+    --silver: #94a3b8;
+    --red: #f87171;
+    --green: #4ade80;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'PingFang SC', sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* 页面切换 */
+  .page { display: none; min-height: 100vh; min-height: 100dvh; }
+  .page.active { display: flex; flex-direction: column; }
+
+  /* ===== 加入页 ===== */
+  #joinPage {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.12) 0%, transparent 60%);
+  }
+
+  .logo { text-align: center; margin-bottom: 40px; }
+  .logo-emoji { font-size: 60px; animation: float 3s ease-in-out infinite; display: block; }
+  .logo-title { font-size: 32px; font-weight: 900; color: var(--gold); letter-spacing: 3px; margin-top: 10px; }
+  .logo-sub { font-size: 13px; color: var(--muted); letter-spacing: 2px; margin-top: 4px; }
+
+  .join-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .join-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+
+  .input-wrap { margin-bottom: 16px; }
+  .input-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .input-field {
+    width: 100%;
+    padding: 14px 16px;
+    background: #0a0e1a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-field:focus { border-color: var(--gold); }
+  .input-field::placeholder { color: var(--muted); }
+
+  .btn-join {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .btn-join:active { transform: scale(0.97); }
+
+  .join-error {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--red);
+    display: none;
+  }
+
+  /* ===== 等待页 ===== */
+  #waitPage {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+  }
+
+  .wait-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.05));
+    border: 2px solid rgba(251,191,36,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin: 0 auto 16px;
+  }
+  .wait-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .wait-score { font-size: 16px; color: var(--green); margin-bottom: 32px; }
+
+  .wait-status {
+    padding: 16px 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    font-size: 16px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { border-color: var(--border); }
+    50% { border-color: rgba(251,191,36,0.4); }
+  }
+
+  .wait-count {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .wait-count span { color: var(--green); font-weight: 700; }
+
+  /* ===== 投票页 ===== */
+  #votePage { padding: 0; }
+
+  .vote-header {
+    padding: 16px 20px 12px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .vote-header-left { font-size: 15px; font-weight: 700; }
+  .vote-header-round { font-size: 11px; color: var(--muted); }
+  .vote-header-score { text-align: right; }
+  .vote-header-score-val { font-size: 20px; font-weight: 800; color: var(--green); }
+  .vote-header-score-label { font-size: 11px; color: var(--muted); }
+
+  /* 倒计时条 */
+  .timer-bar-wrap { width: 100%; height: 4px; background: var(--border); }
+  .timer-bar { height: 4px; background: var(--green); transition: width 1s linear, background 1s; }
+
+  .vote-content { flex: 1; padding: 20px 16px; overflow-y: auto; }
+
+  .vote-instruction {
+    text-align: center;
+    padding: 14px;
+    background: rgba(251,191,36,0.06);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+  }
+  .vote-instruction strong { color: var(--gold); }
+
+  .timer-center {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .timer-center-num {
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--green);
+    line-height: 1;
+  }
+  .timer-center-num.urgent { color: var(--red); animation: shake 0.3s infinite; }
+  .timer-center-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)}
+  }
+
+  .camp-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .apple-btn {
+    width: 100%;
+    padding: 18px 16px;
+    border-radius: 16px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .apple-btn:active { transform: scale(0.97); }
+
+  .apple-gold {
+    background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(251,191,36,0.05));
+    border-color: rgba(251,191,36,0.4);
+    color: var(--gold);
+  }
+  .apple-gold.selected {
+    background: linear-gradient(135deg, rgba(251,191,36,0.35), rgba(251,191,36,0.15));
+    border-color: var(--gold);
+    box-shadow: 0 0 20px rgba(251,191,36,0.3);
+  }
+  .apple-silver {
+    background: linear-gradient(135deg, rgba(148,163,184,0.15), rgba(148,163,184,0.05));
+    border-color: rgba(148,163,184,0.4);
+    color: var(--silver);
+  }
+  .apple-silver.selected {
+    background: linear-gradient(135deg, rgba(148,163,184,0.35), rgba(148,163,184,0.15));
+    border-color: var(--silver);
+    box-shadow: 0 0 20px rgba(148,163,184,0.25);
+  }
+  .apple-red {
+    background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+    border-color: rgba(239,68,68,0.4);
+    color: var(--red);
+  }
+  .apple-red.selected {
+    background: linear-gradient(135deg, rgba(239,68,68,0.35), rgba(239,68,68,0.15));
+    border-color: var(--red);
+    box-shadow: 0 0 20px rgba(239,68,68,0.25);
+  }
+
+  .apple-btn-icon { font-size: 32px; flex-shrink: 0; }
+  .apple-btn-info { flex: 1; text-align: left; }
+  .apple-btn-name { font-size: 18px; font-weight: 800; }
+  .apple-btn-camp { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  .apple-btn-cost { font-size: 13px; opacity: 0.7; }
+
+  .apple-check {
+    position: absolute;
+    right: 16px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(74,222,128,0.2);
+    border: 2px solid var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .apple-btn.selected .apple-check { opacity: 1; }
+
+  .vote-confirm-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+  .vote-confirm-btn:not(:disabled) {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff;
+  }
+  .vote-confirm-btn:disabled {
+    background: #1e293b;
+    color: #475569;
+    cursor: not-allowed;
+  }
+  .vote-confirm-btn:not(:disabled):active { transform: scale(0.97); }
+
+  /* 已投票状态 */
+  .voted-card {
+    text-align: center;
+    padding: 30px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    margin: 20px 16px;
+  }
+  .voted-icon { font-size: 48px; margin-bottom: 12px; }
+  .voted-text { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .voted-choice { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+  .voted-waiting { font-size: 13px; color: var(--muted); }
+
+  /* ===== 结果页 ===== */
+  #resultPage {
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+
+  .result-title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--gold);
+  }
+
+  .result-my-card {
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .result-win { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35); }
+  .result-lose { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
+  .result-neutral { background: var(--card); border: 1px solid var(--border); }
+  .result-special { background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.35); }
+
+  .result-my-emoji { font-size: 48px; display: block; margin-bottom: 10px; }
+  .result-my-outcome { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .result-win .result-my-outcome { color: var(--green); }
+  .result-lose .result-my-outcome { color: var(--red); }
+  .result-neutral .result-my-outcome { color: var(--muted); }
+  .result-special .result-my-outcome { color: #c084fc; }
+
+  .result-my-change { font-size: 28px; font-weight: 900; }
+  .change-pos { color: var(--green); }
+  .change-neg { color: var(--red); }
+  .change-zero { color: var(--muted); }
+
+  .result-my-total { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .result-my-total span { color: var(--green); font-weight: 700; font-size: 18px; }
+
+  .result-msg-card {
+    padding: 16px;
+    background: var(--card);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .result-vote-summary { margin-bottom: 16px; }
+  .result-vote-title { font-size: 13px; color: var(--muted); margin-bottom: 10px; letter-spacing: 1px; }
+  .result-vote-bars { display: flex; gap: 8px; }
+  .result-vote-bar-item { flex: 1; text-align: center; }
+  .rvb-count { font-size: 22px; font-weight: 800; }
+  .rvb-gold { color: var(--gold); }
+  .rvb-silver { color: var(--silver); }
+  .rvb-red { color: var(--red); }
+  .rvb-name { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .result-wait { text-align: center; font-size: 14px; color: var(--muted); padding: 12px; }
+
+  /* ===== 全体胜利页 ===== */
+  #allwinPage {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+    background: radial-gradient(ellipse at 50% 50%, rgba(34,197,94,0.25) 0%, var(--bg) 70%);
+  }
+
+  .allwin-emoji { font-size: 80px; animation: bounce2 0.7s infinite alternate; display: block; }
+  @keyframes bounce2 { from{transform:translateY(0)} to{transform:translateY(-15px)} }
+  .allwin-title {
+    font-size: 40px; font-weight: 900; margin: 20px 0 10px;
+    background: linear-gradient(135deg, #4ade80, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .allwin-sub { font-size: 16px; color: rgba(255,255,255,0.6); line-height: 1.6; }
+
+  /* ===== 游戏结束页 ===== */
+  #gameoverPage {
+    padding: 24px 16px;
+    overflow-y: auto;
+    text-align: center;
+  }
+
+  .gameover-title { font-size: 28px; font-weight: 900; color: var(--gold); margin-bottom: 8px; }
+  .gameover-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+
+  .my-final-card {
+    padding: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 20px;
+  }
+  .my-final-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .my-final-score { font-size: 40px; font-weight: 900; color: var(--green); }
+  .my-final-rank { font-size: 16px; color: var(--gold); margin-top: 6px; }
+
+  .top-list { list-style: none; }
+  .top-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  .top-item.me { border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.06); }
+  .top-medal { font-size: 18px; width: 24px; }
+  .top-name { flex: 1; text-align: left; }
+  .top-score { color: var(--green); font-weight: 700; }
+
+  @keyframes float {
+    0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)}
+  }
+
+  /* 最终轮横幅 */
+  .final-round-banner {
+    display: none;
+    background: linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.08));
+    border: 1px solid rgba(168,85,247,0.5);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #c084fc;
+    text-align: center;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .final-round-banner strong { color: #e879f9; }
+  /* ===== 淘汰页 ===== */
+  #eliminatedPage {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+    background: radial-gradient(ellipse at 50% 50%, rgba(239,68,68,0.2) 0%, var(--bg) 70%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .eliminated-bg {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .eliminated-bg::before,
+  .eliminated-bg::after {
+    content: '';
+    position: absolute;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    opacity: 0.08;
+    animation: elimFloat 4s ease-in-out infinite alternate;
+  }
+  .eliminated-bg::before { background: #f87171; top: -60px; left: -40px; }
+  .eliminated-bg::after { background: #ef4444; bottom: -80px; right: -30px; animation-delay: -2s; }
+  @keyframes elimFloat { from{transform:translateY(0)} to{transform:translateY(30px)} }
+
+  .elim-card {
+    position: relative;
+    z-index: 1;
+    padding: 32px 28px;
+    background: rgba(239,68,68,0.08);
+    border: 2px solid rgba(239,68,68,0.3);
+    border-radius: 24px;
+    max-width: 340px;
+    width: 100%;
+    animation: elimPopIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes elimPopIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .elim-emoji { font-size: 72px; display: block; margin-bottom: 12px; animation: elimShake 0.8s ease-in-out; }
+  @keyframes elimShake {
+    0%{transform:rotate(0)} 20%{transform:rotate(-8deg)} 40%{transform:rotate(8deg)} 60%{transform:rotate(-5deg)} 80%{transform:rotate(3deg)} 100%{transform:rotate(0)}
+  }
+  .elim-title { font-size: 26px; font-weight: 900; color: #f87171; margin-bottom: 6px; }
+  .elim-name { font-size: 18px; color: var(--text); margin-bottom: 16px; }
+  .elim-score-label { font-size: 13px; color: var(--muted); }
+  .elim-score-val { font-size: 36px; font-weight: 900; color: #f87171; }
+  .elim-msg {
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.7;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(239,68,68,0.15);
+  }
+
+  /* 碎片特效 */
+  .fragments-container {
+    position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    overflow: hidden;
+  }
+  .fragment {
+    position: absolute; width: 10px; height: 10px;
+    background: #f87171; border-radius: 3px;
+    animation: fragmentFall 1.5s ease-in forwards;
+  }
+  @keyframes fragmentFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 加入页 -->
+<div id="joinPage" class="page active">
+  <div class="logo">
+    <span class="logo-emoji">🌿</span>
+    <div class="logo-title">伊甸园</div>
+    <div class="logo-sub">EDEN · TEAM GAME</div>
+  </div>
+  <div class="join-card">
+    <div class="join-title">加入游戏</div>
+    <div class="input-wrap">
+      <div class="input-label">你的名字</div>
+      <input class="input-field" id="nameInput" type="text" placeholder="输入昵称（最多10字）" maxlength="10" autocomplete="off">
+    </div>
+    <button class="btn-join" onclick="joinGame()">进入伊甸园 →</button>
+    <div class="join-error" id="joinError"></div>
+  </div>
+</div>
+
+<!-- 等待页 -->
+<div id="waitPage" class="page">
+  <div class="wait-avatar">🌿</div>
+  <div class="wait-name" id="waitName">玩家</div>
+  <div class="wait-score">初始积分：<strong>10,000</strong></div>
+  <div class="wait-status">⌛ 等待主持人开始游戏...</div>
+  <div class="wait-count">已有 <span id="waitPlayerCount">0</span> 位勇士就绪</div>
+</div>
+
+<!-- 投票页 -->
+<div id="votePage" class="page">
+  <div class="vote-header">
+    <div>
+      <div class="vote-header-left" id="voteHeaderName">投票</div>
+      <div class="vote-header-round" id="voteHeaderRound">第1轮</div>
+    </div>
+    <div class="vote-header-score">
+      <div class="vote-header-score-val" id="voteScore">0</div>
+      <div class="vote-header-score-label">当前积分</div>
+    </div>
+  </div>
+  <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
+
+  <div class="vote-content">
+    <!-- 最终轮横幅 -->
+    <div class="final-round-banner" id="finalRoundBanner">
+      🏁 <strong>最终轮！</strong> 红苹果人数 ≥ 总投票人数 - 10，即触发全体胜利！
+    </div>
+
+    <!-- 倒计时 -->
+    <div class="timer-center">
+      <div class="timer-center-num" id="timerCenterNum">60</div>
+      <div class="timer-center-label">秒后自动结束，未投票扣 2000 分</div>
+    </div>
+
+    <!-- 说明 -->
+    <div class="vote-instruction" id="voteInstruction">
+      花费 <strong>2000 积分</strong>投票<br>
+      🍎 红最少 → 红+1000，金银各-2000<br>
+      🍏 金或银任意一个比红少 → <strong>金银阵营整体赢</strong>，金+1000，银+1000，红-2000<br>
+      无红时：金银单独比，少的+1000，多的-2000
+    </div>
+
+    <!-- 已投票卡片（隐藏） -->
+    <div id="votedCard" class="voted-card" style="display:none">
+      <div class="voted-icon">✅</div>
+      <div class="voted-text">已投票</div>
+      <div class="voted-choice" id="votedChoiceText">你选择了金苹果</div>
+      <div class="voted-waiting">等待本轮结束...</div>
+    </div>
+
+    <!-- 投票按钮（显示） -->
+    <div id="voteButtons">
+      <div class="camp-label">— 金银阵营 —</div>
+      <button class="apple-btn apple-gold" id="btnGold" onclick="selectApple('gold', this)">
+        <div class="apple-btn-icon">🍎</div>
+        <div class="apple-btn-info">
+          <div class="apple-btn-name">金苹果</div>
+          <div class="apple-btn-camp">金银阵营 · 和银苹果共同胜负</div>
+          <div class="apple-btn-cost">花费 2,000 积分</div>
+        </div>
+        <div class="apple-check">✓</div>
+      </button>
+      <button class="apple-btn apple-silver" id="btnSilver" onclick="selectApple('silver', this)">
+        <div class="apple-btn-icon">🥈</div>
+        <div class="apple-btn-info">
+          <div class="apple-btn-name">银苹果</div>
+          <div class="apple-btn-camp">金银阵营 · 和金苹果共同胜负</div>
+          <div class="apple-btn-cost">花费 2,000 积分</div>
+        </div>
+        <div class="apple-check">✓</div>
+      </button>
+      <div class="camp-label" style="margin-top:8px">— 红色阵营 —</div>
+      <button class="apple-btn apple-red" id="btnRed" onclick="selectApple('red', this)">
+        <div class="apple-btn-icon">🍒</div>
+        <div class="apple-btn-info">
+          <div class="apple-btn-name">红苹果</div>
+          <div class="apple-btn-camp">红色阵营 · 独立对抗金银</div>
+          <div class="apple-btn-cost">花费 2,000 积分</div>
+        </div>
+        <div class="apple-check">✓</div>
+      </button>
+
+      <button class="vote-confirm-btn" id="confirmVoteBtn" onclick="confirmVote()" disabled>
+        确认投票
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 结果页 -->
+<div id="resultPage" class="page">
+  <div class="result-title">📊 本轮结果</div>
+  <div id="resultMyCard" class="result-my-card result-neutral">
+    <span class="result-my-emoji" id="resultEmoji">❓</span>
+    <div class="result-my-outcome" id="resultOutcomeText">—</div>
+    <div class="result-my-change" id="resultChangeText">—</div>
+    <div class="result-my-total">当前积分：<span id="resultTotalScore">0</span></div>
+  </div>
+  <div class="result-msg-card" id="resultMsgCard"></div>
+  <div class="result-vote-summary">
+    <div class="result-vote-title">本轮投票结果</div>
+    <div class="result-vote-bars">
+      <div class="result-vote-bar-item">
+        <div class="rvb-count rvb-gold" id="rvbGold">0</div>
+        <div class="rvb-name">🍎 金苹果</div>
+      </div>
+      <div class="result-vote-bar-item">
+        <div class="rvb-count rvb-silver" id="rvbSilver">0</div>
+        <div class="rvb-name">🥈 银苹果</div>
+      </div>
+      <div class="result-vote-bar-item">
+        <div class="rvb-count rvb-red" id="rvbRed">0</div>
+        <div class="rvb-name">🍒 红苹果</div>
+      </div>
+    </div>
+  </div>
+  <div class="result-wait">等待主持人开始下一轮...</div>
+</div>
+
+<!-- 全体胜利页 -->
+<div id="allwinPage" class="page">
+  <span class="allwin-emoji">🎉</span>
+  <div class="allwin-title">全体胜利！</div>
+  <div class="allwin-sub">所有人都选择了红苹果<br>大家共同守护了伊甸园！</div>
+</div>
+
+<!-- 游戏结束页 -->
+<div id="gameoverPage" class="page">
+  <div class="gameover-title">🏆 游戏结束</div>
+  <div class="gameover-sub">感谢参与伊甸园！</div>
+  <div class="my-final-card">
+    <div class="my-final-label">你的最终积分</div>
+    <div class="my-final-score" id="myFinalScore">—</div>
+    <div class="my-final-rank" id="myFinalRank">—</div>
+  </div>
+  <ul class="top-list" id="finalList"></ul>
+</div>
+
+<!-- 淘汰结算页 -->
+<div id="eliminatedPage" class="page">
+  <div class="eliminated-bg"></div>
+  <div class="fragments-container" id="fragmentsContainer"></div>
+  <div class="elim-card">
+    <span class="elim-emoji">💥</span>
+    <div class="elim-title">你已被淘汰！</div>
+    <div class="elim-name" id="elimName">玩家</div>
+    <div class="elim-score-label">积分归零</div>
+    <div class="elim-score-val">0</div>
+    <div class="elim-msg">
+      你的积分已经耗尽，无法继续参与后续轮次。<br><br>
+      请继续关注大屏幕，<br>为其他选手加油吧！🌿
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+const TOTAL_TIME = 60;
+
+let myId = null;
+let myName = '';
+let myNum = 0;
+let myScore = 10000;
+let selectedChoice = null;
+let currentRound = 1;
+let hasVoted = false;
+let isEliminated = false;
+
+// 页面切换
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// 加入游戏
+function joinGame() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) {
+    showError('请输入你的名字！');
+    return;
+  }
+  socket.emit('joinGame', { name });
+}
+
+function showError(msg) {
+  const el = document.getElementById('joinError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// 选择苹果
+function selectApple(choice, btn) {
+  if (hasVoted) return;
+  selectedChoice = choice;
+  document.querySelectorAll('.apple-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('confirmVoteBtn').disabled = false;
+}
+
+// 确认投票
+function confirmVote() {
+  if (!selectedChoice || hasVoted) return;
+  socket.emit('vote', { choice: selectedChoice });
+}
+
+// 更新倒计时
+function updateTimerDisplay(t) {
+  document.getElementById('timerCenterNum').textContent = t;
+  const el = document.getElementById('timerCenterNum');
+  el.classList.toggle('urgent', t <= 10);
+  const pct = (t / TOTAL_TIME * 100);
+  const bar = document.getElementById('timerBar');
+  bar.style.width = pct + '%';
+  bar.style.background = t <= 10 ? '#f87171' : t <= 20 ? '#fbbf24' : '#4ade80';
+}
+
+// ===== Socket 事件 =====
+
+socket.on('joinSuccess', (data) => {
+  myId = data.playerId;
+  myName = data.name;
+  myNum = data.num || 0;
+  myScore = data.score;
+  document.getElementById('waitName').textContent = myName + (myNum ? ` #${myNum}` : '');
+  showPage('waitPage');
+});
+
+socket.on('joinError', (data) => {
+  showError(data.message);
+});
+
+socket.on('playerListUpdate', (data) => {
+  document.getElementById('waitPlayerCount').textContent = data.count;
+});
+
+socket.on('gameStart', (data) => {
+  currentRound = data.round;
+  hasVoted = false;
+  selectedChoice = null;
+  startVotingUI(data);
+  showPage('votePage');
+});
+
+socket.on('nextRound', (data) => {
+  currentRound = data.round;
+  hasVoted = false;
+  selectedChoice = null;
+  startVotingUI(data);
+  showPage('votePage');
+});
+
+function startVotingUI(data) {
+  // 已淘汰则直接显示淘汰页
+  if (isEliminated) { showPage('eliminatedPage'); return; }
+
+  document.getElementById('voteHeaderName').textContent = myName + (myNum ? ` #${myNum}` : '');
+  const isFinal = data.isFinalRound || false;
+  document.getElementById('voteHeaderRound').textContent = '第' + data.round + '轮' + (isFinal ? '（最终轮）' : '');
+  document.getElementById('voteScore').textContent = myScore.toLocaleString();
+  document.getElementById('votedCard').style.display = 'none';
+  document.getElementById('voteButtons').style.display = 'block';
+  document.querySelectorAll('.apple-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('confirmVoteBtn').disabled = true;
+  selectedChoice = null;
+  updateTimerDisplay(data.timer || TOTAL_TIME);
+
+  // 最终轮横幅
+  const banner = document.getElementById('finalRoundBanner');
+  banner.style.display = isFinal ? 'block' : 'none';
+
+  // 规则说明（免费投票）
+  const inst = document.getElementById('voteInstruction');
+  if (isFinal) {
+    inst.innerHTML = '投票<strong>无需消耗积分</strong>。最终轮特殊规则：<br>红苹果 ≥ 总票数-10 → <strong>全体胜利</strong>！否则按最少者获胜。';
+  } else {
+    inst.innerHTML = '投票<strong>无需消耗积分</strong><br>🍎 红最少→红+1000，金银各-2000<br>🍏 金或银任一比红少→<strong>金银阵营整体赢</strong>，金银+1000，红-2000<br><span style="color:var(--red);font-size:11px">⚠️ 未投票将自动扣除2000分</span>';
+  }
+
+  // 更新按钮文字：去掉"花费"
+  document.querySelector('#btnGold .apple-btn-cost').textContent = '免费投票';
+  document.querySelector('#btnSilver .apple-btn-cost').textContent = '免费投票';
+  document.querySelector('#btnRed .apple-btn-cost').textContent = '免费投票';
+}
+
+socket.on('timerUpdate', (data) => {
+  if (document.getElementById('votePage').classList.contains('active')) {
+    updateTimerDisplay(data.timer);
+  }
+});
+
+socket.on('voteSuccess', (data) => {
+  hasVoted = true;
+  myScore = data.score;
+  const names = { gold: '金苹果', silver: '银苹果', red: '红苹果' };
+  document.getElementById('voteScore').textContent = myScore.toLocaleString();
+  document.getElementById('votedChoiceText').textContent = '你选择了 ' + names[data.choice];
+  document.getElementById('voteButtons').style.display = 'none';
+  document.getElementById('votedCard').style.display = 'block';
+});
+
+socket.on('voteError', (data) => {
+  alert(data.message);
+});
+
+socket.on('myResult', (data) => {
+  myScore = data.total;
+
+  // 检测淘汰
+  if (data.eliminated && !isEliminated) {
+    isEliminated = true;
+    showEliminatedEffect();
+    return;
+  }
+
+  if (data.specialEvent === 'all_red') {
+    showPage('allwinPage');
+    return;
+  }
+
+  // 填充结果
+  const card = document.getElementById('resultMyCard');
+  const emoji = document.getElementById('resultEmoji');
+  const outcome = document.getElementById('resultOutcomeText');
+  const change = document.getElementById('resultChangeText');
+
+  card.className = 'result-my-card';
+
+  if (!data.voted) {
+    card.classList.add('result-lose');
+    emoji.textContent = '😔';
+    outcome.textContent = '未投票 — 自动扣分';
+    change.innerHTML = '<span class="change-neg">-2000</span>';
+  } else if (data.change > 0) {
+    card.classList.add('result-win');
+    emoji.textContent = '🎉';
+    outcome.textContent = '少数派胜利！';
+    change.innerHTML = `<span class="change-pos">+${data.change}</span>`;
+  } else if (data.change < 0) {
+    card.classList.add('result-lose');
+    emoji.textContent = '😞';
+    outcome.textContent = '多数派败北';
+    change.innerHTML = `<span class="change-neg">${data.change}</span>`;
+  } else {
+    card.classList.add('result-neutral');
+    emoji.textContent = '😐';
+    outcome.textContent = '平局 — 无变动';
+    change.innerHTML = `<span class="change-zero">±0</span>`;
+  }
+
+  document.getElementById('resultTotalScore').textContent = myScore.toLocaleString();
+  document.getElementById('resultMsgCard').textContent = data.message;
+
+  showPage('resultPage');
+});
+
+// 淘汰特效
+function showEliminatedEffect() {
+  // 碎片动画
+  createFragments();
+  document.getElementById('elimName').textContent = myName + (myNum ? ` #${myNum}` : '');
+  showPage('eliminatedPage');
+}
+
+function createFragments() {
+  const container = document.getElementById('fragmentsContainer');
+  container.innerHTML = '';
+  for (let i = 0; i < 30; i++) {
+    const f = document.createElement('div');
+    f.className = 'fragment';
+    f.style.left = Math.random() * 100 + '%';
+    f.style.top = -10 + 'px';
+    f.style.width = (4 + Math.random() * 12) + 'px';
+    f.style.height = f.style.width;
+    f.style.background = ['#f87171','#ef4444','#fca5a5','#dc2626'][Math.floor(Math.random()*4)];
+    f.style.animationDelay = (Math.random() * 0.8) + 's';
+    f.style.animationDuration = (1 + Math.random() * 1.5) + 's';
+    container.appendChild(f);
+  }
+  // 清理
+  setTimeout(() => { container.innerHTML = ''; }, 3000);
+}
+
+socket.on('roundEnd', (data) => {
+  document.getElementById('rvbGold').textContent = data.result.votes.gold;
+  document.getElementById('rvbSilver').textContent = data.result.votes.silver;
+  document.getElementById('rvbRed').textContent = data.result.votes.red;
+});
+
+socket.on('gameOver', (data) => {
+  const lb = data.leaderboard;
+  const myEntry = lb.find(p => p.id === myId);
+  const myRank = lb.findIndex(p => p.id === myId) + 1;
+
+  document.getElementById('myFinalScore').textContent = (myEntry ? myEntry.score : myScore).toLocaleString();
+  document.getElementById('myFinalRank').textContent = myRank > 0 ? `第 ${myRank} 名` : '';
+
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('finalList').innerHTML = lb.slice(0,10).map((p,i) =>
+    `<li class="top-item ${p.id === myId ? 'me' : ''}">
+      <span class="top-medal">${medals[i]||i+1}</span>
+      <span class="top-name">${escHtml(p.name)}${p.id === myId ? ' (你)' : ''}</span>
+      <span class="top-score">${p.score.toLocaleString()}</span>
+    </li>`
+  ).join('');
+
+  showPage('gameoverPage');
+});
+
+socket.on('gameReset', () => {
+  location.reload();
+});
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 回车加入
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinGame();
+});
+</script>
+</body>
+</html>

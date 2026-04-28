@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>伊甸园 — 后台控制</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* 状态卡 */
+  .status-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat-box {
+    flex: 1;
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+    min-width: 80px;
+  }
+  .stat-value { font-size: 28px; font-weight: 800; color: #38bdf8; }
+  .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .status-waiting { background: rgba(100,116,139,0.2); color: #94a3b8; }
+  .status-voting { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .status-result { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .status-gameover { background: rgba(239,68,68,0.15); color: #f87171; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* 控制按钮 */
+  .btn-group { display: flex; flex-direction: column; gap: 10px; }
+  .btn {
+    padding: 13px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-green { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+  .btn-green:hover:not(:disabled) { background: linear-gradient(135deg, #4ade80, #22c55e); transform: translateY(-1px); }
+  .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
+  .btn-blue:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+  .btn-yellow:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+  .btn-red:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-gray { background: #334155; color: #94a3b8; }
+  .btn-gray:hover:not(:disabled) { background: #475569; }
+  .btn-outline { background: transparent; border: 1px solid #334155; color: #94a3b8; }
+  .btn-outline:hover:not(:disabled) { border-color: #475569; color: #e2e8f0; }
+
+  /* 投票实时 */
+  .vote-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .vote-item { flex: 1; border-radius: 10px; padding: 12px; text-align: center; }
+  .vote-gold { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); }
+  .vote-silver { background: rgba(148,163,184,0.1); border: 1px solid rgba(148,163,184,0.3); }
+  .vote-red { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
+  .vote-count { font-size: 32px; font-weight: 800; }
+  .vote-gold .vote-count { color: #fbbf24; }
+  .vote-silver .vote-count { color: #94a3b8; }
+  .vote-red .vote-count { color: #f87171; }
+  .vote-name { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+  .progress-bar { background: #0f172a; border-radius: 6px; height: 8px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; background: #38bdf8; }
+
+  /* 排行榜 */
+  .lb-table { width: 100%; border-collapse: collapse; }
+  .lb-table th { text-align: left; font-size: 11px; color: #475569; padding: 6px 8px; border-bottom: 1px solid #1e293b; }
+  .lb-table td { padding: 8px; font-size: 13px; border-bottom: 1px solid #1e293b; }
+  .lb-table tr:last-child td { border-bottom: none; }
+  .rank-cell { color: #475569; font-weight: 600; width: 30px; }
+  .score-cell { color: #4ade80; font-weight: 700; text-align: right; }
+
+  /* 倒计时大字 */
+  .timer-display {
+    text-align: center;
+    padding: 10px;
+  }
+  .timer-big { font-size: 64px; font-weight: 900; color: #38bdf8; line-height: 1; }
+  .timer-big.urgent { color: #f87171; }
+  .timer-note { font-size: 12px; color: #475569; margin-top: 4px; }
+
+  /* 历史记录 */
+  .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+  .history-item {
+    padding: 8px 12px;
+    background: #0f172a;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .history-round { color: #38bdf8; font-weight: 700; }
+
+  /* 消息提示 */
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 9999;
+    transform: translateX(200px);
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+  .toast.show { transform: translateX(0); opacity: 1; }
+  .toast-success { background: #166534; color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+  .toast-error { background: #7f1d1d; color: #fca5a5; border: 1px solid rgba(252,165,165,0.3); }
+
+  .span2 { grid-column: span 2; }
+
+  /* 二维码 */
+  .qr-section { display: flex; align-items: center; gap: 16px; }
+  .qr-small { width: 80px; height: 80px; border-radius: 8px; background: #fff; padding: 4px; }
+  .qr-info { flex: 1; }
+  .qr-url { font-size: 13px; color: #38bdf8; word-break: break-all; margin-top: 4px; }
+
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .span2 { grid-column: span 1; } }
+</style>
+</head>
+<body>
+
+<h1>🎮 伊甸园 — 后台控制</h1>
+<div class="subtitle">主持人控制台 · 实时游戏管理</div>
+
+<div class="grid">
+  <!-- 游戏状态 -->
+  <div class="card">
+    <div class="card-title">📊 游戏状态</div>
+    <div class="status-row">
+      <div class="stat-box">
+        <div class="stat-value" id="playerCountStat">0</div>
+        <div class="stat-label">在线玩家</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" style="color:#fbbf24" id="activePlayerCountStat">0</div>
+        <div class="stat-label">有效玩家</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="roundStat">—</div>
+        <div class="stat-label">当前轮次</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="votedStat">0</div>
+        <div class="stat-label">已投票</div>
+      </div>
+    </div>
+    <div id="statusBadge" class="status-badge status-waiting">
+      <div class="status-dot"></div>
+      <span id="statusText">等待开始</span>
+    </div>
+    <div id="finalRoundNote" style="display:none;margin-top:8px;padding:6px 12px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);border-radius:8px;font-size:12px;color:#c084fc">
+      🏁 当前为最终轮！红苹果 ≥ 总票数-10 即全体胜利
+    </div>
+    <div class="timer-display" id="timerDisplay" style="display:none">
+      <div class="timer-big" id="timerBig">60</div>
+      <div class="timer-note">剩余秒数</div>
+    </div>
+  </div>
+
+  <!-- 游戏控制 -->
+  <div class="card">
+    <div class="card-title">🕹️ 控制操作</div>
+    <div class="btn-group">
+      <button class="btn btn-green" id="btnStart" onclick="sendAction('adminStartGame')">
+        ▶ 开始游戏（第1轮）
+      </button>
+      <button class="btn btn-blue" id="btnNext" onclick="sendAction('adminNextRound')" disabled>
+        ⏭ 下一轮
+      </button>
+      <button class="btn btn-yellow" id="btnForce" onclick="sendAction('adminForceEnd')" disabled>
+        ⏹ 强制结束本轮
+      </button>
+      <button class="btn btn-red" id="btnEnd" onclick="sendAction('adminEndGame')" disabled>
+        🏁 结束游戏（公布总榜）
+      </button>
+      <button class="btn btn-gray" id="btnReset" onclick="confirmReset()">
+        🔄 重置游戏（清除所有数据）
+      </button>
+    </div>
+  </div>
+
+  <!-- 实时票数 -->
+  <div class="card">
+    <div class="card-title">🗳️ 本轮实时票数</div>
+    <div class="vote-row">
+      <div class="vote-item vote-gold">
+        <div class="vote-count" id="goldCount">0</div>
+        <div class="vote-name">🍎 金苹果</div>
+      </div>
+      <div class="vote-item vote-silver">
+        <div class="vote-count" id="silverCount">0</div>
+        <div class="vote-name">🥈 银苹果</div>
+      </div>
+      <div class="vote-item vote-red">
+        <div class="vote-count" id="redCount">0</div>
+        <div class="vote-name">🍒 红苹果</div>
+      </div>
+    </div>
+    <div style="font-size:13px; color:#64748b; margin-bottom:6px">投票进度</div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="voteProgress" style="width:0%"></div>
+    </div>
+    <div style="font-size:12px; color:#475569; margin-top:6px">
+      <span id="votedNum">0</span> / <span id="totalNum">0</span> 人已投票
+    </div>
+  </div>
+
+  <!-- 游戏设置 -->
+  <div class="card">
+    <div class="card-title">⚙️ 游戏设置</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <label style="font-size:13px;color:#94a3b8;white-space:nowrap">总轮数（默认8轮，最后一轮为最终轮）：</label>
+      <input id="roundsInput" type="number" min="1" max="20" value="8"
+        style="width:70px;padding:8px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:15px;text-align:center"
+        onchange="setRounds(this.value)">
+    </div>
+    <div style="font-size:12px;color:#475569">仅在游戏开始前有效。最终轮（第N轮）规则：红苹果≥总票数-10则全体胜利。</div>
+  </div>
+    <div class="card-title">📱 玩家入口</div>
+    <div class="qr-section">
+      <img id="qrSmall" class="qr-small" src="" alt="">
+      <div class="qr-info">
+        <div style="font-size:13px; color:#94a3b8">玩家扫码加入：</div>
+        <div class="qr-url" id="playerUrl">加载中...</div>
+        <div style="margin-top:8px; font-size:12px; color:#475569">大屏地址：</div>
+        <div class="qr-url" id="displayUrl" style="font-size:12px">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 积分排行榜 -->
+  <div class="card span2">
+    <div class="card-title">🏆 积分排行榜（实时）</div>
+    <table class="lb-table">
+      <thead>
+        <tr>
+          <th>排名</th>
+          <th>玩家名称</th>
+          <th style="text-align:right">积分</th>
+        </tr>
+      </thead>
+      <tbody id="lbBody"></tbody>
+    </table>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="card span2">
+    <div class="card-title">📜 历史记录</div>
+    <div class="history-list" id="historyList">
+      <div style="color:#475569; font-size:13px">暂无历史记录</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const socket = io();
+socket.emit('joinAdmin');
+
+let currentStatus = 'waiting';
+
+// 加载链接
+fetch('/serverinfo').then(r=>r.json()).then(info => {
+  const base = `http://${info.ip}:${info.port}`;
+  document.getElementById('playerUrl').textContent = `${base}/player/`;
+  document.getElementById('displayUrl').textContent = `${base}/display/`;
+});
+fetch('/qrcode').then(r=>r.json()).then(d => {
+  if(d.qr) document.getElementById('qrSmall').src = d.qr;
+});
+
+function showToast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function sendAction(event) {
+  socket.emit(event);
+}
+
+function confirmReset() {
+  if (confirm('⚠️ 确定要重置游戏吗？这将清除所有玩家和分数数据！')) {
+    sendAction('adminResetGame');
+  }
+}
+
+function updateButtons(status) {
+  currentStatus = status;
+  document.getElementById('btnStart').disabled = status !== 'waiting';
+  document.getElementById('btnNext').disabled = status !== 'result';
+  document.getElementById('btnForce').disabled = status !== 'voting';
+  document.getElementById('btnEnd').disabled = !['voting','result'].includes(status);
+
+  const badge = document.getElementById('statusBadge');
+  const text = document.getElementById('statusText');
+  badge.className = 'status-badge';
+  const map = {
+    waiting: ['status-waiting', '等待开始'],
+    voting: ['status-voting', '投票进行中'],
+    result: ['status-result', '结果展示中'],
+    gameover: ['status-gameover', '游戏已结束']
+  };
+  const [cls, label] = map[status] || ['status-waiting', '未知'];
+  badge.classList.add(cls);
+  text.textContent = label;
+
+  document.getElementById('timerDisplay').style.display = status === 'voting' ? 'block' : 'none';
+}
+
+function updateLeaderboard(lb) {
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('lbBody').innerHTML = lb.map((p,i) => {
+    const elimTag = p.eliminated ? ' <span style="color:#f87171;font-size:11px">❌淘汰</span>' : '';
+    const numTag = p.num ? ` #${p.num}` : '';
+    const rowStyle = p.eliminated ? 'style="opacity:0.35;text-decoration:line-through"' : '';
+    return `<tr ${rowStyle}>
+      <td class="rank-cell">${medals[i]||i+1}</td>
+      <td>${escHtml(p.name)}${numTag}${elimTag}</td>
+      <td class="score-cell">${p.score.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addHistory(round, message) {
+  const list = document.getElementById('historyList');
+  if (list.children.length === 1 && list.children[0].style.color) list.innerHTML = '';
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = `<span class="history-round">第${round}轮</span> ${escHtml(message)}`;
+  list.prepend(item);
+}
+
+// ===== 事件监听 =====
+socket.on('gameStateSync', (state) => {
+  const pc = state.playerCount || 0;
+  const ac = state.activePlayerCount !== undefined ? state.activePlayerCount : pc;
+  document.getElementById('playerCountStat').textContent = pc;
+  document.getElementById('activePlayerCountStat').textContent = ac;
+  document.getElementById('roundStat').textContent = state.round || '—';
+  updateButtons(state.status);
+  updateLeaderboard(state.leaderboard || []);
+  if (state.status === 'voting') {
+    document.getElementById('timerBig').textContent = state.timer;
+    const vv = state.votes || {gold:0,silver:0,red:0};
+    document.getElementById('goldCount').textContent = vv.gold;
+    document.getElementById('silverCount').textContent = vv.silver;
+    document.getElementById('redCount').textContent = vv.red;
+  }
+  if (state.roundHistory) {
+    state.roundHistory.forEach(h => addHistory(h.round, h.result));
+  }
+});
+
+socket.on('playerListUpdate', (data) => {
+  document.getElementById('playerCountStat').textContent = data.count;
+  document.getElementById('activePlayerCountStat').textContent = data.count;
+  document.getElementById('totalNum').textContent = data.count;
+  updateLeaderboard(data.players);
+});
+
+socket.on('gameStart', (data) => {
+  document.getElementById('roundStat').textContent = data.round;
+  updateButtons('voting');
+  document.getElementById('timerBig').textContent = data.timer;
+  document.getElementById('goldCount').textContent = 0;
+  document.getElementById('silverCount').textContent = 0;
+  document.getElementById('redCount').textContent = 0;
+  document.getElementById('votedStat').textContent = 0;
+  if (data.activePlayerCount !== undefined) {
+    document.getElementById('activePlayerCountStat').textContent = data.activePlayerCount;
+    document.getElementById('totalNum').textContent = data.activePlayerCount;
+  }
+  document.getElementById('finalRoundNote').style.display = data.isFinalRound ? 'block' : 'none';
+  showToast('游戏已开始！');
+});
+
+socket.on('nextRound', (data) => {
+  document.getElementById('roundStat').textContent = data.round;
+  updateButtons('voting');
+  document.getElementById('timerBig').textContent = data.timer;
+  document.getElementById('goldCount').textContent = 0;
+  document.getElementById('silverCount').textContent = 0;
+  document.getElementById('redCount').textContent = 0;
+  document.getElementById('votedStat').textContent = 0;
+  if (data.activePlayerCount !== undefined) {
+    document.getElementById('activePlayerCountStat').textContent = data.activePlayerCount;
+    document.getElementById('totalNum').textContent = data.activePlayerCount;
+  }
+  document.getElementById('finalRoundNote').style.display = data.isFinalRound ? 'block' : 'none';
+  showToast(`第${data.round}轮开始！${data.isFinalRound ? '（最终轮）' : ''}`);
+});
+
+socket.on('adminError', (data) => {
+  showToast(data.message, 'error');
+});
+
+socket.on('timerUpdate', (data) => {
+  document.getElementById('timerBig').textContent = data.timer;
+  const el = document.getElementById('timerBig');
+  el.classList.toggle('urgent', data.timer <= 10);
+});
+
+socket.on('voteUpdate', (data) => {
+  document.getElementById('goldCount').textContent = data.votes.gold;
+  document.getElementById('silverCount').textContent = data.votes.silver;
+  document.getElementById('redCount').textContent = data.votes.red;
+  document.getElementById('votedNum').textContent = data.votedCount;
+  document.getElementById('totalNum').textContent = data.totalCount;
+  document.getElementById('votedStat').textContent = data.votedCount;
+  const pct = data.totalCount > 0 ? (data.votedCount/data.totalCount*100).toFixed(0) : 0;
+  document.getElementById('voteProgress').style.width = pct + '%';
+});
+
+socket.on('roundEnd', (data) => {
+  updateButtons('result');
+  updateLeaderboard(data.leaderboard);
+  addHistory(data.round, data.result.message);
+  showToast('本轮结束，可进行下一轮或结束游戏');
+});
+
+socket.on('gameOver', (data) => {
+  updateButtons('gameover');
+  updateLeaderboard(data.leaderboard);
+  showToast('游戏结束！', 'success');
+});
+
+socket.on('gameReset', () => {
+  showToast('游戏已重置');
+  setTimeout(() => location.reload(), 1000);
+});
+
+function setRounds(val) {
+  const r = parseInt(val);
+  if (r >= 1 && r <= 20) socket.emit('adminSetRounds', { rounds: r });
+}
+
+socket.on('settingsUpdate', (data) => {
+  if (data.totalRounds) document.getElementById('roundsInput').value = data.totalRounds;
+});
+</script>
+</body>
+</html>

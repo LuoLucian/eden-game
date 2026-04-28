@@ -1,0 +1,11 @@
+# Render 部署配置
+
+services:
+  - type: web
+    name: eden-game
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production

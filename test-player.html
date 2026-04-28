@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏛️ 伊甸园 — 玩家端</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* ===== 古希腊主题变量 ===== */
+:root{
+  --bg:#0c0f1a;--card:rgba(18,22,40,.92);--border:rgba(196,165,107,.18);
+  --text:#e8dcc8;--muted:#8a7e6e;--gold:#d4a853;--gold-light:#f0d48a;
+  --silver:#a8b4c4;--red:#c45c5c;--green:#6bb889;--purple:#a78bfa;
+  --marble:rgba(232,220,200,.06);--marble2:rgba(196,165,107,.08);
+  --olive:#7a9a5a;--temple:rgba(212,168,83,.12);
+}
+body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC','PingFang SC',serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;position:relative}
+
+.page{display:none;position:absolute;inset:0;flex-direction:column}
+.page.active{display:flex;z-index:1}
+
+/* ===== 古希腊装饰线条 ===== */
+.greek-border{border:1px solid var(--border);position:relative}
+.greek-border::before{content:'⁂';position:absolute;top:-8px;left:50%;transform:translateX(-50%);color:var(--gold);font-size:10px;background:var(--bg);padding:0 6px}
+.greek-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px 0;opacity:.35}
+
+/* ===== 加入页 ===== */
+#joinPage{align-items:center;justify-content:center;padding:30px 20px;background:radial-gradient(ellipse at 50% 15%,rgba(212,168,83,.08) 0%,transparent 60%);z-index:2}
+#joinCanvas{position:absolute;inset:0;pointer-events:none;z-index:0}
+.jc{position:relative;z-index:1;text-align:center;width:100%;max-width:360px}
+/* ★ 伊甸园 LOGO — 金色苹果+叶子 SVG */
+.logo-icon{width:64px;height:64px;display:block;margin:0 auto 12px;animation:flo 3s ease-in-out infinite}
+.logo-t{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:5px;font-style:italic}
+.logo-s{font-size:11px;color:var(--muted);letter-spacing:4px;margin-top:4px;text-transform:uppercase}
+.jc-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:26px 22px;margin-top:28px;text-align:center;backdrop-filter:blur(8px)}
+.jc-t{font-size:17px;font-weight:700;margin-bottom:8px;color:var(--gold-light)}
+.jc-d{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.btn-enter{width:100%;padding:15px;background:linear-gradient(135deg,#d4a853,#b8860b);border:1px solid rgba(240,212,138,.3);border-radius:12px;color:#1a1206;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:2px;transition:all .15s;font-family:inherit}
+.btn-enter:active{transform:scale(.97);filter:brightness(.9)}
+.restore-hint{margin-top:14px;padding:11px 14px;background:rgba(107,184,137,.07);border:1px solid rgba(107,184,137,.2);border-radius:10px;font-size:12.5px;color:var(--green);display:none;line-height:1.5}
+.restore-hint.show{display:block;animation:rhIn .4s ease}
+@keyframes rhIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== 等待页 — 身份+积分更显眼 ===== */
+#waitPage{align-items:center;justify-content:center;text-align:center;padding:35px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(167,139,250,.04) 0%,transparent 60%)}
+.w-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,rgba(212,168,83,.22),rgba(212,168,83,.05));border:2.5px solid rgba(212,168,83,.5);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;box-shadow:0 0 20px rgba(212,168,83,.15)}
+.w-name{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:2px;font-variant-numeric:tabular-nums;text-shadow:0 0 16px rgba(212,168,83,.3)}
+.w-score{font-size:15px;color:var(--muted);margin-bottom:28px;font-style:italic}
+.w-score b{font-size:20px;color:var(--green);font-weight:900}
+.w-status{padding:14px 22px;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:14.5px;color:var(--muted);margin-bottom:16px;transition:all .5s}
+.w-status.waiting{animation:bs 2s infinite}
+.w-status.ready{border-color:rgba(107,184,137,.4);color:var(--green);background:rgba(107,184,137,.05)}
+@keyframes bs{0%,100%{border-color:var(--border)}50%{border-color:rgba(212,168,83,.35)}}
+.w-count{font-size:13px;color:var(--muted)}.w-count b{color:var(--green);font-size:16px;font-weight:800}
+.w-warn{margin-top:12px;padding:9px 14px;background:rgba(196,92,92,.07);border:1px solid rgba(196,92,92,.18);border-radius:10px;font-size:13px;color:var(--red)}
+
+/* ===== 投票页顶栏 — 身份+积分超显眼 ===== */
+.vh{padding:12px 16px 10px;background:linear-gradient(135deg,rgba(212,168,83,.1),rgba(18,22,40,.95));border-bottom:2px solid rgba(212,168,83,.25);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+.vhl{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px}
+.vhl b{color:var(--gold);font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.vhr{font-size:10px;color:var(--muted);margin-top:1px}
+.vhs-r{text-align:right}
+.vhs-v{font-size:26px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;line-height:1.1;text-shadow:0 0 12px rgba(107,184,137,.25)}
+.vhs-l{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px}
+
+/* ★ 倒计时圆环 ★ */
+.cd-bar{display:none;padding:12px 16px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(212,168,83,.08));border-bottom:1px solid rgba(167,139,250,.25);align-items:center;justify-content:center;gap:14px;position:relative;overflow:hidden}
+.cd-bar::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.1),transparent 70%);pointer-events:none}
+.cd-bar.show{display:flex}
+
+/* 圆形倒计时 */
+.cd-ring{position:relative;width:54px;height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.cd-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.cd-ring circle{fill:none;stroke-width:4;cx:27;cy:27;r:22}
+.cd-ring-bg{stroke:rgba(255,255,255,.06)}
+.cd-ring-prog{stroke:#a78bfa;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
+.cd-ring-prog.warn{stroke:#fb923c}
+.cd-ring-prog.danger{stroke:#ef4444}
+
+.cd-ring-num{font-size:20px;font-weight:900;color:#c4b5fd;font-family:Georgia,'Noto Serif SC',serif;font-variant-numeric:tabular-nums;z-index:1;line-height:1}
+.cd-ring-num.warn{color:#fb923c}
+.cd-ring-num.danger{color:#ef4444;animation:cdPulse .3s infinite alternate}
+@keyframes cdPulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+
+.cd-bar-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.cd-bar-lbl{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-style:italic}
+.cd-bar-pct{width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.cd-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:2px;transition:width .3s}
+
+/* 时间到提示 */
+.cd-ended-bar{display:none;padding:10px 16px;background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(239,68,68,.03));border-bottom:1px solid rgba(239,68,68,.3);align-items:center;justify-content:center;gap:8px;animation:ceSlide .3s ease}
+.cd-ended-bar.show{display:flex}
+@keyframes ceSlide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.cd-ended-icon{animation:ceShake .6s ease-in-out infinite}
+@keyframes ceShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.cd-ended-txt{font-size:14px;font-weight:700;color:var(--red);font-family:Georgia,'Noto Serif SC',serif}
+.cd-ended-sub{font-size:10.5px;color:var(--muted);font-style:italic}
+
+.vc{flex:1;padding:16px 14px;overflow-y:auto}
+
+/* 投票等待开始 */
+.vw-start{text-align:center;padding:50px 20px}
+.vwi{font-size:44px;animation:flo 3s ease-in-out infinite;display:block;margin-bottom:14px}
+.vwt{font-size:17px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.vws{font-size:12.5px;color:var(--muted);opacity:.55}
+
+/* ★ 三个独立苹果按钮 ★ */
+.apple-lbl{font-size:11px;color:var(--muted);letter-spacing:3px;text-align:center;margin-bottom:10px;text-transform:uppercase;font-style:italic}
+.apple-lbl::before,.apple-lbl::after{content:' · ';opacity:.4}
+
+.abtn{width:100%;padding:14px 14px;border-radius:14px;border:2px solid transparent;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;gap:12px;transition:all .25s;margin-bottom:10px;position:relative;overflow:hidden;font-family:inherit;backdrop-filter:blur(4px)}
+.abtn:active{transform:scale(.97)}
+
+/* 金苹果 */
+.agold{background:linear-gradient(135deg,rgba(212,168,83,.14),rgba(212,168,83,.04));border-color:rgba(212,168,83,.4);color:var(--gold)}
+.agold.sel{background:linear-gradient(135deg,rgba(212,168,83,.3),rgba(212,168,83,.12));border-color:var(--gold);box-shadow:0 0 24px rgba(212,168,83,.3),inset 0 0 20px rgba(212,168,83,.1)}
+
+/* 银苹果 */
+.asilver{background:linear-gradient(135deg,rgba(168,180,196,.14),rgba(168,180,196,.04));border-color:rgba(168,180,196,.4);color:var(--silver)}
+.asilver.sel{background:linear-gradient(135deg,rgba(168,180,196,.28),rgba(168,180,196,.1));border-color:var(--silver);box-shadow:0 0 24px rgba(168,180,196,.25),inset 0 0 20px rgba(168,180,196,.08)}
+
+/* 红苹果 */
+.ared{background:linear-gradient(135deg,rgba(196,92,92,.14),rgba(196,92,92,.04));border-color:rgba(196,92,92,.4);color:var(--red)}
+.ared.sel{background:linear-gradient(135deg,rgba(196,92,92,.28),rgba(196,92,92,.1));border-color:var(--red);box-shadow:0 0 24px rgba(196,92,92,.3),inset 0 0 20px rgba(196,92,92,.1)}
+
+/* 苹果图标区 — 真正的立体苹果 */
+.ab-i{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:52px;height:52px;position:relative}
+.ab-i svg{width:40px;height:40px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+.ab-i-gold{background:transparent;box-shadow:none}
+.ab-i-silver{background:transparent;box-shadow:none}
+.ab-i-red{background:transparent;box-shadow:none}
+.ab-inf{flex:1;text-align:left}
+.ab-n{font-size:17px;font-weight:800;letter-spacing:1px}
+.ab-c{font-size:11px;opacity:.6;margin-top:2px;line-height:1.4}
+.ab-chk{position:absolute;right:14px;width:22px;height:22px;border-radius:50%;background:rgba(107,184,137,.18);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;color:var(--green);font-size:12px}
+.abtn.sel .ab-chk{opacity:1}
+
+.btn-conf{width:100%;padding:14px;border:1px solid rgba(107,184,137,.3);border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;letter-spacing:2px;transition:all .15s;font-family:inherit}
+.btn-conf:not(:disabled){background:linear-gradient(135deg,#6bb889,#4a9a6a);color:#fff}
+.btn-conf:disabled{background:rgba(255,255,255,.03);color:var(--muted);border-color:var(--border);cursor:not-allowed}
+
+/* 已投票卡片 */
+.voted-cd{text-align:center;padding:28px 18px;background:var(--card);border-radius:18px;margin:16px 12px;backdrop-filter:blur(8px);transition:all .3s}
+.voted-cd.vc-gold{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.4)}
+.voted-cd.vc-silver{background:rgba(168,180,196,.08);border:1.5px solid rgba(168,180,196,.4)}
+.voted-cd.vc-red{background:rgba(196,92,92,.08);border:1.5px solid rgba(196,92,92,.4)}
+/* 苹果SVG图标 */
+.vi{margin-bottom:10px;display:flex;justify-content:center}
+.vi svg{width:64px;height:64px}
+.vt{font-size:18px;font-weight:900;margin-bottom:5px;letter-spacing:1px}
+.vt.vc-gold-t{color:var(--gold-light)}
+.vt.vc-silver-t{color:var(--silver)}
+.vt.vc-red-t{color:var(--red)}
+.vch{font-size:13px;color:var(--muted);margin-bottom:12px;font-style:italic}
+.vwt{font-size:12.5px;color:var(--muted)}
+
+/* 最终轮横幅 */
+.fr-banner{display:none;background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(167,139,250,.05));border:1px solid rgba(167,139,250,.4);border-radius:9px;padding:9px 13px;font-size:12.5px;color:#c4b5fd;text-align:center;margin-bottom:10px;line-height:1.5;font-style:italic}
+.fr-banner strong{color:#e879f9}
+
+/* ★ 加注系统 */
+.bet-section{margin:10px 0 6px;padding:14px;background:rgba(232,220,200,.03);border:1px solid rgba(232,220,200,.08);border-radius:13px;text-align:center;transition:all .3s}
+.bet-section.locked{opacity:.35;pointer-events:none}
+.bet-section.locked .bet-display{color:var(--muted) !important}
+.bet-lbl{font-size:13px;color:var(--muted);margin-bottom:8px;letter-spacing:1px}
+.bet-lbl span{color:var(--gold);font-weight:700}
+.bet-display{font-size:28px;font-weight:900;color:var(--gold-light);margin-bottom:10px;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.bet-controls{display:flex;align-items:center;justify-content:center;gap:10px}
+.bet-btn{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--border);background:rgba(232,220,200,.04);color:var(--text);font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit}
+.bet-btn:active{transform:scale(.9);background:rgba(212,168,83,.15)}
+.bet-btn:disabled{opacity:.2;cursor:not-allowed}
+.bet-max{padding:8px 16px;border-radius:20px;border:1px solid rgba(212,168,83,.25);background:rgba(212,168,83,.08);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .15s}
+.bet-max:active{transform:scale(.95)}
+.bet-info{font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;line-height:1.4}
+.bet-info span{color:var(--red);font-weight:700}
+
+/* ===== 结果页 ===== */
+#resultPage{padding:22px 14px;overflow-y:auto;background:radial-gradient(ellipse at 50% 30%,rgba(212,168,83,.06) 0%,transparent 60%)}
+.rt{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--gold);text-align:center;letter-spacing:2px}
+.rmc{border-radius:18px;padding:20px;text-align:center;margin-bottom:16px;backdrop-filter:blur(6px)}
+.rwin{background:rgba(107,184,137,.08);border:1px solid rgba(107,184,137,.25)}
+.rlose{background:rgba(196,92,92,.08);border:1px solid rgba(196,92,92,.25)}
+.rneut{background:var(--card);border:1px solid var(--border)}
+.rspec{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25)}
+.re{font-size:42px;display:block;margin-bottom:8px}
+.ro{font-size:20px;font-weight:800;margin-bottom:5px}
+.rwin .ro{color:var(--green)}.rlose .ro{color:var(--red)}.rneut .ro{color:var(--muted)}.rspec .ro{color:#c084fc}
+.rch{font-size:26px;font-weight:900}.cp{color:var(--green)}.cn{color:var(--red)}.cz{color:var(--muted)}
+.rtot{font-size:13px;color:var(--muted);margin-top:5px;font-style:italic}
+.rtot span{color:var(--green);font-weight:700;font-size:17px}
+.rmsg{padding:14px;background:var(--card);border-radius:12px;border:1px solid var(--border);font-size:13px;color:rgba(232,220,200,.55);text-align:center;line-height:1.6;margin-bottom:14px;font-style:italic}
+.rvs{margin-bottom:14px}
+.rvt{font-size:12px;color:var(--muted);margin-bottom:9px;letter-spacing:2px;text-align:center;font-style:italic}
+.rvb{display:flex;gap:7px}
+.rvbi{flex:1;text-align:center}
+.rvc{font-size:21px;font-weight:800}.rg{color:var(--gold)}.rs{color:var(--silver)}.rr{color:var(--red)}
+.rvn{font-size:10.5px;color:var(--muted);margin-top:2px}
+.rwait{text-align:center;font-size:13px;color:var(--muted);padding:10px;font-style:italic}
+
+/* ===== 全体胜利 ===== */
+#awPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(107,184,137,.22) 0%,var(--bg) 70%)}
+.aw-e{font-size:72px;display:block;animation:bnc .7s infinite alternate;margin-bottom:12px}
+.aw-t{font-size:36px;font-weight:900;margin:16px 0 8px;background:linear-gradient(135deg,#6bb889,var(--gold),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px}
+.aw-s{font-size:15px;color:rgba(232,220,200,.55);line-height:1.6;font-style:italic}
+
+/* ===== 游戏结束 ===== */
+#goPage{padding:22px 14px;overflow-y:auto;text-align:center}
+.go-t{font-size:26px;font-weight:900;color:var(--gold);margin-bottom:6px;letter-spacing:3px}
+.go-s{font-size:13px;color:var(--muted);margin-bottom:22px;font-style:italic}
+.mf-c{padding:18px;background:var(--card);border:1px solid var(--border);border-radius:15px;margin-bottom:18px}
+.mf-l{font-size:12px;color:var(--muted);margin-bottom:3px}
+.mf-sc{font-size:36px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums}
+.mf-rk{font-size:15px;color:var(--gold);margin-top:4px}
+.tpl{list-style:none;padding:0}
+.tpi{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:11px;margin-bottom:7px;font-size:14px}
+.tpi.me{border-color:rgba(212,168,83,.35);background:rgba(212,168,83,.05)}
+.tp-md{font-size:16px;width:22px}.tp-nm{flex:1;text-align:left;font-variant-numeric:tabular-nums}.tp-sc{color:var(--green);font-weight:700}
+
+/* ===== 淘汰页 ===== */
+#elPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(196,92,92,.15) 0%,var(--bg) 70%);position:relative;overflow:hidden}
+.el-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.el-bg::before,.el-bg::after{content:'';position:absolute;width:180px;height:180px;border-radius:50%;opacity:.06;animation:ef 4s ease-in-out infinite alternate}
+.el-bg::before{background:#c45c5c;top:-50px;left:-30px}
+.el-bg::after{background:#b84444;bottom:-70px;right:-20px;animation-delay:-2s}
+@keyframes ef{from{transform:translateY(0)}to{transform:translateY(25px)}}
+.el-card{position:relative;z-index:1;padding:30px 24px;background:rgba(196,92,92,.06);border:2px solid rgba(196,92,92,.2);border-radius:22px;max-width:330px;width:90%;animation:ePop .55s cubic-bezier(.34,1.56,.64,1)}
+@keyframes ePop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.el-em{font-size:64px;display:block;margin-bottom:10px;animation:eSh .75s ease-in-out}
+@keyframes eSh{0%{transform:rotate(0)}20%{transform:rotate(-7deg)}40%{transform:rotate(7deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(2px)}100%{transform:rotate(0)}}
+.el-t{font-size:24px;font-weight:900;color:#c45c5c;margin-bottom:5px}
+.el-nm{font-size:17px;color:var(--text);margin-bottom:14px;font-variant-numeric:tabular-nums}
+.el-sl{font-size:12.5px;color:var(--muted)}
+.el-sv{font-size:33px;font-weight:900;color:#c45c5c;font-variant-numeric:tabular-nums}
+.el-msg{font-size:13px;color:rgba(232,220,200,.4);line-height:1.7;margin-top:18px;padding-top:14px;border-top:1px solid rgba(196,92,92,.14);font-style:italic}
+
+/* 重置提示 */
+.reset-overlay{position:fixed;inset:0;z-index:999;background:rgba(12,15,26,.95);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.reset-overlay.hidden{display:none}
+.rcd{text-align:center;padding:28px 22px;background:var(--card);border:1px solid var(--border);border-radius:18px;max-width:310px;width:92%}
+.rci{font-size:44px;display:block;margin-bottom:10px}
+.rct{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:6px}
+.rcd-d{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6}
+.rc-btn{padding:11px 26px;background:linear-gradient(135deg,#d4a853,#b8860b);border:1px solid rgba(240,212,138,.3);border-radius:10px;color:#1a1206;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* 碎片特效 */
+.fg-container{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.fg{position:absolute;background:#c45c5c;border-radius:2.5px;animation:fFall 1.4s ease-in forwards}
+@keyframes fFall{0%{transform:translateY(0)rotate(0);opacity:1}100%{transform:translateY(110vh)rotate(720deg);opacity:0}}
+@keyframes flo{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes bnc{from{transform:translateY(0)}to{transform:translateY(-14px)}}
+</style>
+</head>
+<body>
+
+<!-- ===== 加入页 ===== -->
+<div id="joinPage" class="page active">
+<canvas id="joinCanvas"></canvas>
+<div class="jc">
+  <div class="logo-icon">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+      <defs>
+        <linearGradient id="logoAppleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#f0d48a"/>
+          <stop offset="40%" style="stop-color:#d4a853"/>
+          <stop offset="80%" style="stop-color:#b8860b"/>
+          <stop offset="100%" style="stop-color:#9a7209"/>
+        </linearGradient>
+        <linearGradient id="logoLeafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#6bb889"/>
+          <stop offset="100%" style="stop-color:#3d8b5a"/>
+        </linearGradient>
+        <filter id="logoGlow">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- 苹果主体 -->
+      <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#logoAppleGrad)" filter="url(#logoGlow)"/>
+      <!-- 苹果高光 -->
+      <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.2)" transform="rotate(-15 23 32)"/>
+      <!-- 梗 -->
+      <path d="M32 17 Q33 10 35 6" stroke="#8b6914" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <!-- 叶子 -->
+      <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="url(#logoLeafGrad)"/>
+      <!-- 叶脉 -->
+      <path d="M35 11 Q39 10 43 10" stroke="rgba(255,255,255,.25)" stroke-width="0.8" fill="none"/>
+    </svg>
+  </div>
+  <div class="logo-t" style="background:linear-gradient(135deg,#d4a853,#6bb889);-webkit-background-clip:text;-webkit-text-fill-color:transparent">伊甸园</div>
+  <div class="logo-s">EDEN · TEAM GAME</div>
+  <div class="jc-card greek-border">
+    <div class="jc-t">🍎 加入游戏</div>
+    <div class="jc-d">系统将随机分配你的数字编号<br>用这个编号参与本轮游戏</div>
+    <button class="btn-enter" onclick="doJoin()">加入游戏 →</button>
+    <div class="restore-hint" id="restoreHint"></div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 等待页 ===== -->
+<div id="waitPage" class="page">
+  <div class="w-avatar" id="wAv">#</div>
+  <div class="w-name" id="wNm">#001</div>
+  <div class="w-score">初始积分：<strong>10,000</strong></div>
+  <div class="greek-line"></div>
+  <div class="w-status waiting" id="wSt">⏳ 等待主持人开始...</div>
+  <div class="w-count">已有 <b id="wCnt">0</b> 位玩家就位</div>
+  <div class="w-warn" id="wWarn" style="display:none">⚠️ 游戏尚未开始</div>
+</div>
+
+<!-- ===== 投票页 ===== -->
+<div id="votePage" class="page">
+  <div class="vh">
+    <div><div class="vhl">身份 <b id="vhNm">#001</b></div><div class="vhr" id="vhRd">第1轮</div></div>
+    <div class="vhs-r"><div class="vhs-v" id="vhSc">10,000</div><div class="vhs-l">积 分</div></div>
+  </div>
+  <!-- ★ 倒计时圆环 ★ -->
+  <div class="cd-bar" id="cdBar">
+    <div class="cd-ring">
+      <svg viewBox="0 0 54 54">
+        <circle class="cd-ring-bg"/>
+        <circle class="cd-ring-prog" id="cdRingProg" stroke-dasharray="138.2" stroke-dashoffset="0"/>
+      </svg>
+      <div class="cd-ring-num" id="cdNum">60</div>
+    </div>
+    <div class="cd-bar-info">
+      <div class="cd-bar-lbl">投票倒计时</div>
+      <div class="cd-bar-pct"><div class="cd-bar-fill" id="cdFill" style="width:100%"></div></div>
+    </div>
+  </div>
+  <!-- 时间到 -->
+  <div class="cd-ended-bar" id="cdEndedBar">
+    <span class="cd-ended-icon">⏳</span>
+    <div><div class="cd-ended-txt">时间到！</div><div class="cd-ended-sub">等待结算</div></div>
+  </div>
+  <div class="vc">
+    <!-- 等待游戏开始 -->
+    <div id="vwStart" class="vw-start">
+      <div class="vwi">🔒</div>
+      <div class="vwt">等待游戏开始</div>
+      <div class="vws">请等待主持人开启本轮投票</div>
+    </div>
+
+    <!-- 投票区域 -->
+    <div id="voteArea" style="display:none">
+      <div class="fr-banner" id="frBanner">🏁 <strong>最终轮！</strong> 红≥总-10 触发全体胜利！</div>
+
+      <!-- 已投票 -->
+      <div id="votedCard" class="voted-cd" style="display:none">
+        <div class="vi" id="votedIcon"></div>
+        <div class="vt" id="votedTitle">已提交投票</div>
+        <div class="vch" id="votedChText"></div>
+        <div class="vwt">等待结算结果...</div>
+      </div>
+
+      <!-- 选择按钮 — 加注 + 三个独立苹果 -->
+      <div id="btnArea">
+        <div class="apple-lbl">选择你的苹果</div>
+
+        <!-- ★ 加注区 — 始终显示，最后三轮才可用 -->
+        <div class="bet-section" id="betSection">
+          <div class="bet-lock-hint" id="betLockHint" style="display:none;font-size:11.5px;color:var(--red);margin-bottom:6px;font-weight:700;letter-spacing:1px">🔒 最后三轮解锁加注</div>
+          <div class="bet-lbl">加注倍率 · 当前积分 <span id="betCurScore">10000</span></div>
+          <div class="bet-display" id="betDisplay">+0</div>
+          <div class="bet-controls">
+            <button class="bet-btn" id="betMinus" onclick="changeBet(-500)" disabled>−</button>
+            <button class="bet-btn" id="betPlus500" onclick="changeBet(500)">+</button>
+            <button class="bet-btn" id="betPlus1000" onclick="changeBet(1000)">+</button>
+            <button class="bet-max" onclick="setMaxBet()">最大加注</button>
+          </div>
+          <div class="bet-info">每次加注 500 积分 · 赢：额外获得加注额 · 输：额外扣除2倍加注额<br><span>高风险高收益 · 加注不能导致输后负分</span></div>
+        </div>
+        <button class="abtn agold" id="bGold" ontouchstart="selApple('gold')" onclick="selApple('gold')">
+          <div class="ab-i ab-i-gold">
+            <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="agGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ffe4a0"/><stop offset="30%" style="stop-color:#f0d48a"/><stop offset="65%" style="stop-color:#d4a853"/><stop offset="100%" style="stop-color:#9a7209"/>
+                </linearGradient>
+                <linearGradient id="agGoldLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#7ec88a"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 10 C11 8 2 16 2 28 C2 39 9 43 17 41 C18.5 40.6 19.3 39.8 20 39.3 C20.7 39.8 21.5 40.6 23 41 C31 43 38 39 38 28 C38 16 29 8 20 10 Z" fill="url(#agGold)"/>
+              <ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.22)" transform="rotate(-20 13 22)"/>
+              <path d="M20 9 Q21 3 23 0" stroke="#8b6914" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M22 3 Q30 -2 31 5 Q30 10 24 8 Q21.5 7 22 3 Z" fill="url(#agGoldLeaf)"/>
+            </svg>
+          </div>
+          <div class="ab-inf"><div class="ab-n">金苹果</div><div class="ab-c">Golden Apple · 稀有选择</div></div>
+          <div class="ab-chk">✓</div>
+        </button>
+        <button class="abtn asilver" id="bSilver" ontouchstart="selApple('silver')" onclick="selApple('silver')">
+          <div class="ab-i ab-i-silver">
+            <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="agSilver" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#e8eef5"/><stop offset="30%" style="stop-color:#c8d4e2"/><stop offset="65%" style="stop-color:#94a3b8"/><stop offset="100%" style="stop-color:#5a6a7e"/>
+                </linearGradient>
+                <linearGradient id="agSilverLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#7ec88a"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 10 C11 8 2 16 2 28 C2 39 9 43 17 41 C18.5 40.6 19.3 39.8 20 39.3 C20.7 39.8 21.5 40.6 23 41 C31 43 38 39 38 28 C38 16 29 8 20 10 Z" fill="url(#agSilver)"/>
+              <ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.3)" transform="rotate(-20 13 22)"/>
+              <path d="M20 9 Q21 3 23 0" stroke="#6a7a8e" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M22 3 Q30 -2 31 5 Q30 10 24 8 Q21.5 7 22 3 Z" fill="url(#agSilverLeaf)"/>
+            </svg>
+          </div>
+          <div class="ab-inf"><div class="ab-n">银苹果</div><div class="ab-c">Silver Apple · 稳健选择</div></div>
+          <div class="ab-chk">✓</div>
+        </button>
+        <button class="abtn ared" id="bRed" ontouchstart="selApple('red')" onclick="selApple('red')">
+          <div class="ab-i ab-i-red">
+            <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="agRed" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#ff8888"/><stop offset="30%" style="stop-color:#e06060"/><stop offset="65%" style="stop-color:#c45c5c"/><stop offset="100%" style="stop-color:#7a2e2e"/>
+                </linearGradient>
+                <linearGradient id="agRedLeaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#7ec88a"/><stop offset="100%" style="stop-color:#3d8b5a"/>
+                </linearGradient>
+              </defs>
+              <path d="M20 10 C11 8 2 16 2 28 C2 39 9 43 17 41 C18.5 40.6 19.3 39.8 20 39.3 C20.7 39.8 21.5 40.6 23 41 C31 43 38 39 38 28 C38 16 29 8 20 10 Z" fill="url(#agRed)"/>
+              <ellipse cx="13" cy="22" rx="4" ry="5.5" fill="rgba(255,255,255,.2)" transform="rotate(-20 13 22)"/>
+              <path d="M20 9 Q21 3 23 0" stroke="#6e3030" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M22 3 Q30 -2 31 5 Q30 10 24 8 Q21.5 7 22 3 Z" fill="url(#agRedLeaf)"/>
+            </svg>
+          </div>
+          <div class="ab-inf"><div class="ab-n">红苹果</div><div class="ab-c">Red Apple · 勇敢选择</div></div>
+          <div class="ab-chk">✓</div>
+        </button>
+        <button class="btn-conf" id="confBtn" disabled onclick="confirmVote()">确认投票</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 结果页 ===== -->
+<div id="resultPage" class="page">
+  <div class="rt">🍎 本轮结果</div>
+  <div id="rmc" class="rmc rneut">
+    <span class="re" id="reEmoji">❓</span>
+    <div class="ro" id="reOutcome">—</div>
+    <div class="rch" id="reChange">—</div>
+    <div class="rtot" id="reBetInfo" style="display:none">加注：<span id="reBetAmt">0</span></div>
+    <div class="rtot">当前积分：<span id="reTotal">0</span></div>
+  </div>
+  <div class="rmsg" id="reMsg"></div>
+  <div class="rvs">
+    <div class="rvt">本轮投票分布</div>
+    <div class="rvb">
+      <div class="rvbi"><div class="rvc rg" id="rvG">0</div><div class="rvn">🍎 金苹果</div></div>
+      <div class="rvbi"><div class="rvc rs" id="rvS">0</div><div class="rvn">🍎 银苹果</div></div>
+      <div class="rvbi"><div class="rvc rr" id="rvR">0</div><div class="rvn">🍎 红苹果</div></div>
+    </div>
+  </div>
+  <div class="rwait">等待下一轮...</div>
+</div>
+
+<!-- ===== 全体胜利 ===== -->
+<div id="awPage" class="page">
+  <span class="aw-e">🍎</span>
+  <div class="aw-t">全体胜利！</div>
+  <div class="aw-s">所有人选择了红苹果<br>团队的力量创造了奇迹！</div>
+</div>
+
+<!-- ===== 游戏结束 ===== -->
+<div id="goPage" class="page">
+  <div class="go-t">🏆 游戏结束</div>
+  <div class="go-s">所有轮次已完成</div>
+  <div class="mf-c">
+    <div class="mf-l">最终积分</div>
+    <div class="mf-sc" id="gfSc">—</div>
+    <div class="mf-rk" id="gfRk">—</div>
+  </div>
+  <ul class="tpl" id="gfList"></ul>
+</div>
+
+<!-- ===== 淘汰页 ===== -->
+<div id="elPage" class="page">
+  <div class="el-bg"></div>
+  <div class="fg-container" id="fgBox"></div>
+  <div class="el-card">
+    <span class="el-em">⚡</span>
+    <div class="el-t">很遗憾</div>
+    <div class="el-nm" id="elNm">#001</div>
+    <div class="el-sl">积分归零</div>
+    <div class="el-sv">0</div>
+    <div class="el-msg">你已被淘汰<br>可以继续观战 ⚔️</div>
+  </div>
+</div>
+
+<!-- ===== 重置提示 ===== -->
+<div id="rstOverlay" class="reset-overlay hidden">
+  <div class="rcd">
+    <div class="rci">🔄</div>
+    <div class="rct">游戏已重置</div>
+    <div class="rcd-d">主持人已重置游戏<br>你需要重新加入</div>
+    <button class="rc-btn" onclick="handleReset()">重新加入 →</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  常量 & 存储键
+// ============================================================
+const INIT_SCORE = 10000;
+const LOSE_PEN = 2000;   // ★ 输的基础惩罚
+const MAX_NUM = 100;
+const COUNTDOWN_SEC = 60;
+const S_KEY = 'eden_test_data';
+const MY_ID_K = 'eden_my_pid';
+const MY_NUM_K = 'eden_my_num';
+
+// ★ 生成苹果SVG图标（金/银/红三色）
+function appleSVG(type) {
+  const colors = {
+    gold: { body: '#d4a853', highlight: '#f0d48a', dark: '#9a7209', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' },
+    silver: { body: '#a8b4c4', highlight: '#d0dae6', dark: '#6b7a8c', leaf: '#7da88a', leafDark: '#4a7a5a', stem: '#6b7a5c' },
+    red: { body: '#c45c5c', highlight: '#e8a0a0', dark: '#8b3030', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' }
+  };
+  const c = colors[type] || colors.gold;
+  return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="abg${type}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${c.highlight}"/>
+        <stop offset="40%" style="stop-color:${c.body}"/>
+        <stop offset="80%" style="stop-color:${c.dark}"/>
+        <stop offset="100%" style="stop-color:${c.dark}"/>
+      </linearGradient>
+    </defs>
+    <path d="M32 18 C22 16 12 24 12 38 C12 52 20 58 28 56 C30 55.5 31 54.5 32 54 C33 54.5 34 55.5 36 56 C44 58 52 52 52 38 C52 24 42 16 32 18 Z" fill="url(#abg${type})"/>
+    <ellipse cx="23" cy="32" rx="5" ry="7" fill="rgba(255,255,255,.25)" transform="rotate(-15 23 32)"/>
+    <path d="M32 17 Q33 10 35 6" stroke="${c.stem}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M34 9 Q44 2 46 10 Q44 16 36 14 Q33 13 34 9 Z" fill="${c.leaf}"/>
+    <path d="M36 11 Q40 7 42 10" stroke="${c.leafDark}" stroke-width=".8" fill="none"/>
+  </svg>`;
+}
+
+// ★ 设置投票后的苹果UI显示
+function showVotedApple(type) {
+  const card = document.getElementById('votedCard');
+  const icon = document.getElementById('votedIcon');
+  const title = document.getElementById('votedTitle');
+  const chText = document.getElementById('votedChText');
+  const names = { gold: '金苹果', silver: '银苹果', red: '红苹果' };
+
+  // 清除旧的样式class
+  card.className = 'voted-cd vc-' + type;
+  // 设置SVG图标
+  icon.innerHTML = appleSVG(type);
+  // 标题
+  title.className = 'vt vc-' + type + '-t';
+  title.textContent = '已选择' + names[type];
+  // 描述
+  chText.textContent = '你选择了' + names[type];
+
+  document.getElementById('btnArea').style.display = 'none';
+  card.style.display = 'block';
+}
+const R_KEY = 'eden_reset_flag';
+
+// ============================================================
+//  我的状态
+// ============================================================
+let myId = null;
+let myNum = 0;
+let myScore = INIT_SCORE;
+let selChoice = null;
+let hasVoted = false;
+let isEliminated = false;
+let curBet = 0;            // ★ 当前加注额
+let curRound = 1;
+let lastResultRound = -1;
+let wasGameActive = false;
+let totalRounds = 8;
+let lastKnownRound = 1;        // ★ 追踪轮次变化，用于检测"下一轮"
+
+// ============================================================
+//  加入页粒子效果
+// ============================================================
+(function(){
+  const c=document.getElementById('joinCanvas'),ctx=c.getContext('2d');
+  let w,h;
+  function rs(){w=c.width=c.offsetWidth||375;h=c.offsetHeight||700}
+  rs();window.addEventListener('resize',rs);
+  const ps=Array.from({length:30},()=>({
+    x:Math.random()*w,y:Math.random()*h,
+    r:Math.random()*2+.4,dx:(Math.random()-.5)*.35,dy:-Math.random()*.45-.08,
+    a:Math.random()*.35+.08,
+    cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)]
+  }));
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    ps.forEach(p=>{
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.cl;ctx.globalAlpha=p.a;ctx.fill();
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r*2.8,0,Math.PI*2);
+      ctx.fillStyle=p.cl;ctx.globalAlpha=p.a*.12;ctx.fill();
+      p.x+=p.dx;p.y+=p.dy;
+      if(p.y<-15){p.y=h+15;p.x=Math.random()*w}
+      if(p.x<-15)p.x=w+15;if(p.x>w+15)p.x=-15;
+    });
+    ctx.globalAlpha=1;requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+function showPg(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function curPg(){for(const p of document.querySelectorAll('.page'))if(p.classList.contains('active'))return p.id;return''}
+
+// ============================================================
+//  身份持久化
+// ============================================================
+function saveId(){if(myId){localStorage.setItem(MY_ID_K,myId);localStorage.setItem(MY_NUM_K,String(myNum));}}
+function loadId(){
+  const i=localStorage.getItem(MY_ID_K), n=localStorage.getItem(MY_NUM_K);
+  if(i&&n){myId=i;myNum=parseInt(n);return true;}
+  return false;
+}
+function clearId(){localStorage.removeItem(MY_ID_K);localStorage.removeItem(MY_NUM_K);}
+
+// ============================================================
+//  数据读写
+// ============================================================
+let players={}, gameActive=false, lastResult=null, countdownEndTs=0;
+let gamePhase = 'idle';  // ★ idle | ready | voting | result — 精确阶段控制
+// ★ 需要在首次loadShared时根据gameActive+lastResult推导gamePhase
+
+function saveShared(){
+  // 手机端不写共享数据（只读），除了加入时
+}
+function loadShared(){
+  try{
+    const r=localStorage.getItem(S_KEY);
+    if(r){
+      const d=JSON.parse(r);
+      players=d.players||{};
+      curRound=d.currentRound||1;
+      totalRounds=d.totalRounds||8;
+      gameActive=!!d.gameActive;
+      lastResult=d.lastResult||null;
+      countdownEndTs=d.countdownEndTs||0;
+      // ★ 读取精确阶段 — 严格读取，不默认回退到voting
+      const validPhases = ['idle','ready','voting','result'];
+      if (d.phase && validPhases.includes(d.phase)) {
+        gamePhase = d.phase;
+      } else if (!gameActive) {
+        gamePhase = 'idle';
+      } else if (lastResult && lastResult.round === curRound) {
+        gamePhase = 'result';  // 有结果且轮次匹配 → result
+      }
+      // ★ 其他情况保持上次的gamePhase（不回退到voting，避免ready时误开投票）
+    }
+  }catch(e){}
+}
+
+// ============================================================
+//  倒计时更新（本地根据 countdownEndTs 计算）— 圆环+进度条
+// ============================================================
+const CD_RING_CIRCUMFERENCE = 2 * Math.PI * 22; // ≈ 138.2
+let lastCdRemaining = -1;
+
+function updateCountdown() {
+  const bar = document.getElementById('cdBar');
+  const endedBar = document.getElementById('cdEndedBar');
+  const numEl = document.getElementById('cdNum');
+  const ringProg = document.getElementById('cdRingProg');
+  const fillEl = document.getElementById('cdFill');
+
+  // ★ 关键：必须 gameActive=true 且有有效时间戳才显示
+  if (!gameActive || countdownEndTs <= 0) {
+    bar.classList.remove('show');
+    endedBar.classList.remove('show');
+    lastCdRemaining = -1;
+    return;
+  }
+
+  const remaining = Math.max(0, Math.ceil((countdownEndTs - Date.now()) / 1000));
+
+  if (remaining <= 0) {
+    // ★ 时间到！
+    bar.classList.remove('show');
+    endedBar.classList.add('show');
+    
+    // 只在刚变为0时更新
+    if (lastCdRemaining !== 0) {
+      numEl.textContent = '0';
+      numEl.className = 'cd-ring-num danger';
+      ringProg.style.strokeDashoffset = CD_RING_CIRCUMFERENCE;
+      ringProg.className = 'cd-ring-prog danger';
+      fillEl.style.width = '0%';
+    }
+    lastCdRemaining = 0;
+    return;
+  }
+
+  // ★ 有倒计时在跑
+  endedBar.classList.remove('show');
+  bar.classList.add('show');
+
+  // 只在数字变化时更新DOM（减少重绘）
+  if (remaining !== lastCdRemaining) {
+    lastCdRemaining = remaining;
+    numEl.textContent = remaining;
+    
+    const danger = remaining <= 10;
+    const warn = remaining <= 20 && !danger;
+    numEl.className = 'cd-ring-num' + (danger ? ' danger' : warn ? ' warn' : '');
+    ringProg.className = 'cd-ring-prog' + (danger ? ' danger' : warn ? ' warn' : '');
+    
+    // 圆环进度
+    const pct = remaining / COUNTDOWN_SEC;
+    const offset = CD_RING_CIRCUMFERENCE * (1 - pct);
+    ringProg.style.strokeDashoffset = offset;
+  }
+  
+  // 进度条实时更新（每200ms都刷新）
+  const fillPct = Math.max(0, Math.min(100, (remaining / COUNTDOWN_SEC) * 100));
+  fillEl.style.width = fillPct + '%';
+}
+
+// ============================================================
+//  心跳
+// ============================================================
+function hb(){if(myId)localStorage.setItem('eden_heartbeat',JSON.stringify({playerId:myId,num:myNum,ts:Date.now()}))}
+setInterval(hb,2000);
+
+// ============================================================
+//  ★ 并发安全加入 — 先占位再写入
+// ============================================================
+function doJoin(){
+  loadShared();
+
+  // 1. 尝试恢复旧身份
+  if(loadId() && players[myId]){
+    const p=players[myId];
+    if(!p || p.eliminated){
+      clearId();
+      createNew();
+      return;
+    }
+    // 恢复成功！
+    myScore = p.score||INIT_SCORE;
+    isEliminated = false;
+    hasVoted = !!p.voted;
+    selChoice = p.voteChoice||null;
+
+    const hint = document.getElementById('restoreHint');
+    hint.innerHTML = `✅ 身份恢复成功<br>#${String(myNum).padStart(3,'0')} · 积分 ${myScore.toLocaleString()}`;
+    hint.classList.add('show');
+
+    setTimeout(()=>{
+      hint.classList.remove('show');
+      enterLobby();
+    },1200);
+
+    return;
+  }
+
+  // 2. 无旧身份 → 创建新角色
+  createNew();
+}
+
+function createNew(){
+  // ★ 并发安全：重新读取最新数据
+  loadShared();
+
+  // ★ 从共享数据的 usedNums 中找可用编号
+  const usedNums = new Set(Object.values(players).map(p => p.num));
+  const available = [];
+  for (let n = 1; n <= MAX_NUM; n++) {
+    if (!usedNums.has(n)) available.push(n);
+  }
+
+  if (available.length === 0) {
+    alert('伊甸园已满！无法加入。');
+    return;
+  }
+
+  // ★ 随机选择一个编号
+  const newNum = available[Math.floor(Math.random() * available.length)];
+
+  // ★ 生成唯一 ID（包含时间戳+随机数，防冲突）
+  const newId = 'p_' + newNum + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+
+  // ★ 写入前再检查一次编号是否被占用（防并发）
+  loadShared();
+  const usedNums2 = new Set(Object.values(players).map(p => p.num));
+  if (usedNums2.has(newNum)) {
+    // 被抢了，递归重试
+    return createNew();
+  }
+
+  // 注册到共享数据
+  players[newId] = {
+    num: newNum,
+    score: INIT_SCORE,
+    eliminated: false,
+    voted: false,
+    voteChoice: null,
+    online: true,
+    lastSeen: Date.now()
+  };
+
+  myId = newId;
+  myNum = newNum;
+  myScore = INIT_SCORE;
+  isEliminated = false;
+  hasVoted = false;
+  selChoice = null;
+
+  // ★ 写入共享存储
+  const r = localStorage.getItem(S_KEY);
+  let d = {};
+  try { d = JSON.parse(r) || {}; } catch(e) {}
+  d.players = players;
+  d._ts = Date.now();
+  localStorage.setItem(S_KEY, JSON.stringify(d));
+  localStorage.setItem('eden_data_tick', String(Date.now()));
+
+  saveId();
+  enterLobby();
+}
+
+function enterLobby(){
+  const ns = String(myNum).padStart(3,'0');
+  document.getElementById('wAv').textContent = '#'+ns;
+  document.getElementById('wNm').textContent = '#'+ns;
+  updateWCount();
+  showPg('waitPage');
+}
+
+function updateWCount(){loadShared();document.getElementById('wCnt').textContent=Object.keys(players).length;}
+
+// ============================================================
+//  投票操作
+// ============================================================
+// ★ 加注系统 — 高风险高收益：赢+betAmt，输-2×betAmt
+function getMaxBet() {
+  // 输了扣 2000 + 2×betAmt，要保证 score - 2000 - 2×betAmt >= 0
+  // 即 betAmt <= (score - 2000) / 2
+  // 向下取整到500的倍数
+  const maxRaw = Math.max(0, Math.floor((myScore - LOSE_PEN) / 2));
+  return Math.floor(maxRaw / 500) * 500;
+}
+
+function changeBet(delta) {
+  if (hasVoted || isEliminated || !gameActive || gamePhase !== 'voting') return;
+  const maxBet = getMaxBet();
+  curBet = Math.max(0, Math.min(maxBet, curBet + delta));
+  updateBetUI();
+}
+
+function setMaxBet() {
+  if (hasVoted || isEliminated || !gameActive || gamePhase !== 'voting') return;
+  curBet = getMaxBet();
+  updateBetUI();
+}
+
+function updateBetUI() {
+  const maxBet = getMaxBet();
+  document.getElementById('betDisplay').textContent = curBet > 0 ? '+' + curBet : '0';
+  document.getElementById('betDisplay').style.color = curBet > 0 ? 'var(--gold-light)' : 'var(--muted)';
+  document.getElementById('betCurScore').textContent = myScore.toLocaleString();
+  document.getElementById('betMinus').disabled = curBet <= 0;
+  document.getElementById('betPlus500').disabled = curBet >= maxBet;
+  document.getElementById('betPlus1000').disabled = curBet + 1000 > maxBet;
+}
+
+function selApple(ch){
+  if(hasVoted||isEliminated||!gameActive||gamePhase!=='voting')return;
+  selChoice = ch;
+  document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById({gold:'bGold',silver:'bSilver',red:'bRed'}[ch]).classList.add('sel');
+  document.getElementById('confBtn').disabled = false;
+}
+
+function confirmVote(){
+  if(!selChoice||hasVoted||!myId||!gameActive||gamePhase!=='voting')return;
+  loadShared();
+  const p = players[myId];
+  if(!p||p.eliminated||!gameActive)return;
+
+  p.voted = true;
+  p.voteChoice = selChoice;
+  p.betAmount = curBet;    // ★ 写入加注额
+  hasVoted = true;
+
+  // 写入共享存储
+  const r = localStorage.getItem(S_KEY);
+  let d = {};
+  try { d = JSON.parse(r) || {}; } catch(e) {}
+  d.players = players;
+  d._ts = Date.now();
+  localStorage.setItem(S_KEY, JSON.stringify(d));
+  localStorage.setItem('eden_data_tick', String(Date.now()));
+
+  // ★ 显示对应苹果的UI
+  showVotedApple(selChoice);
+}
+
+// ============================================================
+//  ★ 核心轮询 — 实时同步 + 下一轮检测修复 + 重置检测
+// ============================================================
+let pollTimer = null;
+function startPolling(){
+  if(pollTimer) return;
+  pollTimer = setInterval(poll, 400);
+}
+
+function poll(){
+  loadShared();
+
+  // --- ★★★ 检测重置（最高优先级）★★★ ---
+  const resetTs = localStorage.getItem(R_KEY);
+  if(resetTs){
+    // 有重置标志 → 清除一切，回到加入页
+    handleReset();
+    return;
+  }
+
+  // --- 检测游戏停止+数据被清空（控制端点了重置但R_KEY还没来得及读） ---
+  if(wasGameActive && Object.keys(players).length === 0 && myId){
+    handleReset();
+    wasGameActive = false;
+    return;
+  }
+  wasGameActive = gameActive;
+
+  // 无身份时不处理
+  if(!myId || !players[myId]) return;
+
+  const p = players[myId];
+  myScore = p.score || 0;
+
+  // --- 检测淘汰 ---
+  if(p.eliminated && !isEliminated){
+    isEliminated = true;
+    clearId();
+    document.getElementById('elNm').textContent='#'+String(myNum).padStart(3,'0');
+    makeFragments();
+    showPg('elPage');
+    return;
+  }
+
+  const cp = curPg();
+
+  // ★★★ 检测"下一轮"：轮次变了 + gamePhase=voting（控制端点了开始投票）
+  if(gameActive && curRound !== lastKnownRound && gamePhase === 'voting'){
+    lastKnownRound = curRound;
+    // 新一轮开始了！重置投票状态
+    hasVoted = false;
+    selChoice = null;
+    initVoteUI();
+
+    if(cp === 'waitPage' || cp === 'resultPage'){
+      showPg('votePage');
+    }
+    return;
+  }
+  lastKnownRound = curRound;
+
+  // ========== 在等待页 ==========
+  if(cp === 'waitPage'){
+    updateWCount();
+    if(gameActive){
+      document.getElementById('wWarn').style.display='none';
+      document.getElementById('wSt').className = 'w-status ready';
+      // ★ 只有 phase=voting 才进入投票页
+      if(gamePhase === 'voting'){
+        document.getElementById('wSt').innerHTML = '✅ 投票已开始';
+        lastKnownRound = curRound;
+        initVoteUI();
+        showPg('votePage');
+        return;
+      } else {
+        document.getElementById('wSt').innerHTML = '⏳ 游戏进行中 · 等待投票开启';
+      }
+    } else {
+      document.getElementById('wWarn').style.display='block';
+      document.getElementById('wSt').className = 'w-status waiting';
+      document.getElementById('wSt').innerHTML = '⏳ <span style="color:var(--red)">等待主持人开始</span>';
+    }
+  }
+
+  // ========== 在投票页 ==========
+  if(cp === 'votePage'){
+    renderVoteHeader();
+
+    // ★ 只有 gamePhase === 'voting' 才显示投票区域
+    if(gameActive && gamePhase === 'voting'){
+      document.getElementById('vwStart').style.display='none';
+      document.getElementById('voteArea').style.display='block';
+
+      // ★ 更新加注UI（最后三轮解锁，否则锁定禁用）
+      myScore = p.score;
+      const remaining = (totalRounds||8) - curRound + 1;
+      const betSection = document.getElementById('betSection');
+      const betLockHint = document.getElementById('betLockHint');
+      if (remaining <= 3 && remaining > 0 && gameActive) {
+        // ★ 最后三轮 — 解锁
+        betSection.classList.remove('locked');
+        betLockHint.style.display = 'none';
+      } else if (gameActive) {
+        // ★ 非最后三轮 — 锁定显示但不可操作
+        betSection.classList.add('locked');
+        betLockHint.style.display = 'block';
+        betLockHint.textContent = `🔒 加注将在最后3轮解锁（当前第${curRound}轮，剩余${remaining-1}轮）`;
+        curBet = 0;
+      } else {
+        // 游戏未开始
+        betSection.classList.add('locked');
+        betLockHint.style.display = 'block';
+        betLockHint.textContent = '🔒 游戏开始后显示加注';
+        curBet = 0;
+      }
+      updateBetUI();
+
+      // 控制端帮我投的票？
+      if(p.voted && !hasVoted){
+        hasVoted = true;
+        selChoice = p.voteChoice;
+        showVotedApple(p.voteChoice);
+      }
+    } else if(gameActive && gamePhase !== 'voting') {
+      // ★ 游戏已开始但投票未开启（ready/result阶段）
+      document.getElementById('vwStart').style.display='block';
+      document.getElementById('vwStart').querySelector('.vwt').textContent = 
+        gamePhase === 'ready' ? '等待主持人开启投票' : '本轮已结算，等待下一轮';
+      document.getElementById('voteArea').style.display='none';
+    } else {
+      document.getElementById('vwStart').style.display='block';
+      document.getElementById('voteArea').style.display='none';
+    }
+  }
+
+  // ========== 结果检测 — phase=result 或有新结果 ==========
+  if((gamePhase === 'result' || (lastResult && lastResult.round !== lastResultRound)) && lastResult){
+    if(lastResult.round !== lastResultRound){
+      lastResultRound = lastResult.round;
+    }
+    showResult();
+    return;
+  }
+
+  // ========== 游戏结束检测 ==========
+  if(!gameActive && curRound >= (totalRounds||1) && lastResult && cp!=='goPage' && cp!=='elPage' && cp!=='awPage'){
+    setTimeout(showGameover,400);
+  }
+}
+
+// ★ 倒计时本地更新（200ms 精度）
+setInterval(updateCountdown, 200);
+
+function renderVoteHeader(){
+  const ns = String(myNum).padStart(3,'0');
+  document.getElementById('vhNm').textContent='#'+ns;
+  document.getElementById('vhSc').textContent=myScore.toLocaleString();
+  document.getElementById('vhRd').textContent='第'+curRound+'轮';
+  document.getElementById('frBanner').style.display=(curRound>=totalRounds)?'block':'none';
+}
+
+function initVoteUI(){
+  renderVoteHeader();
+  document.getElementById('votedCard').style.display='none';
+  document.getElementById('btnArea').style.display='block';
+  document.getElementById('voteArea').style.display='block';
+  document.getElementById('vwStart').style.display='none';
+  document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('confBtn').disabled = true;
+  selChoice = null; hasVoted = false;
+  curBet = 0;
+  // ★ 加注区：最后三轮解锁，否则锁定
+  const remaining = (totalRounds||8) - curRound + 1;
+  const betSection = document.getElementById('betSection');
+  const betLockHint = document.getElementById('betLockHint');
+  if (remaining <= 3 && remaining > 0) {
+    betSection.classList.remove('locked');
+    betLockHint.style.display = 'none';
+  } else {
+    betSection.classList.add('locked');
+    betLockHint.style.display = 'block';
+    betLockHint.textContent = `🔒 加注将在最后3轮解锁（当前第${curRound}轮，剩余${remaining-1}轮）`;
+  }
+  updateBetUI();
+}
+
+// ============================================================
+//  显示结果
+// ============================================================
+function showResult(){
+  loadShared();
+  if(!myId||!players[myId])return;
+  const p = players[myId];
+  myScore = p.score;
+
+  if(p.eliminated && !isEliminated){
+    isEliminated=true;
+    clearId();
+    document.getElementById('elNm').textContent='#'+String(myNum).padStart(3,'0');
+    makeFragments();
+    showPg('elPage');
+    return;
+  }
+
+  // ★ 最终轮 — 直接展示完整排行榜
+  if(lastResult && lastResult.isFinal){
+    showGameover();
+    return;
+  }
+
+  if(lastResult.result.specialEvent==='all_red'){showPg('awPage');return;}
+
+  const card=document.getElementById('rmc'), emoji=document.getElementById('reEmoji'),
+        outcome=document.getElementById('reOutcome'), change=document.getElementById('reChange');
+  card.className='rmc';
+
+  if(!p.voted){
+    card.classList.add('rlose');emoji.textContent='😔';outcome.textContent='未投票';change.innerHTML='<span class="cn">-2000</span>';
+  } else if(p.lastChange>0){
+    card.classList.add('rwin');emoji.textContent='🍎';outcome.textContent='得分！';change.innerHTML='<span class="cp">+'+p.lastChange+'</span>';
+  } else if(p.lastChange<0){
+    card.classList.add('rlose');emoji.textContent='⚡';outcome.textContent='扣分';change.innerHTML='<span class="cn">'+p.lastChange+'</span>';
+  } else {
+    card.classList.add('rneut');emoji.textContent='⚖️';outcome.textContent='天平持平';change.innerHTML='<span class="cz">±0</span>';
+  }
+
+  // ★ 显示加注信息
+  const betAmt = p.betAmount || 0;
+  const betInfo = document.getElementById('reBetInfo');
+  if (betAmt > 0 && p.voted) {
+    betInfo.style.display = 'block';
+    document.getElementById('reBetAmt').textContent = '+' + betAmt.toLocaleString();
+  } else {
+    betInfo.style.display = 'none';
+  }
+
+  document.getElementById('reTotal').textContent=myScore.toLocaleString();
+  document.getElementById('reMsg').textContent=lastResult.result.message||'';
+  document.getElementById('rvG').textContent=lastResult.votes.gold;
+  document.getElementById('rvS').textContent=lastResult.votes.silver;
+  document.getElementById('rvR').textContent=lastResult.votes.red;
+  showPg('resultPage');
+}
+
+// ============================================================
+//  游戏结束
+// ============================================================
+function showGameover(){
+  loadShared();
+  const sorted=[...Object.values(players)].sort((a,b)=>b.score-a.score);
+  const myIdx=sorted.findIndex(p=>p.num===myNum);
+  document.getElementById('gfSc').textContent=myScore.toLocaleString();
+  document.getElementById('gfRk').textContent=myIdx>=0?'第 '+(myIdx+1)+' 名':'';
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('gfList').innerHTML=sorted.slice(0,10).map((p,i)=>
+    '<li class="tpi '+(p.num===myNum?'me':'')+'">'+
+    '<span class="tp-md">'+(medals[i]||(i+1))+'</span>'+
+    '<span class="tp-nm">#'+String(p.num).padStart(3,'0')+(p.num===myNum?' (你)':'')+'</span>'+
+    '<span class="tp-sc">'+p.score.toLocaleString()+'</span></li>'
+  ).join('');
+  showPg('goPage');
+}
+
+// ============================================================
+//  重置处理
+// ============================================================
+function showResetOverlay(){document.getElementById('rstOverlay').classList.remove('hidden');}
+
+function handleReset(){
+  // ★ 彻底清除所有状态
+  document.getElementById('rstOverlay').classList.add('hidden');
+  clearId();
+  localStorage.removeItem(R_KEY);
+  myId = null; myNum = 0; myScore = INIT_SCORE;
+  isEliminated = false; hasVoted = false; selChoice = null; curBet = 0;
+  lastResultRound = -1; wasGameActive = false; lastKnownRound = 1;
+  countdownEndTs = 0; lastCdRemaining = -1;
+  players = {}; gameActive = false; lastResult = null;
+  gamePhase = 'idle';  // ★ 重置阶段
+
+  // 清理UI
+  document.getElementById('cdBar').classList.remove('show');
+  document.getElementById('cdEndedBar').classList.remove('show');
+
+  showPg('joinPage');
+}
+
+// ============================================================
+//  碎片特效
+// ============================================================
+function makeFragments(){
+  const c=document.getElementById('fgBox');c.innerHTML='';
+  for(let i=0;i<35;i++){
+    const f=document.createElement('div');f.className='fg';
+    f.style.left=Math.random()*100+'%';f.style.top='-10px';
+    const s=3+Math.random()*12;f.style.width=s+'px';f.style.height=s+'px';
+    f.style.background=['#c45c5c','#b84444','#d4a853','#6bb889'][Math.floor(Math.random()*4)];
+    f.style.animationDelay=Math.random()*.7+'s';
+    f.style.animationDuration=(1+Math.random()*1.3)+'s';
+    c.appendChild(f);
+  }
+  setTimeout(()=>c.innerHTML='',3500);
+}
+
+// ============================================================
+//  启动入口
+// ============================================================
+window.addEventListener('DOMContentLoaded',()=>{
+  loadShared();
+  loadId();
+
+  if(myId && players[myId]){
+    const p = players[myId];
+    if(p && !p.eliminated){
+      myScore = p.score||INIT_SCORE;
+      isEliminated = false;
+      hasVoted = !!p.voted;
+      selChoice = p.voteChoice||null;
+      lastKnownRound = curRound;
+
+      if(isEliminated){
+        clearId();
+      } else {
+        enterLobby();
+        // 如果游戏已在进行中，根据阶段跳转
+        if(gameActive){
+          if(lastResult && lastResult.round === curRound){
+            // 正在显示结果 — 等poll处理
+          } else if(gamePhase === 'voting'){
+            // ★ 只有voting阶段才进入投票页
+            initVoteUI();
+            showPg('votePage');
+          }
+          // ready/result阶段 — 保持在等待页，等poll处理
+        }
+        return;
+      }
+    } else {
+      clearId();
+    }
+  }
+});
+
+window.addEventListener('storage', e=>{
+  if(e.key===S_KEY||e.key==='eden_data_tick') poll();
+});
+
+startPolling();
+</script>
+</body>
+</html>
