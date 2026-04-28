@@ -195,12 +195,18 @@ function applyResult(result) {
       change = -NO_VOTE_PENALTY;
     } else {
       const choice = player.voteChoice;
+      const betAmt = player.betAmount || 0;  // ★ 加注额
       if (result.winners.includes(choice)) {
-        player.score += WIN_REWARD;
-        change = WIN_REWARD;
+        // 赢：基础 +1000 + 加注额
+        const totalWin = WIN_REWARD + betAmt;
+        player.score += totalWin;
+        change = totalWin;
       } else if (result.losers.includes(choice)) {
-        player.score -= LOSE_PENALTY;
-        change = -LOSE_PENALTY;
+        // 输：基础 -2000 - 2×加注额，保底0
+        const totalPenalty = LOSE_PENALTY + betAmt * 2;
+        const actualPenalty = Math.min(totalPenalty, player.score);
+        player.score -= actualPenalty;
+        change = -actualPenalty;
       }
     }
 
@@ -310,13 +316,66 @@ io.on('connection', (socket) => {
     }
     const trimName = (name || '').trim().slice(0, 10) || ('玩家' + socket.id.slice(0, 4));
     const num = assignPlayerNum();
-    gameState.players[socket.id] = { name: trimName, num, score: INITIAL_SCORE, eliminated: false, voted: false, voteChoice: null };
+    gameState.players[socket.id] = { name: trimName, num, score: INITIAL_SCORE, eliminated: false, voted: false, voteChoice: null, betAmount: 0 };
     socket.emit('joinSuccess', { name: trimName, num, score: INITIAL_SCORE, playerId: socket.id });
     io.emit('playerListUpdate', { players: getLeaderboard(), count: Object.keys(gameState.players).length });
     console.log(`玩家 ${trimName}(#${num}) 加入，当前人数: ${Object.keys(gameState.players).length}`);
   });
 
-  socket.on('vote', ({ choice }) => {
+  // ★ 玩家重连恢复（锁屏后重连）
+  socket.on('reconnectPlayer', ({ playerId, num }) => {
+    // 查找旧玩家数据（用编号匹配）
+    let oldPlayer = null;
+    let oldId = null;
+    for (const id in gameState.players) {
+      if (gameState.players[id].num === num) {
+        oldPlayer = gameState.players[id];
+        oldId = id;
+        break;
+      }
+    }
+    if (!oldPlayer) {
+      socket.emit('joinError', { message: '找不到你的游戏数据，请重新加入' });
+      return;
+    }
+
+    // 把旧数据迁移到新 socket.id
+    gameState.players[socket.id] = { ...oldPlayer };
+    delete gameState.players[oldId];
+
+    // 发送恢复成功事件 + 当前游戏状态
+    socket.emit('joinSuccess', { name: gameState.players[socket.id].name, num: gameState.players[socket.id].num, score: gameState.players[socket.id].score, playerId: socket.id });
+
+    // 根据当前游戏状态恢复页面
+    if (gameState.status === 'voting') {
+      const isFinalRound = gameState.round >= gameState.totalRounds;
+      socket.emit('gameStart', { round: gameState.round, timer: gameState.timer, totalRounds: gameState.totalRounds, isFinalRound, activePlayerCount: getActivePlayerCount() });
+      // 如果已投票，补发投票确认
+      if (gameState.players[socket.id].voted) {
+        socket.emit('voteSuccess', { choice: gameState.players[socket.id].voteChoice, score: gameState.players[socket.id].score });
+      }
+    } else if (gameState.status === 'result' && gameState.roundResult) {
+      // 结算阶段 — 发送结果
+      const result = gameState.roundResult;
+      const change = result.scoreChanges[socket.id];
+      if (change) {
+        socket.emit('myResult', {
+          voted: gameState.players[socket.id].voted,
+          choice: gameState.players[socket.id].voteChoice,
+          change: change.change,
+          total: gameState.players[socket.id].score,
+          eliminated: gameState.players[socket.id].eliminated,
+          specialEvent: result.specialEvent || null,
+          message: result.message,
+          isFinalRound: result.isFinalRound
+        });
+      }
+    }
+
+    console.log(`玩家 ${gameState.players[socket.id].name}(#${num}) 重连恢复`);
+  });
+
+  socket.on('vote', ({ choice, betAmount }) => {
     const player = gameState.players[socket.id];
     if (!player) { socket.emit('voteError', { message: '你还没有加入游戏' }); return; }
     if (gameState.status !== 'voting') { socket.emit('voteError', { message: '当前不在投票阶段' }); return; }
@@ -327,6 +386,7 @@ io.on('connection', (socket) => {
     // 投票免费，不扣积分
     player.voted = true;
     player.voteChoice = choice;
+    player.betAmount = Math.max(0, Math.min(betAmount || 0, Math.floor(Math.max(0, (player.score - LOSE_PENALTY) / 2) / 500) * 500));  // ★ 存储加注额（带安全校验）
     gameState.votes[choice]++;
 
     socket.emit('voteSuccess', { choice, score: player.score });
@@ -337,6 +397,13 @@ io.on('connection', (socket) => {
     const totalCount = activePlayers.length;
     io.to('display').emit('voteUpdate', { votes: gameState.votes, votedCount, totalCount });
     io.to('admin').emit('voteUpdate', { votes: gameState.votes, votedCount, totalCount });
+
+    // ★ 全员投票完成 → 立即结算（不用等倒计时结束）
+    if (votedCount >= totalCount && totalCount > 0) {
+      console.log(`所有玩家已投票(${votedCount}/${totalCount})，立即结算`);
+      clearInterval(timerInterval);
+      endVoting();
+    }
   });
 
   // 管理员：开始游戏

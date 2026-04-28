@@ -153,6 +153,22 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
 .btn-conf:not(:disabled){background:linear-gradient(135deg,#6bb889,#4a9a6a);color:#fff}
 .btn-conf:disabled{background:rgba(255,255,255,.03);color:var(--muted);border-color:var(--border);cursor:not-allowed}
 
+/* ★ 加注系统 */
+.bet-section{margin:10px 0 6px;padding:14px;background:rgba(232,220,200,.03);border:1px solid rgba(232,220,200,.08);border-radius:13px;text-align:center;transition:all .3s}
+.bet-section.locked{opacity:.35;pointer-events:none}
+.bet-section.locked .bet-display{color:var(--muted) !important}
+.bet-lbl{font-size:13px;color:var(--muted);margin-bottom:8px;letter-spacing:1px}
+.bet-lbl span{color:var(--gold);font-weight:700}
+.bet-display{font-size:28px;font-weight:900;color:var(--gold-light);margin-bottom:10px;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.bet-controls{display:flex;align-items:center;justify-content:center;gap:10px}
+.bet-btn{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--border);background:rgba(232,220,200,.04);color:var(--text);font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit}
+.bet-btn:active{transform:scale(.9);background:rgba(212,168,83,.15)}
+.bet-btn:disabled{opacity:.2;cursor:not-allowed}
+.bet-max{padding:8px 16px;border-radius:20px;border:1px solid rgba(212,168,83,.25);background:rgba(212,168,83,.08);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .15s}
+.bet-max:active{transform:scale(.95)}
+.bet-info{font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;line-height:1.4}
+.bet-info span{color:var(--red);font-weight:700}
+
 /* ★ ready 阶段灰色禁用遮罩 */
 .vote-disabled-overlay{
   display:none;
@@ -369,11 +385,24 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
         <div class="vwt">等待结算结果...</div>
       </div>
 
-      <!-- 选择按钮 -->
+      <!-- 选择按钮 — 加注 + 三个独立苹果 -->
       <div id="btnArea">
         <div class="apple-lbl">选择你的苹果</div>
 
-        <button class="abtn agold" id="bGold" onclick="selApple('gold')">
+        <!-- ★ 加注区 — 始终显示，最后三轮才可用 -->
+        <div class="bet-section" id="betSection">
+          <div class="bet-lock-hint" id="betLockHint" style="display:none;font-size:11.5px;color:var(--red);margin-bottom:6px;font-weight:700;letter-spacing:1px">🔒 最后三轮解锁加注</div>
+          <div class="bet-lbl">加注倍率 · 当前积分 <span id="betCurScore">10000</span></div>
+          <div class="bet-display" id="betDisplay">+0</div>
+          <div class="bet-controls">
+            <button class="bet-btn" id="betMinus" onclick="changeBet(-500)" disabled>−</button>
+            <button class="bet-btn" id="betPlus500" onclick="changeBet(500)">+</button>
+            <button class="bet-btn" id="betPlus1000" onclick="changeBet(1000)">+</button>
+            <button class="bet-max" onclick="setMaxBet()">最大加注</button>
+          </div>
+          <div class="bet-info">每次加注 500 积分 · 赢：额外获得加注额 · 输：额外扣除2倍加注额<br><span>高风险高收益 · 加注不能导致输后负分</span></div>
+        </div>
+        <button class="abtn agold" id="bGold" ontouchstart="selApple('gold')" onclick="selApple('gold')">
           <div class="ab-i ab-i-gold">
             <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -393,7 +422,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
           <div class="ab-inf"><div class="ab-n">金苹果</div><div class="ab-c">Golden Apple · 稀有选择</div></div>
           <div class="ab-chk">✓</div>
         </button>
-        <button class="abtn asilver" id="bSilver" onclick="selApple('silver')">
+        <button class="abtn asilver" id="bSilver" ontouchstart="selApple('silver')" onclick="selApple('silver')">
           <div class="ab-i ab-i-silver">
             <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -413,7 +442,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
           <div class="ab-inf"><div class="ab-n">银苹果</div><div class="ab-c">Silver Apple · 稳健选择</div></div>
           <div class="ab-chk">✓</div>
         </button>
-        <button class="abtn ared" id="bRed" onclick="selApple('red')">
+        <button class="abtn ared" id="bRed" ontouchstart="selApple('red')" onclick="selApple('red')">
           <div class="ab-i ab-i-red">
             <svg viewBox="0 0 40 44" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -447,6 +476,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
     <span class="re" id="reEmoji">❓</span>
     <div class="ro" id="reOutcome">—</div>
     <div class="rch" id="reChange">—</div>
+    <div class="rtot" id="reBetInfo" style="display:none">加注：<span id="reBetAmt">0</span></div>
     <div class="rtot">当前积分：<span id="reTotal">0</span></div>
   </div>
   <div class="rmsg" id="reMsg"></div>
@@ -511,6 +541,9 @@ let hasVoted = false;
 let isEliminated = false;
 let currentRound = 1;
 let totalRounds = 8;
+let curBet = 0;            // ★ 当前加注额
+let gameActive = false;    // ★ 游戏是否进行中（用于锁屏恢复判断）
+let gamePhase = 'idle';    // ★ idle/voting/result — 用于锁屏恢复
 
 // ============================================================
 //  页面切换
@@ -620,8 +653,99 @@ function selApple(ch){
 
 function confirmVote(){
   if(!selChoice||hasVoted)return;
-  socket.emit('vote', { choice: selChoice });
+  socket.emit('vote', { choice: selChoice, betAmount: curBet });  // ★ 带上加注额
 }
+
+// ============================================================
+//  ★ 加注系统 — 高风险高收益
+// ============================================================
+const LOSE_PEN = 2000;
+function getMaxBet() {
+  const maxRaw = Math.max(0, Math.floor((myScore - LOSE_PEN) / 2));
+  return Math.floor(maxRaw / 500) * 500;
+}
+
+function changeBet(delta) {
+  if (hasVoted || isEliminated || !gameActive || gamePhase !== 'voting') return;
+  const maxBet = getMaxBet();
+  curBet = Math.max(0, Math.min(maxBet, curBet + delta));
+  updateBetUI();
+}
+
+function setMaxBet() {
+  if (hasVoted || isEliminated || !gameActive || gamePhase !== 'voting') return;
+  curBet = getMaxBet();
+  updateBetUI();
+}
+
+function updateBetUI() {
+  const maxBet = getMaxBet();
+  document.getElementById('betDisplay').textContent = curBet > 0 ? '+' + curBet : '0';
+  document.getElementById('betDisplay').style.color = curBet > 0 ? 'var(--gold-light)' : 'var(--muted)';
+  document.getElementById('betCurScore').textContent = myScore.toLocaleString();
+  document.getElementById('betMinus').disabled = curBet <= 0;
+  document.getElementById('betPlus500').disabled = curBet >= maxBet;
+  document.getElementById('betPlus1000').disabled = curBet + 1000 > maxBet;
+}
+
+// ★ 更新加注区显示状态（根据轮次锁定/解锁）
+function updateBetSectionState() {
+  const remaining = (totalRounds||8) - currentRound + 1;
+  const betSection = document.getElementById('betSection');
+  const betLockHint = document.getElementById('betLockHint');
+  if (!betSection) return;
+  if (remaining <= 3 && remaining > 0 && gameActive && gamePhase === 'voting') {
+    betSection.classList.remove('locked');
+    betLockHint.style.display = 'none';
+  } else if (gameActive) {
+    betSection.classList.add('locked');
+    betLockHint.style.display = 'block';
+    betLockHint.textContent = `🔒 加注将在最后3轮解锁（当前第${currentRound}轮，剩余${remaining-1}轮）`;
+    curBet = 0;
+  } else {
+    betSection.classList.add('locked');
+    betLockHint.style.display = 'block';
+    betLockHint.textContent = '🔒 游戏开始后显示加注';
+    curBet = 0;
+  }
+  updateBetUI();
+}
+
+// ============================================================
+//  ★ WebSocket 重连 + 锁屏恢复 + 页面可见性检测
+// ============================================================
+let reconnectTimer = null;
+
+socket.on('disconnect', () => {
+  console.log('[WS] 断开连接，等待自动重连...');
+});
+
+// Socket.IO 内置重连成功后触发
+socket.io.on('reconnect', () => {
+  console.log('[WS] 重连成功！恢复游戏状态...');
+  // 如果有身份，用编号重连
+  if (myId && myNum) {
+    socket.emit('reconnectPlayer', { playerId: myId, num: myNum });
+  }
+});
+
+// ★ 页面可见性变化检测（锁屏恢复/切回前台）
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    console.log('[VIS] 页面重新可见');
+    if (myId && myNum && !socket.connected) {
+      // 断线状态，尝试重连
+      socket.connect();
+    } else if (myId && myNum && socket.connected) {
+      // 已连接但可能在等待页 — 检查是否需要跳转
+      const cp = curPg();
+      if (cp === 'waitPage' && gameActive && gamePhase === 'voting') {
+        initVoteUI({ round: currentRound, timer: 60, isFinalRound: currentRound >= totalRounds });
+        showPg('votePage');
+      }
+    }
+  }
+});
 
 // ============================================================
 //  倒计时更新（服务端推送）
@@ -705,9 +829,10 @@ function initVoteUI(data){
   document.getElementById('vwStart').style.display='none';
   document.querySelectorAll('.abtn').forEach(b=>b.classList.remove('sel'));
   document.getElementById('confBtn').disabled = true;
-  selChoice = null; hasVoted = false;
+  selChoice = null; hasVoted = false; curBet = 0;
   
   updateVoteDisabledState(false);
+  updateBetSectionState();
   
   if (data) {
     lastCdRemaining = -1;
@@ -723,6 +848,9 @@ socket.on('joinSuccess', (data) => {
   myName = '';  // 正式版不需要名字
   myNum = data.num || 0;
   myScore = data.score;
+  // ★ 持久化身份信息（用于锁屏恢复）
+  localStorage.setItem('eden_player_id', myId);
+  localStorage.setItem('eden_player_num', String(myNum));
   const ns = String(myNum).padStart(3,'0');
   document.getElementById('wAv').textContent = '#'+ns;
   document.getElementById('wNm').textContent = '#'+ns;
@@ -744,7 +872,11 @@ socket.on('gameStart', (data) => {
   isEliminated = false;
   hasVoted = false;
   selChoice = null;
+  curBet = 0;
+  gameActive = true;
+  gamePhase = 'voting';
   initVoteUI(data);
+  updateBetSectionState();
   showPg('votePage');
 });
 
@@ -753,7 +885,10 @@ socket.on('nextRound', (data) => {
   totalRounds = data.totalRounds || 8;
   hasVoted = false;
   selChoice = null;
+  curBet = 0;
+  gamePhase = 'voting';
   initVoteUI(data);
+  updateBetSectionState();
   showPg('votePage');
 });
 
@@ -776,6 +911,7 @@ socket.on('voteError', (data) => {
 
 socket.on('myResult', (data) => {
   myScore = data.total;
+  gamePhase = 'result';  // ★ 标记为结算阶段
 
   // 检测淘汰
   if(data.eliminated && !isEliminated){
@@ -808,6 +944,14 @@ socket.on('myResult', (data) => {
   }
 
   document.getElementById('reTotal').textContent = myScore.toLocaleString();
+  // ★ 显示加注信息
+  const betInfo = document.getElementById('reBetInfo');
+  if (curBet > 0 && data.voted) {
+    betInfo.style.display = 'block';
+    document.getElementById('reBetAmt').textContent = '+' + curBet.toLocaleString();
+  } else {
+    betInfo.style.display = 'none';
+  }
   document.getElementById('reMsg').textContent = data.message;
   showPg('resultPage');
 });
@@ -819,6 +963,8 @@ socket.on('roundEnd', (data) => {
 });
 
 socket.on('gameOver', (data) => {
+  gameActive = false;
+  gamePhase = 'gameover';
   const lb = data.leaderboard;
   const myEntry = lb.find(p => p.id === myId);
   const myRank = lb.findIndex(p => p.id === myId) + 1;
@@ -837,6 +983,11 @@ socket.on('gameOver', (data) => {
 });
 
 socket.on('gameReset', () => {
+  gameActive = false;
+  gamePhase = 'idle';
+  curBet = 0;
+  localStorage.removeItem('eden_player_id');
+  localStorage.removeItem('eden_player_num');
   location.reload();
 });
 
