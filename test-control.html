@@ -243,6 +243,10 @@
           <input class="ctrl-input" id="totalRoundsInput" type="number" value="8" min="1" max="30" title="总轮数">
           <label>轮</label>
         </div>
+        <div class="ctrl-field" style="margin:0">
+          <input class="ctrl-input" id="winCountInput" type="number" value="10" min="1" max="50" title="前N名获胜">
+          <label>名获胜</label>
+        </div>
       </div>
     </div>
     <div class="btn-row">
@@ -350,6 +354,7 @@ const COUNTDOWN_SEC = 60;     // 倒计时秒数
 let players = {};
 let currentRound = 1;
 let totalRounds = 8;
+let winCount = 10;  // ★ 前N名获胜
 let gameActive = false;
 let lastResult = null;
 let resultLog = [];
@@ -480,6 +485,7 @@ function save() {
     players,
     currentRound,
     totalRounds,
+    winCount,
     gameActive,
     lastResult,
     usedNums: Array.from(usedNums),
@@ -501,6 +507,7 @@ function load() {
     players = (d.players && typeof d.players === 'object') ? d.players : {};
     currentRound = (d.currentRound && typeof d.currentRound === 'number') ? d.currentRound : 1;
     totalRounds = (d.totalRounds && typeof d.totalRounds === 'number') ? d.totalRounds : 8;
+    winCount = (d.winCount && typeof d.winCount === 'number') ? d.winCount : 10;
     gameActive = !!d.gameActive;
     lastResult = d.lastResult || null;
     // ★ 防御：phase 必须是有效值
@@ -653,6 +660,7 @@ function startGame() {
   if (ids.length === 0) { alert('请先添加玩家！'); return; }
 
   totalRounds = Math.max(1, parseInt(document.getElementById('totalRoundsInput').value) || 8);
+  winCount = Math.max(1, parseInt(document.getElementById('winCountInput').value) || 10);
 
   // ★ 如果已经是 ready 阶段，说明是从"下一轮"进来的，直接开始投票
   if (phase === 'ready') {
@@ -834,15 +842,26 @@ function calcNormal({red,gold,silver}) {
 function calcFinal({red,gold,silver}) {
   const total = red+gold+silver;
   if (total>0 && red>=total-10) return {specialEvent:'all_red',winners:[],losers:[],message:`🎉 红${red}≥总${total}-10 → 全体胜利！`};
-  if (red===gold&&gold===silver) return {winners:[],losers:['red','gold','silver'],message:`三色相同(各${red})→全员-${LOSE_PEN}`};
-  if (red<gold&&red<silver) return {winners:['red'],losers:['gold','silver'],message:`红最少→红胜`};
-  if (gold===silver) {
-    if (red<gold) return {winners:['red'],losers:['gold','silver'],message:`红<金=银→红胜`};
-    return {winners:['gold','silver'],losers:['red'],message:`金=银≥红→金银胜`};
+  // ★ 无红苹果：金 vs 银，金=银 → 金银同时失败
+  if (red===0) {
+    if (gold===0&&silver===0) return {winners:[],losers:['gold','silver'],message:`无人投票→全员-${LOSE_PEN}`};
+    if (gold===silver) return {winners:[],losers:['gold','silver'],message:`无红，金=银(各${gold})→金银同时失败`};
+    if (gold<silver) return {winners:['gold'],losers:['silver'],message:`无红，金<银→金胜`};
+    return {winners:['silver'],losers:['gold'],message:`无红，银<金→银胜`};
   }
-  if (gold<silver) return {winners:['gold'],losers:['red','silver'],message:`金最少→金胜`};
-  if (silver<gold) return {winners:['silver'],losers:['red','gold'],message:`银最少→银胜`};
-  return {winners:['gold','silver'],losers:['red'],message:'金银并列最少→金银胜'};
+  if (red===gold&&gold===silver) return {winners:[],losers:['red','gold','silver'],message:`三色相同(各${red})→全员-${LOSE_PEN}`};
+  // ★ 找最少值
+  const minVal = Math.min(red,gold,silver);
+  const isMinRed = red===minVal, isMinGold = gold===minVal, isMinSilver = silver===minVal;
+  if (isMinRed && !isMinGold && !isMinSilver) return {winners:['red'],losers:['gold','silver'],message:`红最少→红胜`};
+  if (isMinGold && !isMinRed && !isMinSilver) return {winners:['gold'],losers:['red','silver'],message:`金最少→金胜`};
+  if (isMinSilver && !isMinRed && !isMinGold) return {winners:['silver'],losers:['red','gold'],message:`银最少→银胜`};
+  // ★ 两色同票且同为最少
+  // 有红时：红与另一色同为最少 → 红优先；金=银同为最少 → 金银阵营共同胜利
+  if (isMinRed && isMinGold && !isMinSilver) return {winners:['red'],losers:['gold','silver'],message:`红=金同为最少，红冒险优先→红胜`};
+  if (isMinRed && isMinSilver && !isMinGold) return {winners:['red'],losers:['gold','silver'],message:`红=银同为最少，红冒险优先→红胜`};
+  if (isMinGold && isMinSilver && !isMinRed) return {winners:['gold','silver'],losers:['red'],message:`金=银同为最少→金银阵营共同胜利`};
+  return {winners:[],losers:['red','gold','silver'],message:`判定异常，全员-${LOSE_PEN}`};
 }
 
 function getExplain(w,l) {
@@ -939,6 +958,7 @@ function confirmRandomVote() {
     const ids = Object.keys(players);
     if (ids.length === 0) { alert('没有玩家！'); return; }
     totalRounds = Math.max(1, parseInt(document.getElementById('totalRoundsInput').value) || 8);
+    winCount = Math.max(1, parseInt(document.getElementById('winCountInput').value) || 10);
     gameActive = true;
     currentRound = currentRound || 1;
     phase = 'voting';

@@ -10,272 +10,259 @@
 
 /* ===== 古希腊主题变量 ===== */
 :root{
-  --bg:#0c0f1a;--card:rgba(18,22,40,.92);--border:rgba(196,165,107,.18);
+  --bg:#080b14;--card:rgba(14,18,36,.94);--border:rgba(196,165,107,.15);
   --text:#e8dcc8;--muted:#8a7e6e;--gold:#d4a853;--gold-light:#f0d48a;
-  --silver:#a8b4c4;--red:#c45c5c;--green:#6bb889;--purple:#a78bfa;
-  --marble:rgba(232,220,200,.06);--marble2:rgba(196,165,107,.08);
-  --olive:#7a9a5a;--temple:rgba(212,168,83,.12);
+  --silver:#b8c8d8;--red:#e06060;--green:#6bb889;--purple:#a78bfa;
+  --copper:#cd7f32;--marble:rgba(232,220,200,.06);--marble2:rgba(196,165,107,.08);
 }
 body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC','PingFang SC',serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;position:relative}
 
 .page{display:none;position:absolute;inset:0;flex-direction:column}
 .page.active{display:flex;z-index:1}
 
-/* ===== 古希腊装饰线条 ===== */
+/* ===== 装饰线条 ===== */
 .greek-border{border:1px solid var(--border);position:relative}
 .greek-border::before{content:'⁂';position:absolute;top:-8px;left:50%;transform:translateX(-50%);color:var(--gold);font-size:10px;background:var(--bg);padding:0 6px}
-.greek-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px 0;opacity:.35}
+.greek-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px 0;opacity:.3}
 
 /* ===== 加入页 ===== */
 #joinPage{align-items:center;justify-content:center;padding:30px 20px;background:radial-gradient(ellipse at 50% 15%,rgba(212,168,83,.08) 0%,transparent 60%);z-index:2}
 #joinCanvas{position:absolute;inset:0;pointer-events:none;z-index:0}
 .jc{position:relative;z-index:1;text-align:center;width:100%;max-width:360px}
-/* ★ 伊甸园 LOGO — 金色苹果+叶子 SVG */
-.logo-icon{width:64px;height:64px;display:block;margin:0 auto 12px;animation:flo 3s ease-in-out infinite}
-.logo-t{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:5px;font-style:italic}
-.logo-s{font-size:11px;color:var(--muted);letter-spacing:4px;margin-top:4px;text-transform:uppercase}
-.jc-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:26px 22px;margin-top:28px;text-align:center;backdrop-filter:blur(8px)}
-.jc-t{font-size:17px;font-weight:700;margin-bottom:8px;color:var(--gold-light)}
-.jc-d{font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:20px}
-.input-wrap{margin-bottom:16px;text-align:left}
-.input-label{font-size:12px;color:var(--muted);margin-bottom:6px}
-.input-field{
-  width:100%;padding:14px 16px;
-  background:rgba(12,15,26,.8);
-  border:1px solid var(--border);
-  border-radius:12px;
-  color:var(--text);font-size:16px;
-  outline:none;transition:border-color .2s;
-  font-family:inherit;
-}
-.input-field:focus{border-color:var(--gold)}
-.input-field::placeholder{color:var(--muted)}
-.btn-enter{width:100%;padding:15px;background:linear-gradient(135deg,#d4a853,#b8860b);border:1px solid rgba(240,212,138,.3);border-radius:12px;color:#1a1206;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:2px;transition:all .15s;font-family:inherit}
+.logo-icon{width:72px;height:72px;display:block;margin:0 auto 14px;animation:flo 3s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(212,168,83,.4))}
+.logo-t{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:6px;font-style:italic}
+.logo-s{font-size:11px;color:var(--muted);letter-spacing:5px;margin-top:5px;text-transform:uppercase}
+.jc-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 24px;margin-top:30px;text-align:center;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.jc-t{font-size:18px;font-weight:700;margin-bottom:10px;color:var(--gold-light)}
+.jc-d{font-size:12.5px;color:var(--muted);line-height:1.7;margin-bottom:22px}
+.btn-enter{width:100%;padding:16px;background:linear-gradient(135deg,#d4a853,#b8860b);border:1px solid rgba(240,212,138,.3);border-radius:14px;color:#1a1206;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:3px;transition:all .15s;font-family:inherit;position:relative;overflow:hidden}
+.btn-enter::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .5s}
 .btn-enter:active{transform:scale(.97);filter:brightness(.9)}
-.join-error{margin-top:14px;padding:11px 14px;background:rgba(196,92,92,.07);border:1px solid rgba(196,92,92,.2);border-radius:10px;font-size:12.5px;color:var(--red);display:none;line-height:1.5}
+.btn-enter:active::after{transform:translateX(100%)}
+.join-error{margin-top:14px;padding:12px 16px;background:rgba(224,96,96,.07);border:1px solid rgba(224,96,96,.2);border-radius:12px;font-size:12.5px;color:var(--red);display:none;line-height:1.5}
 .join-error.show{display:block;animation:rhIn .4s ease}
 @keyframes rhIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 
-/* ===== 等待页 — 身份+积分更显眼 ===== */
+/* ===== 等待页 ===== */
 #waitPage{align-items:center;justify-content:center;text-align:center;padding:35px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(167,139,250,.04) 0%,transparent 60%)}
-.w-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,rgba(212,168,83,.22),rgba(212,168,83,.05));border:2.5px solid rgba(212,168,83,.5);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;box-shadow:0 0 20px rgba(212,168,83,.15)}
-.w-name{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:2px;font-variant-numeric:tabular-nums;text-shadow:0 0 16px rgba(212,168,83,.3)}
-.w-score{font-size:15px;color:var(--muted);margin-bottom:28px;font-style:italic}
-.w-score b{font-size:20px;color:var(--green);font-weight:900}
-.w-status{padding:14px 22px;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:14.5px;color:var(--muted);margin-bottom:16px;transition:all .5s}
+.w-avatar{width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,rgba(212,168,83,.2),rgba(212,168,83,.04));border:3px solid rgba(212,168,83,.45);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;box-shadow:0 0 28px rgba(212,168,83,.15),inset 0 0 20px rgba(212,168,83,.05)}
+.w-name{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:3px;font-variant-numeric:tabular-nums;text-shadow:0 0 20px rgba(212,168,83,.3)}
+.w-score{font-size:15px;color:var(--muted);margin-bottom:30px;font-style:italic}
+.w-score b{font-size:22px;color:var(--green);font-weight:900}
+.w-status{padding:16px 24px;background:var(--card);border:1px solid var(--border);border-radius:16px;font-size:15px;color:var(--muted);margin-bottom:18px;transition:all .5s;backdrop-filter:blur(8px)}
 .w-status.waiting{animation:bs 2s infinite}
 .w-status.ready{border-color:rgba(107,184,137,.4);color:var(--green);background:rgba(107,184,137,.05)}
 @keyframes bs{0%,100%{border-color:var(--border)}50%{border-color:rgba(212,168,83,.35)}}
-.w-count{font-size:13px;color:var(--muted)}.w-count b{color:var(--green);font-size:16px;font-weight:800}
+.w-count{font-size:13px;color:var(--muted)}.w-count b{color:var(--green);font-size:17px;font-weight:800}
 
-/* ===== 投票页顶栏 — 身份+积分超显眼 ===== */
-.vh{padding:12px 16px 10px;background:linear-gradient(135deg,rgba(212,168,83,.1),rgba(18,22,40,.95));border-bottom:2px solid rgba(212,168,83,.25);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}
+/* ===== 投票页顶栏 ===== */
+.vh{padding:14px 18px 12px;background:linear-gradient(135deg,rgba(212,168,83,.08),rgba(14,18,36,.96));border-bottom:2px solid rgba(212,168,83,.2);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)}
 .vhl{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.5px}
-.vhl b{color:var(--gold);font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
-.vhr{font-size:10px;color:var(--muted);margin-top:1px}
+.vhl b{color:var(--gold);font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.vhr{font-size:10px;color:var(--muted);margin-top:2px}
 .vhs-r{text-align:right}
-.vhs-v{font-size:26px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;line-height:1.1;text-shadow:0 0 12px rgba(107,184,137,.25)}
+.vhs-v{font-size:28px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 14px rgba(107,184,137,.25)}
 .vhs-l{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px}
 
 /* ★ 倒计时圆环 ★ */
-.cd-bar{display:none;padding:12px 16px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(212,168,83,.08));border-bottom:1px solid rgba(167,139,250,.25);align-items:center;justify-content:center;gap:14px;position:relative;overflow:hidden}
-.cd-bar::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.1),transparent 70%);pointer-events:none}
+.cd-bar{display:none;padding:14px 18px;background:linear-gradient(135deg,rgba(167,139,250,.1),rgba(212,168,83,.06));border-bottom:1px solid rgba(167,139,250,.22);align-items:center;justify-content:center;gap:16px;position:relative;overflow:hidden}
+.cd-bar::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,.08),transparent 70%);pointer-events:none}
 .cd-bar.show{display:flex}
 
-/* 圆形倒计时 */
-.cd-ring{position:relative;width:54px;height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.cd-ring{position:relative;width:56px;height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .cd-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
-.cd-ring circle{fill:none;stroke-width:4;cx:27;cy:27;r:22}
-.cd-ring-bg{stroke:rgba(255,255,255,.06)}
-.cd-ring-prog{stroke:#a78bfa;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
-.cd-ring-prog.warn{stroke:#fb923c}
-.cd-ring-prog.danger{stroke:#ef4444}
+.cd-ring circle{fill:none;stroke-width:4;cx:28;cy:28;r:23}
+.cd-ring-bg{stroke:rgba(255,255,255,.05)}
+.cd-ring-prog{stroke:#a78bfa;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s;filter:drop-shadow(0 0 4px rgba(167,139,250,.3))}
+.cd-ring-prog.warn{stroke:#fb923c;filter:drop-shadow(0 0 6px rgba(251,146,60,.4))}
+.cd-ring-prog.danger{stroke:#ef4444;filter:drop-shadow(0 0 8px rgba(239,68,68,.5))}
 
-.cd-ring-num{font-size:20px;font-weight:900;color:#c4b5fd;font-family:Georgia,'Noto Serif SC',serif;font-variant-numeric:tabular-nums;z-index:1;line-height:1}
+.cd-ring-num{font-size:22px;font-weight:900;color:#c4b5fd;font-family:Georgia,'Noto Serif SC',serif;font-variant-numeric:tabular-nums;z-index:1;line-height:1}
 .cd-ring-num.warn{color:#fb923c}
 .cd-ring-num.danger{color:#ef4444;animation:cdPulse .3s infinite alternate}
-@keyframes cdPulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+@keyframes cdPulse{from{transform:scale(1)}to{transform:scale(1.1)}}
 
-.cd-bar-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
-.cd-bar-lbl{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-style:italic}
-.cd-bar-pct{width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.cd-bar-info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.cd-bar-lbl{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-style:italic}
+.cd-bar-pct{width:100%;height:4px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
 .cd-bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:2px;transition:width .3s}
 
-/* 时间到提示 */
-.cd-ended-bar{display:none;padding:10px 16px;background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(239,68,68,.03));border-bottom:1px solid rgba(239,68,68,.3);align-items:center;justify-content:center;gap:8px;animation:ceSlide .3s ease}
+/* 时间到 */
+.cd-ended-bar{display:none;padding:12px 18px;background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(239,68,68,.02));border-bottom:1px solid rgba(239,68,68,.25);align-items:center;justify-content:center;gap:10px;animation:ceSlide .3s ease}
 .cd-ended-bar.show{display:flex}
 @keyframes ceSlide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .cd-ended-icon{animation:ceShake .6s ease-in-out infinite}
 @keyframes ceShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
-.cd-ended-txt{font-size:14px;font-weight:700;color:var(--red);font-family:Georgia,'Noto Serif SC',serif}
+.cd-ended-txt{font-size:15px;font-weight:700;color:var(--red);font-family:Georgia,'Noto Serif SC',serif}
 .cd-ended-sub{font-size:10.5px;color:var(--muted);font-style:italic}
 
-.vc{flex:1;padding:16px 14px;overflow-y:auto}
+.vc{flex:1;padding:18px 16px;overflow-y:auto}
 
 /* 投票等待开始 */
 .vw-start{text-align:center;padding:50px 20px}
-.vwi{font-size:44px;animation:flo 3s ease-in-out infinite;display:block;margin-bottom:14px}
-.vwt{font-size:17px;font-weight:700;color:var(--muted);margin-bottom:6px}
-.vws{font-size:12.5px;color:var(--muted);opacity:.55}
+.vwi{font-size:48px;animation:flo 3s ease-in-out infinite;display:block;margin-bottom:16px}
+.vwt{font-size:18px;font-weight:700;color:var(--muted);margin-bottom:8px}
+.vws{font-size:12.5px;color:var(--muted);opacity:.5}
 
-/* ★ 三个独立苹果按钮 ★ */
-.apple-lbl{font-size:11px;color:var(--muted);letter-spacing:3px;text-align:center;margin-bottom:10px;text-transform:uppercase;font-style:italic}
-.apple-lbl::before,.apple-lbl::after{content:' · ';opacity:.4}
+/* ★ 苹果按钮 — 更大更精致 ★ */
+.apple-lbl{font-size:11px;color:var(--muted);letter-spacing:4px;text-align:center;margin-bottom:12px;text-transform:uppercase;font-style:italic}
+.apple-lbl::before,.apple-lbl::after{content:' · ';opacity:.3}
 
-.abtn{width:100%;padding:14px 14px;border-radius:14px;border:2px solid transparent;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;gap:12px;transition:all .25s;margin-bottom:10px;position:relative;overflow:hidden;font-family:inherit;backdrop-filter:blur(4px)}
-.abtn:active{transform:scale(.97)}
+.abtn{width:100%;padding:16px 16px;border-radius:16px;border:2px solid transparent;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;gap:14px;transition:all .25s cubic-bezier(.25,.46,.45,.94);margin-bottom:12px;position:relative;overflow:hidden;font-family:inherit;backdrop-filter:blur(4px)}
+.abtn:active{transform:scale(.96)}
+.abtn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);transform:translateX(-100%);transition:transform .4s}
+.abtn.sel::after{transform:translateX(100%)}
 
 /* 金苹果 */
-.agold{background:linear-gradient(135deg,rgba(212,168,83,.14),rgba(212,168,83,.04));border-color:rgba(212,168,83,.4);color:var(--gold)}
-.agold.sel{background:linear-gradient(135deg,rgba(212,168,83,.3),rgba(212,168,83,.12));border-color:var(--gold);box-shadow:0 0 24px rgba(212,168,83,.3),inset 0 0 20px rgba(212,168,83,.1)}
+.agold{background:linear-gradient(135deg,rgba(212,168,83,.12),rgba(212,168,83,.03));border-color:rgba(212,168,83,.35);color:var(--gold)}
+.agold.sel{background:linear-gradient(135deg,rgba(212,168,83,.25),rgba(212,168,83,.1));border-color:var(--gold);box-shadow:0 0 28px rgba(212,168,83,.3),inset 0 0 24px rgba(212,168,83,.08),0 4px 16px rgba(0,0,0,.2)}
 
 /* 银苹果 */
-.asilver{background:linear-gradient(135deg,rgba(168,180,196,.14),rgba(168,180,196,.04));border-color:rgba(168,180,196,.4);color:var(--silver)}
-.asilver.sel{background:linear-gradient(135deg,rgba(168,180,196,.28),rgba(168,180,196,.1));border-color:var(--silver);box-shadow:0 0 24px rgba(168,180,196,.25),inset 0 0 20px rgba(168,180,196,.08)}
+.asilver{background:linear-gradient(135deg,rgba(184,200,216,.12),rgba(184,200,216,.03));border-color:rgba(184,200,216,.35);color:var(--silver)}
+.asilver.sel{background:linear-gradient(135deg,rgba(184,200,216,.25),rgba(184,200,216,.08));border-color:var(--silver);box-shadow:0 0 28px rgba(184,200,216,.25),inset 0 0 24px rgba(184,200,216,.06),0 4px 16px rgba(0,0,0,.2)}
 
 /* 红苹果 */
-.ared{background:linear-gradient(135deg,rgba(196,92,92,.14),rgba(196,92,92,.04));border-color:rgba(196,92,92,.4);color:var(--red)}
-.ared.sel{background:linear-gradient(135deg,rgba(196,92,92,.28),rgba(196,92,92,.1));border-color:var(--red);box-shadow:0 0 24px rgba(196,92,92,.3),inset 0 0 20px rgba(196,92,92,.1)}
+.ared{background:linear-gradient(135deg,rgba(224,96,96,.12),rgba(224,96,96,.03));border-color:rgba(224,96,96,.35);color:var(--red)}
+.ared.sel{background:linear-gradient(135deg,rgba(224,96,96,.25),rgba(224,96,96,.08));border-color:var(--red);box-shadow:0 0 28px rgba(224,96,96,.3),inset 0 0 24px rgba(224,96,96,.08),0 4px 16px rgba(0,0,0,.2)}
 
-/* 苹果图标区 — 真正的立体苹果 */
-.ab-i{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:52px;height:52px;position:relative}
-.ab-i svg{width:40px;height:40px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+/* 苹果图标区 */
+.ab-i{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:56px;height:56px;position:relative}
+.ab-i svg{width:44px;height:44px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
 .ab-i-gold{background:transparent;box-shadow:none}
 .ab-i-silver{background:transparent;box-shadow:none}
 .ab-i-red{background:transparent;box-shadow:none}
 .ab-inf{flex:1;text-align:left}
-.ab-n{font-size:17px;font-weight:800;letter-spacing:1px}
-.ab-c{font-size:11px;opacity:.6;margin-top:2px;line-height:1.4}
-.ab-chk{position:absolute;right:14px;width:22px;height:22px;border-radius:50%;background:rgba(107,184,137,.18);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;color:var(--green);font-size:12px}
-.abtn.sel .ab-chk{opacity:1}
+.ab-n{font-size:18px;font-weight:800;letter-spacing:1px}
+.ab-c{font-size:11px;opacity:.55;margin-top:2px;line-height:1.4}
+.ab-chk{position:absolute;right:16px;width:24px;height:24px;border-radius:50%;background:rgba(107,184,137,.15);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;color:var(--green);font-size:13px}
+.abtn.sel .ab-chk{opacity:1;animation:chkPop .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes chkPop{from{transform:scale(0)}to{transform:scale(1)}}
 
-.btn-conf{width:100%;padding:14px;border:1px solid rgba(107,184,137,.3);border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;letter-spacing:2px;transition:all .15s;font-family:inherit}
-.btn-conf:not(:disabled){background:linear-gradient(135deg,#6bb889,#4a9a6a);color:#fff}
-.btn-conf:disabled{background:rgba(255,255,255,.03);color:var(--muted);border-color:var(--border);cursor:not-allowed}
+.btn-conf{width:100%;padding:15px;border:1px solid rgba(107,184,137,.3);border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;margin-top:8px;letter-spacing:3px;transition:all .15s;font-family:inherit;position:relative;overflow:hidden}
+.btn-conf:not(:disabled){background:linear-gradient(135deg,#6bb889,#4a9a6a);color:#fff;box-shadow:0 4px 16px rgba(107,184,137,.25)}
+.btn-conf:not(:disabled)::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);animation:confShine 2s ease-in-out infinite}
+@keyframes confShine{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+.btn-conf:disabled{background:rgba(255,255,255,.02);color:var(--muted);border-color:var(--border);cursor:not-allowed}
+.btn-conf:not(:disabled):active{transform:scale(.97);filter:brightness(.9)}
 
 /* ★ 加注系统 */
-.bet-section{margin:10px 0 6px;padding:14px;background:rgba(232,220,200,.03);border:1px solid rgba(232,220,200,.08);border-radius:13px;text-align:center;transition:all .3s}
-.bet-section.locked{opacity:.35;pointer-events:none}
+.bet-section{margin:12px 0 8px;padding:16px;background:rgba(232,220,200,.025);border:1px solid rgba(232,220,200,.07);border-radius:14px;text-align:center;transition:all .3s}
+.bet-section.locked{opacity:.3;pointer-events:none}
 .bet-section.locked .bet-display{color:var(--muted) !important}
 .bet-lbl{font-size:13px;color:var(--muted);margin-bottom:8px;letter-spacing:1px}
 .bet-lbl span{color:var(--gold);font-weight:700}
-.bet-display{font-size:28px;font-weight:900;color:var(--gold-light);margin-bottom:10px;font-variant-numeric:tabular-nums;letter-spacing:1px}
-.bet-controls{display:flex;align-items:center;justify-content:center;gap:10px}
-.bet-btn{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--border);background:rgba(232,220,200,.04);color:var(--text);font-size:20px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit}
-.bet-btn:active{transform:scale(.9);background:rgba(212,168,83,.15)}
-.bet-btn:disabled{opacity:.2;cursor:not-allowed}
-.bet-max{padding:8px 16px;border-radius:20px;border:1px solid rgba(212,168,83,.25);background:rgba(212,168,83,.08);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .15s}
-.bet-max:active{transform:scale(.95)}
-.bet-info{font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;line-height:1.4}
+.bet-display{font-size:30px;font-weight:900;color:var(--gold-light);margin-bottom:12px;font-variant-numeric:tabular-nums;letter-spacing:1px;transition:all .2s}
+.bet-controls{display:flex;align-items:center;justify-content:center;gap:12px}
+.bet-btn{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--border);background:rgba(232,220,200,.03);color:var(--text);font-size:22px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit}
+.bet-btn:active{transform:scale(.88);background:rgba(212,168,83,.12)}
+.bet-btn:disabled{opacity:.15;cursor:not-allowed}
+.bet-max{padding:9px 18px;border-radius:22px;border:1px solid rgba(212,168,83,.2);background:rgba(212,168,83,.06);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .15s}
+.bet-max:active{transform:scale(.94)}
+.bet-info{font-size:11px;color:var(--muted);margin-top:10px;font-style:italic;line-height:1.5}
 .bet-info span{color:var(--red);font-weight:700}
 
-/* ★ ready 阶段灰色禁用遮罩 */
+/* ready 阶段禁用遮罩 */
 .vote-disabled-overlay{
-  display:none;
-  position:absolute;
-  inset:0;
-  z-index:20;
-  background:rgba(12,15,26,.7);
-  backdrop-filter:blur(3px);
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-  text-align:center;
-  padding:20px;
-  pointer-events:auto;
-  animation:vdoIn .35s ease;
+  display:none;position:absolute;inset:0;z-index:20;
+  background:rgba(8,11,20,.75);backdrop-filter:blur(4px);
+  flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  text-align:center;padding:20px;pointer-events:auto;animation:vdoIn .35s ease;
 }
 .vote-disabled-overlay.show{display:flex}
 @keyframes vdoIn{from{opacity:0}to{opacity:1}}
-.vdo-icon{font-size:42px;animation:flo 3s ease-in-out infinite}
-.vdo-title{font-size:18px;font-weight:800;color:var(--muted);letter-spacing:1px}
-.vdo-sub{font-size:12.5px;color:var(--muted);opacity:.6;font-style:italic;line-height:1.5}
+.vdo-icon{font-size:46px;animation:flo 3s ease-in-out infinite}
+.vdo-title{font-size:19px;font-weight:800;color:var(--muted);letter-spacing:1px}
+.vdo-sub{font-size:12.5px;color:var(--muted);opacity:.5;font-style:italic;line-height:1.5}
 .votePage-wrap{position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden}
-.votePage-wrap.disabled .vc{filter:grayscale(.85) brightness(.6)}
-.votePage-wrap.disabled .vh{filter:grayscale(.6) brightness(.7)}
+.votePage-wrap.disabled .vc{filter:grayscale(.85) brightness(.5)}
+.votePage-wrap.disabled .vh{filter:grayscale(.6) brightness(.65)}
 
 /* 已投票卡片 */
-.voted-cd{text-align:center;padding:28px 18px;background:var(--card);border-radius:18px;margin:16px 12px;backdrop-filter:blur(8px);transition:all .3s}
-.voted-cd.vc-gold{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.4)}
-.voted-cd.vc-silver{background:rgba(168,180,196,.08);border:1.5px solid rgba(168,180,196,.4)}
-.voted-cd.vc-red{background:rgba(196,92,92,.08);border:1.5px solid rgba(196,92,92,.4)}
-/* 苹果SVG图标 */
-.vi{margin-bottom:10px;display:flex;justify-content:center}
-.vi svg{width:64px;height:64px}
-.vt{font-size:18px;font-weight:900;margin-bottom:5px;letter-spacing:1px}
+.voted-cd{text-align:center;padding:32px 20px;background:var(--card);border-radius:20px;margin:20px 14px;backdrop-filter:blur(10px);transition:all .3s;animation:votedIn .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes votedIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.voted-cd.vc-gold{background:rgba(212,168,83,.06);border:1.5px solid rgba(212,168,83,.35)}
+.voted-cd.vc-silver{background:rgba(184,200,216,.06);border:1.5px solid rgba(184,200,216,.35)}
+.voted-cd.vc-red{background:rgba(224,96,96,.06);border:1.5px solid rgba(224,96,96,.35)}
+.vi{margin-bottom:12px;display:flex;justify-content:center}
+.vi svg{width:72px;height:72px;filter:drop-shadow(0 4px 12px rgba(0,0,0,.3))}
+.vt{font-size:20px;font-weight:900;margin-bottom:6px;letter-spacing:2px}
 .vt.vc-gold-t{color:var(--gold-light)}
 .vt.vc-silver-t{color:var(--silver)}
 .vt.vc-red-t{color:var(--red)}
-.vch{font-size:13px;color:var(--muted);margin-bottom:12px;font-style:italic}
+.vch{font-size:13px;color:var(--muted);margin-bottom:14px;font-style:italic}
 .vwt{font-size:12.5px;color:var(--muted)}
 
 /* 最终轮横幅 */
-.fr-banner{display:none;background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(167,139,250,.05));border:1px solid rgba(167,139,250,.4);border-radius:9px;padding:9px 13px;font-size:12.5px;color:#c4b5fd;text-align:center;margin-bottom:10px;line-height:1.5;font-style:italic}
+.fr-banner{display:none;background:linear-gradient(135deg,rgba(167,139,250,.16),rgba(167,139,250,.04));border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#c4b5fd;text-align:center;margin-bottom:12px;line-height:1.5;font-style:italic;animation:frPulse 2.5s ease-in-out infinite}
 .fr-banner strong{color:#e879f9}
+@keyframes frPulse{0%,100%{border-color:rgba(167,139,250,.35)}50%{border-color:rgba(167,139,250,.55)}}
 
 /* ===== 结果页 ===== */
-#resultPage{padding:22px 14px;overflow-y:auto;background:radial-gradient(ellipse at 50% 30%,rgba(212,168,83,.06) 0%,transparent 60%)}
-.rt{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--gold);text-align:center;letter-spacing:2px}
-.rmc{border-radius:18px;padding:20px;text-align:center;margin-bottom:16px;backdrop-filter:blur(6px)}
-.rwin{background:rgba(107,184,137,.08);border:1px solid rgba(107,184,137,.25)}
-.rlose{background:rgba(196,92,92,.08);border:1px solid rgba(196,92,92,.25)}
+#resultPage{padding:24px 16px;overflow-y:auto;background:radial-gradient(ellipse at 50% 30%,rgba(212,168,83,.05) 0%,transparent 60%)}
+.rt{font-size:19px;font-weight:700;margin-bottom:18px;color:var(--gold);text-align:center;letter-spacing:3px}
+.rmc{border-radius:20px;padding:24px;text-align:center;margin-bottom:18px;backdrop-filter:blur(8px);animation:resCardIn .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes resCardIn{from{opacity:0;transform:scale(.9) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.rwin{background:rgba(107,184,137,.08);border:1px solid rgba(107,184,137,.22)}
+.rlose{background:rgba(224,96,96,.08);border:1px solid rgba(224,96,96,.22)}
 .rneut{background:var(--card);border:1px solid var(--border)}
-.rspec{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25)}
-.re{font-size:42px;display:block;margin-bottom:8px}
-.ro{font-size:20px;font-weight:800;margin-bottom:5px}
+.rspec{background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.22)}
+.re{font-size:48px;display:block;margin-bottom:10px}
+.ro{font-size:22px;font-weight:800;margin-bottom:6px;letter-spacing:1px}
 .rwin .ro{color:var(--green)}.rlose .ro{color:var(--red)}.rneut .ro{color:var(--muted)}.rspec .ro{color:#c084fc}
-.rch{font-size:26px;font-weight:900}.cp{color:var(--green)}.cn{color:var(--red)}.cz{color:var(--muted)}
-.rtot{font-size:13px;color:var(--muted);margin-top:5px;font-style:italic}
-.rtot span{color:var(--green);font-weight:700;font-size:17px}
-.rmsg{padding:14px;background:var(--card);border-radius:12px;border:1px solid var(--border);font-size:13px;color:rgba(232,220,200,.55);text-align:center;line-height:1.6;margin-bottom:14px;font-style:italic}
-.rvs{margin-bottom:14px}
-.rvt{font-size:12px;color:var(--muted);margin-bottom:9px;letter-spacing:2px;text-align:center;font-style:italic}
-.rvb{display:flex;gap:7px}
-.rvbi{flex:1;text-align:center}
-.rvc{font-size:21px;font-weight:800}.rg{color:var(--gold)}.rs{color:var(--silver)}.rr{color:var(--red)}
-.rvn{font-size:10.5px;color:var(--muted);margin-top:2px}
-.rwait{text-align:center;font-size:13px;color:var(--muted);padding:10px;font-style:italic}
+.rch{font-size:28px;font-weight:900}.cp{color:var(--green)}.cn{color:var(--red)}.cz{color:var(--muted)}
+.rtot{font-size:13px;color:var(--muted);margin-top:6px;font-style:italic}
+.rtot span{color:var(--green);font-weight:700;font-size:18px}
+.rmsg{padding:16px;background:var(--card);border-radius:14px;border:1px solid var(--border);font-size:13px;color:rgba(232,220,200,.5);text-align:center;line-height:1.7;margin-bottom:16px;font-style:italic}
+.rvs{margin-bottom:16px}
+.rvt{font-size:12px;color:var(--muted);margin-bottom:10px;letter-spacing:3px;text-align:center;font-style:italic}
+.rvb{display:flex;gap:8px}
+.rvbi{flex:1;text-align:center;padding:10px 0 8px}
+.rv-apple{width:36px;height:36px;margin:0 auto 6px}
+.rv-apple svg{width:100%;height:100%;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
+.rvc{font-size:24px;font-weight:800}.rg{color:var(--gold)}.rs{color:var(--silver)}.rr{color:var(--red)}
+.rvn{font-size:10.5px;color:var(--muted);margin-top:3px}
+.rwait{text-align:center;font-size:13px;color:var(--muted);padding:12px;font-style:italic;letter-spacing:1px}
 
 /* ===== 全体胜利 ===== */
-#awPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(107,184,137,.22) 0%,var(--bg) 70%)}
-.aw-e{font-size:72px;display:block;animation:bnc .7s infinite alternate;margin-bottom:12px}
-.aw-t{font-size:36px;font-weight:900;margin:16px 0 8px;background:linear-gradient(135deg,#6bb889,var(--gold),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:3px}
-.aw-s{font-size:15px;color:rgba(232,220,200,.55);line-height:1.6;font-style:italic}
+#awPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(107,184,137,.2) 0%,var(--bg) 70%);position:relative;overflow:hidden}
+.aw-particles{position:absolute;inset:0;pointer-events:none;z-index:0}
+.aw-e{font-size:80px;display:block;animation:bnc .7s infinite alternate;margin-bottom:14px;filter:drop-shadow(0 0 24px rgba(107,184,137,.4))}
+.aw-t{font-size:38px;font-weight:900;margin:18px 0 10px;background:linear-gradient(135deg,#6bb889,var(--gold),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:4px}
+.aw-s{font-size:15px;color:rgba(232,220,200,.5);line-height:1.7;font-style:italic}
 
 /* ===== 游戏结束 ===== */
-#goPage{padding:22px 14px;overflow-y:auto;text-align:center}
-.go-t{font-size:26px;font-weight:900;color:var(--gold);margin-bottom:6px;letter-spacing:3px}
-.go-s{font-size:13px;color:var(--muted);margin-bottom:22px;font-style:italic}
-.mf-c{padding:18px;background:var(--card);border:1px solid var(--border);border-radius:15px;margin-bottom:18px}
-.mf-l{font-size:12px;color:var(--muted);margin-bottom:3px}
-.mf-sc{font-size:36px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums}
-.mf-rk{font-size:15px;color:var(--gold);margin-top:4px}
+#goPage{padding:24px 16px;overflow-y:auto;text-align:center}
+.go-t{font-size:28px;font-weight:900;color:var(--gold);margin-bottom:8px;letter-spacing:4px}
+.go-s{font-size:13px;color:var(--muted);margin-bottom:24px;font-style:italic}
+.mf-c{padding:20px;background:var(--card);border:1px solid var(--border);border-radius:16px;margin-bottom:20px}
+.mf-l{font-size:12px;color:var(--muted);margin-bottom:4px}
+.mf-sc{font-size:40px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums}
+.mf-rk{font-size:16px;color:var(--gold);margin-top:5px}
 .tpl{list-style:none;padding:0}
-.tpi{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:11px;margin-bottom:7px;font-size:14px}
-.tpi.me{border-color:rgba(212,168,83,.35);background:rgba(212,168,83,.05)}
-.tp-md{font-size:16px;width:22px}.tp-nm{flex:1;text-align:left;font-variant-numeric:tabular-nums}.tp-sc{color:var(--green);font-weight:700}
+.tpi{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;font-size:14px}
+.tpi.me{border-color:rgba(212,168,83,.35);background:rgba(212,168,83,.04)}
+.tp-md{font-size:18px;width:24px}.tp-nm{flex:1;text-align:left;font-variant-numeric:tabular-nums}.tp-sc{color:var(--green);font-weight:700}
 
 /* ===== 淘汰页 ===== */
-#elPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(196,92,92,.15) 0%,var(--bg) 70%);position:relative;overflow:hidden}
+#elPage{align-items:center;justify-content:center;text-align:center;padding:40px 22px;background:radial-gradient(ellipse at 50% 50%,rgba(224,96,96,.12) 0%,var(--bg) 70%);position:relative;overflow:hidden}
 .el-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.el-bg::before,.el-bg::after{content:'';position:absolute;width:180px;height:180px;border-radius:50%;opacity:.06;animation:ef 4s ease-in-out infinite alternate}
-.el-bg::before{background:#c45c5c;top:-50px;left:-30px}
-.el-bg::after{background:#b84444;bottom:-70px;right:-20px;animation-delay:-2s}
-@keyframes ef{from{transform:translateY(0)}to{transform:translateY(25px)}}
-.el-card{position:relative;z-index:1;padding:30px 24px;background:rgba(196,92,92,.06);border:2px solid rgba(196,92,92,.2);border-radius:22px;max-width:330px;width:90%;animation:ePop .55s cubic-bezier(.34,1.56,.64,1)}
+.el-bg::before,.el-bg::after{content:'';position:absolute;width:200px;height:200px;border-radius:50%;opacity:.05;animation:ef 4s ease-in-out infinite alternate}
+.el-bg::before{background:#e06060;top:-60px;left:-40px}
+.el-bg::after{background:#b84444;bottom:-80px;right:-30px;animation-delay:-2s}
+@keyframes ef{from{transform:translateY(0)}to{transform:translateY(30px)}}
+.el-card{position:relative;z-index:1;padding:34px 28px;background:rgba(224,96,96,.05);border:2px solid rgba(224,96,96,.18);border-radius:24px;max-width:340px;width:90%;animation:ePop .55s cubic-bezier(.34,1.56,.64,1)}
 @keyframes ePop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
-.el-em{font-size:64px;display:block;margin-bottom:10px;animation:eSh .75s ease-in-out}
+.el-em{font-size:72px;display:block;margin-bottom:12px;animation:eSh .75s ease-in-out;filter:drop-shadow(0 0 16px rgba(224,96,96,.3))}
 @keyframes eSh{0%{transform:rotate(0)}20%{transform:rotate(-7deg)}40%{transform:rotate(7deg)}60%{transform:rotate(-4deg)}80%{transform:rotate(2px)}100%{transform:rotate(0)}}
-.el-t{font-size:24px;font-weight:900;color:#c45c5c;margin-bottom:5px}
-.el-nm{font-size:17px;color:var(--text);margin-bottom:14px;font-variant-numeric:tabular-nums}
+.el-t{font-size:26px;font-weight:900;color:#e06060;margin-bottom:6px}
+.el-nm{font-size:18px;color:var(--text);margin-bottom:16px;font-variant-numeric:tabular-nums}
 .el-sl{font-size:12.5px;color:var(--muted)}
-.el-sv{font-size:33px;font-weight:900;color:#c45c5c;font-variant-numeric:tabular-nums}
-.el-msg{font-size:13px;color:rgba(232,220,200,.4);line-height:1.7;margin-top:18px;padding-top:14px;border-top:1px solid rgba(196,92,92,.14);font-style:italic}
+.el-sv{font-size:36px;font-weight:900;color:#e06060;font-variant-numeric:tabular-nums}
+.el-msg{font-size:13px;color:rgba(232,220,200,.35);line-height:1.7;margin-top:20px;padding-top:16px;border-top:1px solid rgba(224,96,96,.12);font-style:italic}
 
 /* 碎片特效 */
 .fg-container{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
-.fg{position:absolute;background:#c45c5c;border-radius:2.5px;animation:fFall 1.4s ease-in forwards}
+.fg{position:absolute;background:#e06060;border-radius:2.5px;animation:fFall 1.4s ease-in forwards}
 @keyframes fFall{0%{transform:translateY(0)rotate(0);opacity:1}100%{transform:translateY(110vh)rotate(720deg);opacity:0}}
 @keyframes flo{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @keyframes bnc{from{transform:translateY(0)}to{transform:translateY(-14px)}}
@@ -336,7 +323,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
 <!-- ===== 投票页 ===== -->
 <div id="votePage" class="page">
 <div class="votePage-wrap" id="votePageWrap">
-  <!-- ★ ready 阶段禁用遮罩 -->
+  <!-- ready 阶段禁用遮罩 -->
   <div class="vote-disabled-overlay" id="voteDisabledOverlay">
     <div class="vdo-icon">🔒</div>
     <div class="vdo-title">等待主持人开启投票</div>
@@ -346,12 +333,12 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
     <div><div class="vhl">身份 <b id="vhNm">#001</b></div><div class="vhr" id="vhRd">第1轮</div></div>
     <div class="vhs-r"><div class="vhs-v" id="vhSc">10,000</div><div class="vhs-l">积 分</div></div>
   </div>
-  <!-- ★ 倒计时圆环 ★ -->
+  <!-- 倒计时圆环 -->
   <div class="cd-bar" id="cdBar">
     <div class="cd-ring">
-      <svg viewBox="0 0 54 54">
+      <svg viewBox="0 0 56 56">
         <circle class="cd-ring-bg"/>
-        <circle class="cd-ring-prog" id="cdRingProg" stroke-dasharray="138.2" stroke-dashoffset="0"/>
+        <circle class="cd-ring-prog" id="cdRingProg" stroke-dasharray="144.5" stroke-dashoffset="0"/>
       </svg>
       <div class="cd-ring-num" id="cdNum">60</div>
     </div>
@@ -385,11 +372,11 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
         <div class="vwt">等待结算结果...</div>
       </div>
 
-      <!-- 选择按钮 — 加注 + 三个独立苹果 -->
+      <!-- 选择按钮 -->
       <div id="btnArea">
         <div class="apple-lbl">选择你的苹果</div>
 
-        <!-- ★ 加注区 — 始终显示，最后三轮才可用 -->
+        <!-- 加注区 -->
         <div class="bet-section" id="betSection">
           <div class="bet-lock-hint" id="betLockHint" style="display:none;font-size:11.5px;color:var(--red);margin-bottom:6px;font-weight:700;letter-spacing:1px">🔒 最后三轮解锁加注</div>
           <div class="bet-lbl">加注倍率 · 当前积分 <span id="betCurScore">10000</span></div>
@@ -483,9 +470,9 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
   <div class="rvs">
     <div class="rvt">本轮投票分布</div>
     <div class="rvb">
-      <div class="rvbi"><div class="rvc rg" id="rvG">0</div><div class="rvn">🍎 金苹果</div></div>
-      <div class="rvbi"><div class="rvc rs" id="rvS">0</div><div class="rvn">🍎 银苹果</div></div>
-      <div class="rvbi"><div class="rvc rr" id="rvR">0</div><div class="rvn">🍎 红苹果</div></div>
+      <div class="rvbi"><div class="rv-apple" id="rvAppleGold"></div><div class="rvc rg" id="rvG">0</div><div class="rvn">金苹果</div></div>
+      <div class="rvbi"><div class="rv-apple" id="rvAppleSilver"></div><div class="rvc rs" id="rvS">0</div><div class="rvn">银苹果</div></div>
+      <div class="rvbi"><div class="rv-apple" id="rvAppleRed"></div><div class="rvc rr" id="rvR">0</div><div class="rvn">红苹果</div></div>
     </div>
   </div>
   <div class="rwait">等待下一轮...</div>
@@ -493,6 +480,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
 
 <!-- ===== 全体胜利 ===== -->
 <div id="awPage" class="page">
+  <canvas id="awCanvasP" class="aw-particles"></canvas>
   <span class="aw-e">🍎</span>
   <div class="aw-t">全体胜利！</div>
   <div class="aw-s">所有人选择了红苹果<br>团队的力量创造了奇迹！</div>
@@ -530,7 +518,7 @@ body{background:var(--bg);color:var(--text);font-family:Georgia,'Noto Serif SC',
 // ============================================================
 const socket = io();
 const COUNTDOWN_SEC = 60;
-const CD_RING_CIRCUMFERENCE = 2 * Math.PI * 22; // ≈ 138.2
+const CD_RING_CIRCUMFERENCE = 2 * Math.PI * 23; // ≈ 144.5
 
 let myId = null;
 let myName = '';
@@ -541,9 +529,10 @@ let hasVoted = false;
 let isEliminated = false;
 let currentRound = 1;
 let totalRounds = 8;
-let curBet = 0;            // ★ 当前加注额
-let gameActive = false;    // ★ 游戏是否进行中（用于锁屏恢复判断）
-let gamePhase = 'idle';    // ★ idle/voting/result — 用于锁屏恢复
+let winCount = 10;
+let curBet = 0;
+let gameActive = false;
+let gamePhase = 'idle';
 
 // ============================================================
 //  页面切换
@@ -563,7 +552,7 @@ function curPg(){for(const p of document.querySelectorAll('.page'))if(p.classLis
     x:Math.random()*w,y:Math.random()*h,
     r:Math.random()*2+.4,dx:(Math.random()-.5)*.35,dy:-Math.random()*.45-.08,
     a:Math.random()*.35+.08,
-    cl:['#d4a853','#a8b4c4','#c45c5c','#6bb889'][Math.floor(Math.random()*4)]
+    cl:['#d4a853','#b8c8d8','#e06060','#6bb889'][Math.floor(Math.random()*4)]
   }));
   function draw(){
     ctx.clearRect(0,0,w,h);
@@ -582,13 +571,53 @@ function curPg(){for(const p of document.querySelectorAll('.page'))if(p.classLis
 })();
 
 // ============================================================
-//  ★ 生成苹果SVG图标（金/银/红三色）
+//  ★ 全体胜利粒子
+// ============================================================
+let awpAnimId = null;
+function startAwParticlesP() {
+  const cv = document.getElementById('awCanvasP');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  let w, h;
+  function rs(){w=cv.width=cv.offsetWidth||375;h=cv.height=cv.offsetHeight||700}
+  rs();
+  const ps=[];
+  for(let i=0;i<40;i++){
+    ps.push({x:Math.random()*w,y:Math.random()*h-h,r:Math.random()*2.5+1,dx:(Math.random()-.5)*.6,dy:Math.random()*1.2+.4,a:Math.random()*.4+.2,cl:['#d4a853','#6bb889','#f0d48a','#a78bfa'][Math.floor(Math.random()*4)],ph:Math.random()*6.28,ps:.008+Math.random()*.015});
+  }
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    ps.forEach(p=>{
+      p.ph+=p.ps;
+      const pa=p.a*(.7+.3*Math.sin(p.ph));
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*3);
+      g.addColorStop(0,p.cl);g.addColorStop(1,'transparent');
+      ctx.globalAlpha=pa*.3;ctx.fillStyle=g;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r*3,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=pa;ctx.fillStyle=p.cl;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+      p.x+=p.dx;p.y+=p.dy;
+      if(p.y>h+20){p.y=-20;p.x=Math.random()*w}
+      if(p.x<-20)p.x=w+20;if(p.x>w+20)p.x=-20;
+    });
+    ctx.globalAlpha=1;
+    awpAnimId=requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function stopAwParticlesP(){
+  if(awpAnimId){cancelAnimationFrame(awpAnimId);awpAnimId=null}
+}
+
+// ============================================================
+//  生成苹果SVG图标
 // ============================================================
 function appleSVG(type) {
   const colors = {
     gold: { body: '#d4a853', highlight: '#f0d48a', dark: '#9a7209', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' },
-    silver: { body: '#a8b4c4', highlight: '#d0dae6', dark: '#6b7a8c', leaf: '#7da88a', leafDark: '#4a7a5a', stem: '#6b7a5c' },
-    red: { body: '#c45c5c', highlight: '#e8a0a0', dark: '#8b3030', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' }
+    silver: { body: '#b8c8d8', highlight: '#d0dae6', dark: '#6b7a8c', leaf: '#7da88a', leafDark: '#4a7a5a', stem: '#6b7a5c' },
+    red: { body: '#e06060', highlight: '#f0a0a0', dark: '#8b3030', leaf: '#6bb889', leafDark: '#3d8b5a', stem: '#8b6914' }
   };
   const c = colors[type] || colors.gold;
   return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -608,7 +637,6 @@ function appleSVG(type) {
   </svg>`;
 }
 
-// ★ 设置投票后的苹果UI显示
 function showVotedApple(type) {
   const card = document.getElementById('votedCard');
   const icon = document.getElementById('votedIcon');
@@ -630,7 +658,7 @@ function showVotedApple(type) {
 //  加入游戏
 // ============================================================
 function joinGame() {
-  socket.emit('joinGame', {});  // 不需要名字，服务端自动分配编号
+  socket.emit('joinGame', {});
 }
 
 function showError(msg) {
@@ -653,11 +681,11 @@ function selApple(ch){
 
 function confirmVote(){
   if(!selChoice||hasVoted)return;
-  socket.emit('vote', { choice: selChoice, betAmount: curBet });  // ★ 带上加注额
+  socket.emit('vote', { choice: selChoice, betAmount: curBet });
 }
 
 // ============================================================
-//  ★ 加注系统 — 高风险高收益
+//  加注系统
 // ============================================================
 const LOSE_PEN = 2000;
 function getMaxBet() {
@@ -688,7 +716,6 @@ function updateBetUI() {
   document.getElementById('betPlus1000').disabled = curBet + 1000 > maxBet;
 }
 
-// ★ 更新加注区显示状态（根据轮次锁定/解锁）
 function updateBetSectionState() {
   const remaining = (totalRounds||8) - currentRound + 1;
   const betSection = document.getElementById('betSection');
@@ -712,32 +739,25 @@ function updateBetSectionState() {
 }
 
 // ============================================================
-//  ★ WebSocket 重连 + 锁屏恢复 + 页面可见性检测
+//  WebSocket 重连 + 锁屏恢复
 // ============================================================
-let reconnectTimer = null;
-
 socket.on('disconnect', () => {
   console.log('[WS] 断开连接，等待自动重连...');
 });
 
-// Socket.IO 内置重连成功后触发
 socket.io.on('reconnect', () => {
   console.log('[WS] 重连成功！恢复游戏状态...');
-  // 如果有身份，用编号重连
   if (myId && myNum) {
     socket.emit('reconnectPlayer', { playerId: myId, num: myNum });
   }
 });
 
-// ★ 页面可见性变化检测（锁屏恢复/切回前台）
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     console.log('[VIS] 页面重新可见');
     if (myId && myNum && !socket.connected) {
-      // 断线状态，尝试重连
       socket.connect();
     } else if (myId && myNum && socket.connected) {
-      // 已连接但可能在等待页 — 检查是否需要跳转
       const cp = curPg();
       if (cp === 'waitPage' && gameActive && gamePhase === 'voting') {
         initVoteUI({ round: currentRound, timer: 60, isFinalRound: currentRound >= totalRounds });
@@ -748,7 +768,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ============================================================
-//  倒计时更新（服务端推送）
+//  倒计时更新
 // ============================================================
 let lastCdRemaining = -1;
 
@@ -760,7 +780,6 @@ function updateCountdown(remaining) {
   const fillEl = document.getElementById('cdFill');
 
   if (remaining <= 0) {
-    // 时间到
     bar.classList.remove('show');
     endedBar.classList.add('show');
     if (lastCdRemaining !== 0) {
@@ -774,7 +793,6 @@ function updateCountdown(remaining) {
     return;
   }
 
-  // 有倒计时在跑
   endedBar.classList.remove('show');
   bar.classList.add('show');
 
@@ -797,7 +815,7 @@ function updateCountdown(remaining) {
 }
 
 // ============================================================
-//  ★ ready 阶段灰色禁用遮罩控制
+//  ready 阶段禁用遮罩
 // ============================================================
 function updateVoteDisabledState(isReady){
   const wrap = document.getElementById('votePageWrap');
@@ -845,10 +863,9 @@ function initVoteUI(data){
 // ============================================================
 socket.on('joinSuccess', (data) => {
   myId = data.playerId;
-  myName = '';  // 正式版不需要名字
+  myName = '';
   myNum = data.num || 0;
   myScore = data.score;
-  // ★ 持久化身份信息（用于锁屏恢复）
   localStorage.setItem('eden_player_id', myId);
   localStorage.setItem('eden_player_num', String(myNum));
   const ns = String(myNum).padStart(3,'0');
@@ -868,6 +885,7 @@ socket.on('playerListUpdate', (data) => {
 socket.on('gameStart', (data) => {
   currentRound = data.round;
   totalRounds = data.totalRounds || 8;
+  winCount = data.winCount || 10;
   myScore = 10000;
   isEliminated = false;
   hasVoted = false;
@@ -883,6 +901,7 @@ socket.on('gameStart', (data) => {
 socket.on('nextRound', (data) => {
   currentRound = data.round;
   totalRounds = data.totalRounds || 8;
+  winCount = data.winCount || 10;
   hasVoted = false;
   selChoice = null;
   curBet = 0;
@@ -911,9 +930,8 @@ socket.on('voteError', (data) => {
 
 socket.on('myResult', (data) => {
   myScore = data.total;
-  gamePhase = 'result';  // ★ 标记为结算阶段
+  gamePhase = 'result';
 
-  // 检测淘汰
   if(data.eliminated && !isEliminated){
     isEliminated = true;
     document.getElementById('elNm').textContent = '#' + String(myNum).padStart(3,'0');
@@ -924,8 +942,11 @@ socket.on('myResult', (data) => {
 
   if(data.specialEvent === 'all_red'){
     showPg('awPage');
+    startAwParticlesP();
     return;
   }
+
+  stopAwParticlesP();
 
   const card = document.getElementById('rmc');
   const emoji = document.getElementById('reEmoji');
@@ -944,7 +965,6 @@ socket.on('myResult', (data) => {
   }
 
   document.getElementById('reTotal').textContent = myScore.toLocaleString();
-  // ★ 显示加注信息
   const betInfo = document.getElementById('reBetInfo');
   if (curBet > 0 && data.voted) {
     betInfo.style.display = 'block';
@@ -960,11 +980,16 @@ socket.on('roundEnd', (data) => {
   document.getElementById('rvG').textContent = data.result.votes.gold;
   document.getElementById('rvS').textContent = data.result.votes.silver;
   document.getElementById('rvR').textContent = data.result.votes.red;
+  // ★ 填充SVG苹果图标
+  document.getElementById('rvAppleGold').innerHTML = appleSVG('gold');
+  document.getElementById('rvAppleSilver').innerHTML = appleSVG('silver');
+  document.getElementById('rvAppleRed').innerHTML = appleSVG('red');
 });
 
 socket.on('gameOver', (data) => {
   gameActive = false;
   gamePhase = 'gameover';
+  stopAwParticlesP();
   const lb = data.leaderboard;
   const myEntry = lb.find(p => p.id === myId);
   const myRank = lb.findIndex(p => p.id === myId) + 1;
@@ -986,6 +1011,7 @@ socket.on('gameReset', () => {
   gameActive = false;
   gamePhase = 'idle';
   curBet = 0;
+  stopAwParticlesP();
   localStorage.removeItem('eden_player_id');
   localStorage.removeItem('eden_player_num');
   location.reload();
@@ -1000,7 +1026,7 @@ function makeFragments(){
     const f=document.createElement('div');f.className='fg';
     f.style.left=Math.random()*100+'%';f.style.top='-10px';
     const s=3+Math.random()*12;f.style.width=s+'px';f.style.height=s+'px';
-    f.style.background=['#c45c5c','#b84444','#d4a853','#6bb889'][Math.floor(Math.random()*4)];
+    f.style.background=['#e06060','#b84444','#d4a853','#6bb889'][Math.floor(Math.random()*4)];
     f.style.animationDelay=Math.random()*.7+'s';
     f.style.animationDuration=(1+Math.random()*1.3)+'s';
     c.appendChild(f);

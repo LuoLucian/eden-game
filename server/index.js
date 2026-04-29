@@ -43,6 +43,7 @@ const LOSE_PENALTY = 2000;
 const NO_VOTE_PENALTY = 2000;  // 未投票扣分
 const ROUND_TIME = 60;
 const TOTAL_ROUNDS = 8;
+const WIN_COUNT = 10;  // ★ 默认前N名获胜
 
 // ==================== 编号管理 ====================
 let nextPlayerNum = 1;
@@ -55,6 +56,7 @@ let gameState = {
   status: 'waiting',   // waiting | voting | result | gameover
   round: 0,
   totalRounds: TOTAL_ROUNDS,
+  winCount: WIN_COUNT,  // ★ 前N名获胜
   players: {},         // { socketId: { name, num, score, eliminated, voted, voteChoice } }
   votes: { red: 0, gold: 0, silver: 0 },
   timer: ROUND_TIME,
@@ -120,7 +122,9 @@ function calcNormalRound(votes) {
     return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）最少 → 红苹果胜！红+${WIN_REWARD}，金-${LOSE_PENALTY}，银-${LOSE_PENALTY}` };
   }
 
-  // 金或银任意一个 ≤ 红 → 金银阵营整体获胜
+  // ★ 金或银任意一个 ≤ 红 → 金银阵营整体获胜
+  // 同票数时：如果金=银=红，按普通轮规则红不是最少，金银胜
+  // 如果金=红且银>红，金≤红成立，金银阵营胜
   return {
     winners: ['gold', 'silver'],
     losers: ['red'],
@@ -129,9 +133,12 @@ function calcNormalRound(votes) {
 }
 
 /**
- * 最终轮规则：
+ * 最终轮规则（★ 修复同票数判定漏洞）：
  * - 红票数 >= (总票数 - 10) → 全体胜利
- * - 否则：三色单独比，最少者获胜
+ * - 有红苹果时：最少者获胜；金=银同为最少 → 金银阵营共同胜利
+ * - 无红苹果时：金 vs 银，金=银 → 金银同时失败（全员扣分）
+ * - 三色同票 → 全员扣分
+ * - 红与另一色同票且同为最少 → 红优先（冒险者胜）
  */
 function calcFinalRound(votes) {
   const { red, gold, silver } = votes;
@@ -141,28 +148,61 @@ function calcFinalRound(votes) {
     return { specialEvent: 'all_red', winners: [], losers: [], message: `🎉 红苹果（${red}人）≥ 总票数（${total}）- 10 → 全体胜利！` };
   }
 
+  // ★ 无红苹果：金 vs 银
+  if (red === 0) {
+    if (gold === 0 && silver === 0) {
+      return { winners: [], losers: ['gold', 'silver'], message: `无人投票 → 全员扣除 ${LOSE_PENALTY} 积分` };
+    }
+    if (gold === silver) {
+      // ★ 无红苹果时，金=银 → 金银同时失败
+      return { winners: [], losers: ['gold', 'silver'], message: `无红苹果，金=银（各${gold}人）→ 金银同时失败，全员扣除 ${LOSE_PENALTY} 积分` };
+    }
+    if (gold < silver) {
+      return { winners: ['gold'], losers: ['silver'], message: `无红苹果，金苹果（${gold}人）< 银苹果（${silver}人）→ 金+${WIN_REWARD}，银-${LOSE_PENALTY}` };
+    }
+    return { winners: ['silver'], losers: ['gold'], message: `无红苹果，银苹果（${silver}人）< 金苹果（${gold}人）→ 银+${WIN_REWARD}，金-${LOSE_PENALTY}` };
+  }
+
+  // ★ 三色完全相同 → 全员扣分
   if (red === gold && gold === silver) {
     return { winners: [], losers: ['red', 'gold', 'silver'], message: `三色人数完全相同（各${red}人）→ 全员扣除 ${LOSE_PENALTY} 积分` };
   }
 
-  if (red < gold && red < silver) {
-    return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）比金（${gold}）和银（${silver}）都少 → 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
-  }
+  // ★ 找最少值
+  const minVal = Math.min(red, gold, silver);
+  const isMinRed = red === minVal;
+  const isMinGold = gold === minVal;
+  const isMinSilver = silver === minVal;
 
-  if (gold === silver) {
-    if (red < gold) {
-      return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）< 金=银（${gold}人）→ 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
-    }
-    return { winners: ['gold', 'silver'], losers: ['red'], message: `金=银（${gold}人）< 红苹果（${red}人）→ 金/银+${WIN_REWARD}，红-${LOSE_PENALTY}` };
+  // ★ 只有一种最少
+  if (isMinRed && !isMinGold && !isMinSilver) {
+    return { winners: ['red'], losers: ['gold', 'silver'], message: `红苹果（${red}人）最少 → 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
   }
-
-  if (gold < silver) {
+  if (isMinGold && !isMinRed && !isMinSilver) {
     return { winners: ['gold'], losers: ['red', 'silver'], message: `金苹果（${gold}人）最少 → 金+${WIN_REWARD}，红/银-${LOSE_PENALTY}` };
   }
-  if (silver < gold) {
+  if (isMinSilver && !isMinRed && !isMinGold) {
     return { winners: ['silver'], losers: ['red', 'gold'], message: `银苹果（${silver}人）最少 → 银+${WIN_REWARD}，红/金-${LOSE_PENALTY}` };
   }
-  return { winners: ['gold', 'silver'], losers: ['red'], message: `金=银均为最少 → 金/银+${WIN_REWARD}，红-${LOSE_PENALTY}` };
+
+  // ★ 两色同票且同为最少
+  // 有红苹果时：金银是阵营关系，金=银同为最少 → 金银同时胜利
+  // 红与另一色同为最少 → 红优先（冒险者胜）
+  if (isMinRed && isMinGold && !isMinSilver) {
+    // 红和金同为最少，红优先（更冒险）
+    return { winners: ['red'], losers: ['gold', 'silver'], message: `红=金（${red}人）同为最少，红苹果冒险优先 → 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
+  }
+  if (isMinRed && isMinSilver && !isMinGold) {
+    // 红和银同为最少，红优先
+    return { winners: ['red'], losers: ['gold', 'silver'], message: `红=银（${red}人）同为最少，红苹果冒险优先 → 红+${WIN_REWARD}，金/银-${LOSE_PENALTY}` };
+  }
+  if (isMinGold && isMinSilver && !isMinRed) {
+    // ★ 有红苹果时：金银是阵营，金=银同为最少 → 金银同时胜利
+    return { winners: ['gold', 'silver'], losers: ['red'], message: `金=银（${gold}人）同为最少，金银阵营共同胜利 → 金+${WIN_REWARD}，银+${WIN_REWARD}，红-${LOSE_PENALTY}` };
+  }
+
+  // fallback（不应到达）
+  return { winners: [], losers: ['red', 'gold', 'silver'], message: `判定异常，全员扣除 ${LOSE_PENALTY} 积分` };
 }
 
 function calculateResult(votes, round) {
@@ -267,6 +307,7 @@ function endVoting() {
     leaderboard: getLeaderboard(),
     round: gameState.round,
     isFinalRound: result.isFinalRound,
+    winCount: gameState.winCount,
     activePlayerCount: activeCount,
     newlyEliminated: newlyEliminated.map(id => ({
       id, name: gameState.players[id].name, num: gameState.players[id].num
@@ -301,7 +342,7 @@ function endVoting() {
 function triggerGameOver() {
   clearInterval(timerInterval);
   gameState.status = 'gameover';
-  io.emit('gameOver', { leaderboard: getLeaderboard(), history: gameState.roundHistory });
+  io.emit('gameOver', { leaderboard: getLeaderboard(), history: gameState.roundHistory, winCount: gameState.winCount });
 }
 
 // ==================== Socket.io ====================
@@ -424,7 +465,7 @@ io.on('connection', (socket) => {
     }
     const isFinalRound = gameState.round >= gameState.totalRounds;
     const activeCount = getActivePlayerCount();
-    io.emit('gameStart', { round: gameState.round, timer: ROUND_TIME, totalRounds: gameState.totalRounds, isFinalRound, activePlayerCount: activeCount });
+    io.emit('gameStart', { round: gameState.round, timer: ROUND_TIME, totalRounds: gameState.totalRounds, winCount: gameState.winCount, isFinalRound, activePlayerCount: activeCount });
     startTimer();
     console.log('游戏开始，第1轮');
   });
@@ -452,7 +493,7 @@ io.on('connection', (socket) => {
     }
     const isFinalRound = gameState.round >= gameState.totalRounds;
     const activeCount = getActivePlayerCount();
-    io.emit('nextRound', { round: gameState.round, timer: ROUND_TIME, totalRounds: gameState.totalRounds, isFinalRound, activePlayerCount: activeCount });
+    io.emit('nextRound', { round: gameState.round, timer: ROUND_TIME, totalRounds: gameState.totalRounds, winCount: gameState.winCount, isFinalRound, activePlayerCount: activeCount });
     startTimer();
     console.log(`开始第${gameState.round}轮${isFinalRound ? '（最终轮）' : ''}，有效玩家: ${activeCount}`);
   });
@@ -463,7 +504,7 @@ io.on('connection', (socket) => {
     clearInterval(timerInterval);
     nextPlayerNum = 1;  // 重置编号
     gameState = {
-      status: 'waiting', round: 0, totalRounds: gameState.totalRounds,
+      status: 'waiting', round: 0, totalRounds: gameState.totalRounds, winCount: gameState.winCount,
       players: {}, votes: { red: 0, gold: 0, silver: 0 },
       timer: ROUND_TIME, roundResult: null, roundHistory: [], publicUrl: gameState.publicUrl
     };
@@ -483,7 +524,17 @@ io.on('connection', (socket) => {
     const r = parseInt(rounds);
     if (r >= 1 && r <= 20) {
       gameState.totalRounds = r;
-      io.to('admin').emit('settingsUpdate', { totalRounds: gameState.totalRounds });
+      io.to('admin').emit('settingsUpdate', { totalRounds: gameState.totalRounds, winCount: gameState.winCount });
+    }
+  });
+
+  // ★ 设置前N名获胜
+  socket.on('adminSetWinCount', ({ winCount }) => {
+    if (gameState.status !== 'waiting') return;
+    const w = parseInt(winCount);
+    if (w >= 1 && w <= 50) {
+      gameState.winCount = w;
+      io.to('admin').emit('settingsUpdate', { totalRounds: gameState.totalRounds, winCount: gameState.winCount });
     }
   });
 
@@ -496,6 +547,7 @@ io.on('connection', (socket) => {
       playerCount: Object.keys(gameState.players).length,
       activePlayerCount: getActivePlayerCount(),
       totalRounds: gameState.totalRounds,
+      winCount: gameState.winCount,
       isFinalRound: gameState.round >= gameState.totalRounds
     });
   });
@@ -509,6 +561,7 @@ io.on('connection', (socket) => {
       playerCount: Object.keys(gameState.players).length,
       activePlayerCount: getActivePlayerCount(),
       totalRounds: gameState.totalRounds,
+      winCount: gameState.winCount,
       isFinalRound: gameState.round >= gameState.totalRounds
     });
   });

@@ -6,171 +6,212 @@
 <title>伊甸园 — 后台控制</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
   * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#080b14;--card:rgba(14,18,36,.94);--border:rgba(196,165,107,.15);
+    --text:#e8dcc8;--muted:#8a7e6e;--gold:#d4a853;--gold-light:#f0d48a;
+    --silver:#b8c8d8;--red:#e06060;--green:#6bb889;--purple:#a78bfa;
+    --copper:#cd7f32;
+  }
   body {
-    background: #0f172a;
-    color: #e2e8f0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Serif SC', Georgia, serif;
     min-height: 100vh;
     padding: 24px;
+    background-image: radial-gradient(ellipse at 30% 20%,rgba(212,168,83,.03) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(107,184,137,.03) 0%,transparent 50%);
   }
 
   h1 {
-    font-size: 26px;
-    font-weight: 800;
-    color: #f8fafc;
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(135deg,#f0d48a,#d4a853,#6bb889);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
     margin-bottom: 4px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    letter-spacing: 2px;
   }
-  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+  .subtitle { font-size: 13px; color: var(--muted); margin-bottom: 28px; letter-spacing: 2px; }
 
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   .card {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 20px;
+    padding: 22px;
+    backdrop-filter: blur(8px);
   }
   .card-title {
-    font-size: 13px;
-    color: #64748b;
-    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 16px;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   /* 状态卡 */
-  .status-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .status-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
   .stat-box {
     flex: 1;
-    background: #0f172a;
-    border-radius: 10px;
-    padding: 12px 16px;
+    background: rgba(8,11,20,.6);
+    border-radius: 12px;
+    padding: 14px 16px;
     text-align: center;
     min-width: 80px;
+    border: 1px solid rgba(232,220,200,.04);
   }
-  .stat-value { font-size: 28px; font-weight: 800; color: #38bdf8; }
-  .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .stat-value { font-size: 28px; font-weight: 800; color: #38bdf8; font-variant-numeric:tabular-nums }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; letter-spacing: 1px }
 
   .status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
+    gap: 8px;
+    padding: 7px 16px;
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
   }
-  .status-waiting { background: rgba(100,116,139,0.2); color: #94a3b8; }
-  .status-voting { background: rgba(34,197,94,0.15); color: #4ade80; }
-  .status-result { background: rgba(251,191,36,0.15); color: #fbbf24; }
-  .status-gameover { background: rgba(239,68,68,0.15); color: #f87171; }
+  .status-waiting { background: rgba(138,126,110,.15); color: var(--muted); }
+  .status-voting { background: rgba(107,184,137,.12); color: var(--green); }
+  .status-result { background: rgba(212,168,83,.12); color: var(--gold); }
+  .status-gameover { background: rgba(224,96,96,.12); color: var(--red); }
   .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: blink 1.5s infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
   /* 控制按钮 */
   .btn-group { display: flex; flex-direction: column; gap: 10px; }
   .btn {
-    padding: 13px 20px;
-    border-radius: 10px;
+    padding: 14px 20px;
+    border-radius: 12px;
     border: none;
     cursor: pointer;
     font-size: 15px;
-    font-weight: 600;
-    transition: all 0.2s;
+    font-weight: 700;
+    transition: all .2s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    font-family: inherit;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
   }
-  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn:disabled { opacity: .25; cursor: not-allowed; }
+  .btn::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent); transform:translateX(-100%); transition:transform .4s }
+  .btn:hover:not(:disabled)::after { transform:translateX(100%) }
   .btn-green { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
-  .btn-green:hover:not(:disabled) { background: linear-gradient(135deg, #4ade80, #22c55e); transform: translateY(-1px); }
-  .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
-  .btn-blue:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-green:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(34,197,94,.25); }
+  .btn-blue { background: linear-gradient(135deg, var(--purple), #7c3aed); color: #fff; }
+  .btn-blue:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(167,139,250,.25); }
   .btn-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
-  .btn-yellow:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-yellow:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,158,11,.25); }
   .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
-  .btn-red:hover:not(:disabled) { transform: translateY(-1px); }
-  .btn-gray { background: #334155; color: #94a3b8; }
-  .btn-gray:hover:not(:disabled) { background: #475569; }
-  .btn-outline { background: transparent; border: 1px solid #334155; color: #94a3b8; }
-  .btn-outline:hover:not(:disabled) { border-color: #475569; color: #e2e8f0; }
+  .btn-red:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(239,68,68,.25); }
+  .btn-gray { background: rgba(232,220,200,.06); color: var(--muted); border: 1px solid var(--border); }
+  .btn-gray:hover:not(:disabled) { background: rgba(232,220,200,.1); }
 
   /* 投票实时 */
-  .vote-row { display: flex; gap: 10px; margin-bottom: 12px; }
-  .vote-item { flex: 1; border-radius: 10px; padding: 12px; text-align: center; }
-  .vote-gold { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); }
-  .vote-silver { background: rgba(148,163,184,0.1); border: 1px solid rgba(148,163,184,0.3); }
-  .vote-red { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
-  .vote-count { font-size: 32px; font-weight: 800; }
-  .vote-gold .vote-count { color: #fbbf24; }
-  .vote-silver .vote-count { color: #94a3b8; }
-  .vote-red .vote-count { color: #f87171; }
-  .vote-name { font-size: 12px; color: #64748b; margin-top: 3px; }
+  .vote-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .vote-item { flex: 1; border-radius: 12px; padding: 14px; text-align: center; transition: transform .2s }
+  .vote-item:hover { transform: translateY(-2px) }
+  .vote-gold { background: rgba(212,168,83,.08); border: 1px solid rgba(212,168,83,.25); }
+  .vote-silver { background: rgba(184,200,216,.08); border: 1px solid rgba(184,200,216,.25); }
+  .vote-red { background: rgba(224,96,96,.08); border: 1px solid rgba(224,96,96,.25); }
+  .vote-count { font-size: 34px; font-weight: 800; font-variant-numeric:tabular-nums }
+  .vote-gold .vote-count { color: var(--gold); }
+  .vote-silver .vote-count { color: var(--silver); }
+  .vote-red .vote-count { color: var(--red); }
+  .vote-name { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-  .progress-bar { background: #0f172a; border-radius: 6px; height: 8px; margin-top: 8px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; background: #38bdf8; }
+  .progress-bar { background: rgba(8,11,20,.6); border-radius: 6px; height: 8px; margin-top: 10px; overflow: hidden; border: 1px solid rgba(232,220,200,.03); }
+  .progress-fill { height: 100%; border-radius: 6px; transition: width .4s ease; background: linear-gradient(90deg,var(--purple),var(--gold),var(--green)); background-size: 300% 100%; animation: barGrad 4s ease infinite; position: relative; }
+  @keyframes barGrad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .progress-fill::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent); animation:shimmer 1.8s infinite }
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 
   /* 排行榜 */
   .lb-table { width: 100%; border-collapse: collapse; }
-  .lb-table th { text-align: left; font-size: 11px; color: #475569; padding: 6px 8px; border-bottom: 1px solid #1e293b; }
-  .lb-table td { padding: 8px; font-size: 13px; border-bottom: 1px solid #1e293b; }
+  .lb-table th { text-align: left; font-size: 11px; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid rgba(232,220,200,.06); letter-spacing: 1px; }
+  .lb-table td { padding: 10px; font-size: 14px; border-bottom: 1px solid rgba(232,220,200,.03); }
   .lb-table tr:last-child td { border-bottom: none; }
-  .rank-cell { color: #475569; font-weight: 600; width: 30px; }
-  .score-cell { color: #4ade80; font-weight: 700; text-align: right; }
+  .lb-table tr:hover td { background: rgba(232,220,200,.02); }
+  .rank-cell { color: var(--muted); font-weight: 600; width: 36px; }
+  .score-cell { color: var(--green); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 
   /* 倒计时大字 */
   .timer-display {
     text-align: center;
-    padding: 10px;
+    padding: 12px;
   }
-  .timer-big { font-size: 64px; font-weight: 900; color: #38bdf8; line-height: 1; }
-  .timer-big.urgent { color: #f87171; }
-  .timer-note { font-size: 12px; color: #475569; margin-top: 4px; }
+  .timer-big { font-size: 64px; font-weight: 900; color: var(--purple); line-height: 1; font-family: Georgia,'Noto Serif SC',serif; text-shadow: 0 0 20px rgba(167,139,250,.3) }
+  .timer-big.urgent { color: var(--red); text-shadow: 0 0 20px rgba(224,96,96,.3); animation: timerPulse .5s infinite alternate }
+  @keyframes timerPulse { from{transform:scale(1)} to{transform:scale(1.03)} }
+  .timer-note { font-size: 12px; color: var(--muted); margin-top: 6px; letter-spacing: 1px }
 
   /* 历史记录 */
   .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+  .history-list::-webkit-scrollbar { width: 3px }
+  .history-list::-webkit-scrollbar-thumb { background: rgba(232,220,200,.1); border-radius: 2px; }
   .history-item {
-    padding: 8px 12px;
-    background: #0f172a;
-    border-radius: 8px;
+    padding: 10px 14px;
+    background: rgba(8,11,20,.5);
+    border-radius: 10px;
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--muted);
+    border: 1px solid rgba(232,220,200,.03);
   }
-  .history-round { color: #38bdf8; font-weight: 700; }
+  .history-round { color: var(--gold); font-weight: 700; }
 
   /* 消息提示 */
   .toast {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 12px 20px;
-    border-radius: 10px;
+    top: 24px;
+    right: 24px;
+    padding: 14px 22px;
+    border-radius: 14px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     z-index: 9999;
     transform: translateX(200px);
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: all .35s cubic-bezier(.34,1.56,.64,1);
+    backdrop-filter: blur(8px);
+    font-family: inherit;
   }
   .toast.show { transform: translateX(0); opacity: 1; }
-  .toast-success { background: #166534; color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
-  .toast-error { background: #7f1d1d; color: #fca5a5; border: 1px solid rgba(252,165,165,0.3); }
+  .toast-success { background: rgba(107,184,137,.15); color: var(--green); border: 1px solid rgba(107,184,137,.25); }
+  .toast-error { background: rgba(224,96,96,.15); color: var(--red); border: 1px solid rgba(224,96,96,.25); }
 
   .span2 { grid-column: span 2; }
 
   /* 二维码 */
   .qr-section { display: flex; align-items: center; gap: 16px; }
-  .qr-small { width: 80px; height: 80px; border-radius: 8px; background: #fff; padding: 4px; }
+  .qr-small { width: 80px; height: 80px; border-radius: 10px; background: #fff; padding: 4px; }
   .qr-info { flex: 1; }
-  .qr-url { font-size: 13px; color: #38bdf8; word-break: break-all; margin-top: 4px; }
+  .qr-url { font-size: 13px; color: var(--green); word-break: break-all; margin-top: 4px; font-weight: 600 }
+
+  /* 最终轮提示 */
+  .final-note {
+    display: none;
+    margin-top: 10px;
+    padding: 8px 14px;
+    background: rgba(167,139,250,.1);
+    border: 1px solid rgba(167,139,250,.3);
+    border-radius: 10px;
+    font-size: 12px;
+    color: #c4b5fd;
+    animation: finalPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes finalPulse { 0%,100%{border-color:rgba(167,139,250,.3)}50%{border-color:rgba(167,139,250,.5)} }
 
   @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .span2 { grid-column: span 1; } }
 </style>
@@ -190,7 +231,7 @@
         <div class="stat-label">在线玩家</div>
       </div>
       <div class="stat-box">
-        <div class="stat-value" style="color:#fbbf24" id="activePlayerCountStat">0</div>
+        <div class="stat-value" style="color:var(--gold)" id="activePlayerCountStat">0</div>
         <div class="stat-label">有效玩家</div>
       </div>
       <div class="stat-box">
@@ -198,7 +239,7 @@
         <div class="stat-label">当前轮次</div>
       </div>
       <div class="stat-box">
-        <div class="stat-value" id="votedStat">0</div>
+        <div class="stat-value" style="color:var(--green)" id="votedStat">0</div>
         <div class="stat-label">已投票</div>
       </div>
     </div>
@@ -206,7 +247,7 @@
       <div class="status-dot"></div>
       <span id="statusText">等待开始</span>
     </div>
-    <div id="finalRoundNote" style="display:none;margin-top:8px;padding:6px 12px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);border-radius:8px;font-size:12px;color:#c084fc">
+    <div id="finalRoundNote" class="final-note">
       🏁 当前为最终轮！红苹果 ≥ 总票数-10 即全体胜利
     </div>
     <div class="timer-display" id="timerDisplay" style="display:none">
@@ -247,18 +288,18 @@
       </div>
       <div class="vote-item vote-silver">
         <div class="vote-count" id="silverCount">0</div>
-        <div class="vote-name">🥈 银苹果</div>
+        <div class="vote-name">🍎 银苹果</div>
       </div>
       <div class="vote-item vote-red">
         <div class="vote-count" id="redCount">0</div>
-        <div class="vote-name">🍒 红苹果</div>
+        <div class="vote-name">🍎 红苹果</div>
       </div>
     </div>
-    <div style="font-size:13px; color:#64748b; margin-bottom:6px">投票进度</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:8px; letter-spacing:1px">投票进度</div>
     <div class="progress-bar">
       <div class="progress-fill" id="voteProgress" style="width:0%"></div>
     </div>
-    <div style="font-size:12px; color:#475569; margin-top:6px">
+    <div style="font-size:12px; color:var(--muted); margin-top:8px">
       <span id="votedNum">0</span> / <span id="totalNum">0</span> 人已投票
     </div>
   </div>
@@ -266,22 +307,29 @@
   <!-- 游戏设置 -->
   <div class="card">
     <div class="card-title">⚙️ 游戏设置</div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <label style="font-size:13px;color:#94a3b8;white-space:nowrap">总轮数（默认8轮，最后一轮为最终轮）：</label>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <label style="font-size:13px;color:var(--muted);white-space:nowrap">总轮数（默认8轮）：</label>
       <input id="roundsInput" type="number" min="1" max="20" value="8"
-        style="width:70px;padding:8px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:15px;text-align:center"
+        style="width:70px;padding:10px;background:rgba(8,11,20,.6);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;text-align:center;font-family:inherit"
         onchange="setRounds(this.value)">
     </div>
-    <div style="font-size:12px;color:#475569">仅在游戏开始前有效。最终轮（第N轮）规则：红苹果≥总票数-10则全体胜利。</div>
-  </div>
-    <div class="card-title">📱 玩家入口</div>
-    <div class="qr-section">
-      <img id="qrSmall" class="qr-small" src="" alt="">
-      <div class="qr-info">
-        <div style="font-size:13px; color:#94a3b8">玩家扫码加入：</div>
-        <div class="qr-url" id="playerUrl">加载中...</div>
-        <div style="margin-top:8px; font-size:12px; color:#475569">大屏地址：</div>
-        <div class="qr-url" id="displayUrl" style="font-size:12px">加载中...</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <label style="font-size:13px;color:var(--muted);white-space:nowrap">前N名获胜（默认10）：</label>
+      <input id="winCountInput" type="number" min="1" max="50" value="10"
+        style="width:70px;padding:10px;background:rgba(8,11,20,.6);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;text-align:center;font-family:inherit"
+        onchange="setWinCount(this.value)">
+    </div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6">仅在游戏开始前有效。最终轮（第N轮）规则：红苹果≥总票数-10则全体胜利。同票数时按冒险优先判定（红>金>银）。</div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(232,220,200,.06)">
+      <div class="card-title" style="margin-bottom:12px">📱 玩家入口</div>
+      <div class="qr-section">
+        <img id="qrSmall" class="qr-small" src="" alt="">
+        <div class="qr-info">
+          <div style="font-size:13px; color:var(--muted)">玩家扫码加入：</div>
+          <div class="qr-url" id="playerUrl">加载中...</div>
+          <div style="margin-top:8px; font-size:12px; color:var(--muted)">大屏地址：</div>
+          <div class="qr-url" id="displayUrl" style="font-size:12px">加载中...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -293,7 +341,7 @@
       <thead>
         <tr>
           <th>排名</th>
-          <th>玩家名称</th>
+          <th>玩家编号</th>
           <th style="text-align:right">积分</th>
         </tr>
       </thead>
@@ -305,7 +353,7 @@
   <div class="card span2">
     <div class="card-title">📜 历史记录</div>
     <div class="history-list" id="historyList">
-      <div style="color:#475569; font-size:13px">暂无历史记录</div>
+      <div style="color:var(--muted); font-size:13px;font-style:italic">暂无历史记录</div>
     </div>
   </div>
 </div>
@@ -324,7 +372,6 @@ fetch('/serverinfo').then(r=>r.json()).then(info => {
   document.getElementById('playerUrl').textContent = `${base}/player/`;
   document.getElementById('displayUrl').textContent = `${base}/display/`;
 }).catch(() => {
-  // 备用：使用当前页面的 origin
   const base = window.location.origin;
   document.getElementById('playerUrl').textContent = `${base}/player/`;
   document.getElementById('displayUrl').textContent = `${base}/display/`;
@@ -380,12 +427,12 @@ function updateButtons(status) {
 function updateLeaderboard(lb) {
   const medals = ['🥇','🥈','🥉'];
   document.getElementById('lbBody').innerHTML = lb.map((p,i) => {
-    const elimTag = p.eliminated ? ' <span style="color:#f87171;font-size:11px">❌淘汰</span>' : '';
-    const numTag = p.num ? ` #${p.num}` : '';
-    const rowStyle = p.eliminated ? 'style="opacity:0.35;text-decoration:line-through"' : '';
+    const elimTag = p.eliminated ? ' <span style="color:var(--red);font-size:11px">❌淘汰</span>' : '';
+    const numTag = p.num ? `#${String(p.num).padStart(3,'0')}` : '';
+    const rowStyle = p.eliminated ? 'style="opacity:.3;text-decoration:line-through"' : '';
     return `<tr ${rowStyle}>
       <td class="rank-cell">${medals[i]||i+1}</td>
-      <td>${escHtml(p.name)}${numTag}${elimTag}</td>
+      <td>${numTag}${elimTag}</td>
       <td class="score-cell">${p.score.toLocaleString()}</td>
     </tr>`;
   }).join('');
@@ -508,8 +555,14 @@ function setRounds(val) {
   if (r >= 1 && r <= 20) socket.emit('adminSetRounds', { rounds: r });
 }
 
+function setWinCount(val) {
+  const w = parseInt(val);
+  if (w >= 1 && w <= 50) socket.emit('adminSetWinCount', { winCount: w });
+}
+
 socket.on('settingsUpdate', (data) => {
   if (data.totalRounds) document.getElementById('roundsInput').value = data.totalRounds;
+  if (data.winCount) document.getElementById('winCountInput').value = data.winCount;
 });
 </script>
 </body>

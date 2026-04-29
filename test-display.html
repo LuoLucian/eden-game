@@ -74,7 +74,7 @@
   @keyframes hintPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:.7;transform:scale(1.01)}}
 
   /* 排行主体 — 双列网格，前10名统一标记突出 */
-  .main{flex:1;display:flex;flex-direction:column;padding-top:12px;overflow:hidden}
+  .main{flex:1;display:flex;flex-direction:column;padding-top:12px;overflow:hidden;position:relative}
   .lb-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .lb-t{font-size:22px;font-weight:900;letter-spacing:3px;color:var(--muted)}
   .lb-t span{color:var(--gold)}
@@ -84,13 +84,14 @@
   .lb-item{display:flex;align-items:center;gap:10px;padding:9px 14px;background:rgba(232,220,200,.02);border:1px solid rgba(232,220,200,.04);border-radius:10px;transition:all .3s;font-size:17px}
   .lb-item.elim{opacity:.25;text-decoration:line-through}
 
-  /* ★ 前十名统一重点标记 — 相同的边框和透明背景色 */
-  .lb-item.top10{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.35);box-shadow:0 0 12px rgba(212,168,83,.08)}
+  /* ★ 前N名获胜标记 — 统一金色光效 */
+  .lb-item.winner{background:rgba(212,168,83,.08);border:1.5px solid rgba(212,168,83,.35);box-shadow:0 0 12px rgba(212,168,83,.08);position:relative}
+  .lb-item.winner::after{content:'';position:absolute;top:0;right:0;width:3px;height:100%;background:linear-gradient(180deg,var(--gold),rgba(212,168,83,.2));border-radius:0 10px 10px 0;box-shadow:0 0 6px rgba(212,168,83,.25)}
 
   /* ★ 数字排名 */
   .lb-rk{font-size:18px;font-weight:900;width:30px;text-align:center;color:var(--muted);flex-shrink:0;opacity:.4;font-variant-numeric:tabular-nums}
-  /* 前十名排名数字更醒目 */
-  .lb-item.top10 .lb-rk{color:var(--gold);font-size:20px;opacity:.9}
+  /* 前N名排名数字更醒目 */
+  .lb-item.winner .lb-rk{color:var(--gold);font-size:20px;opacity:.9}
   .lb-num{font-size:13.5px;color:var(--gold);font-weight:700;opacity:.55;min-width:38px;font-variant-numeric:tabular-nums}
   .lb-nm{flex:1;font-size:17px;color:rgba(232,220,200,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
   .lb-sc{font-size:18px;font-weight:800;color:var(--green);flex-shrink:0;font-variant-numeric:tabular-nums}
@@ -144,7 +145,7 @@
   .vm-ended-sub{font-size:15px;color:var(--muted);font-style:italic}
 
   /* ===== 内嵌结算区（排行榜下方） ===== */
-  .result-inline{display:none;flex-direction:column;align-items:center;padding:16px 24px;background:linear-gradient(135deg,rgba(212,168,83,.12),rgba(107,184,137,.06));border:1.5px solid rgba(212,168,83,.35);border-radius:14px;margin-top:10px;animation:riIn .45s ease;position:relative;overflow:hidden}
+  .result-inline{display:none;flex-direction:column;align-items:center;padding:16px 24px;background:linear-gradient(135deg,rgba(8,11,20,.92),rgba(15,20,35,.95));border:1.5px solid rgba(212,168,83,.35);border-radius:14px;animation:riIn .45s ease;position:absolute;bottom:0;left:0;right:0;z-index:10;overflow:hidden;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
   .result-inline::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(212,168,83,.1),transparent 70%);pointer-events:none}
   @keyframes riIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .result-inline.show{display:flex}
@@ -255,7 +256,7 @@
   <!-- 游戏区 -->
   <div id="gameSec" style="display:none" class="main">
     <div class="lb-hd">
-      <div class="lb-t">🏆 排名 <span>TOP 10</span></div>
+      <div class="lb-t">🏆 排名 <span id="lbTopLabel">TOP 10</span></div>
     </div>
     <!-- 双列网格排行榜（前十名加边框和背景色突出） -->
     <div class="lb-grid" id="lbGrid"></div>
@@ -335,6 +336,7 @@
 
 <script>
 const S_KEY = 'eden_test_data';
+let winCount = 10;  // ★ 前N名获胜，从共享数据读取
 const COUNTDOWN_SEC = 60;
 let lastRR = -1;
 
@@ -524,7 +526,12 @@ function updateCountdown(data) {
 function refresh(){
   const data=ld();
   if(!data)return;
-  const{players,currentRound,totalRounds,gameActive,lastResult,countdownEndTs}=data;
+  const{players,currentRound,totalRounds,winCount:wcData,gameActive,lastResult,countdownEndTs}=data;
+  if (wcData) {
+    winCount = wcData;
+    const tl = document.getElementById('lbTopLabel');
+    if (tl) tl.textContent = 'TOP ' + winCount;
+  }
   const pList=Object.values(players||{});
   const total=pList.length;
   const active=pList.filter(p=>!p.eliminated).length;
@@ -583,16 +590,17 @@ function refresh(){
   // ★ 倒计时
   updateCountdown({gameActive, countdownEndTs, lastResult});
 
-  // ★ 排行榜 — 双列网格，只显示前20名，前10名统一加边框和背景色标记
+  // ★ 排行榜 — 双列网格，只显示前20名，前 winCount 名统一获胜标记
+  const wc = (typeof winCount !== 'undefined') ? winCount : 10;
   const sorted=[...pList].sort((a,b)=>b.score-a.score).slice(0, 20);
   document.getElementById('lbGrid').innerHTML=sorted.map((p, i) => {
     const rankNum = i + 1;
-    const top10Cls = rankNum <= 10 ? ' top10' : '';
+    const winnerCls = rankNum <= wc ? ' winner' : '';
     const elCls = p.eliminated ? ' elim' : '';
     const chHtml = p.lastChange !== undefined
       ? (p.lastChange > 0 ? `<div class="lb-ch pos">+${p.lastChange}</div>`
          : p.lastChange < 0 ? `<div class="lb-ch neg">${p.lastChange}</div>` : '') : '';
-    return `<div class="lb-item${top10Cls}${elCls}">
+    return `<div class="lb-item${winnerCls}${elCls}">
       <div class="lb-rk">${rankNum}</div>
       <div class="lb-num">#${String(p.num).padStart(3,'0')}</div>
       <div class="lb-nm">#${String(p.num).padStart(3,'0')}</div>
