@@ -2,10 +2,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const QRCode = require('qrcode');
 const os = require('os');
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
@@ -36,6 +39,43 @@ function getLocalIP() {
   return 'localhost';
 }
 
+// ==================== 身份令牌 ====================
+// token = playerId.gameId.hmac —— 服务端签发，客户端只持有、不解析。
+// gameId 每次「重置游戏 / 服务端重启」都会重新生成，旧 token 自动失效，
+// 从根本上杜绝「上一局的手机串进新一局」。
+const SECRET_FILE = path.join(__dirname, '../.eden-secret');
+let SECRET = process.env.EDEN_SECRET;
+if (!SECRET) {
+  try { SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim(); } catch (e) { /* 首次运行 */ }
+  if (!SECRET) {
+    SECRET = crypto.randomBytes(32).toString('hex');
+    try { fs.writeFileSync(SECRET_FILE, SECRET); } catch (e) { /* 无写权限时退化为内存密钥 */ }
+  }
+}
+
+let gameId = crypto.randomBytes(8).toString('hex');
+
+function signToken(playerId, gid) {
+  const payload = `${playerId}.${gid}`;
+  const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [playerId, gid, sig] = parts;
+  const expected = crypto.createHmac('sha256', SECRET).update(`${playerId}.${gid}`).digest('hex');
+  if (sig.length !== expected.length) return null;
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  } catch (e) {
+    return null;
+  }
+  return { playerId, gameId: gid };
+}
+
 // ==================== 游戏常量 ====================
 const INITIAL_SCORE = 10000;
 const WIN_REWARD = 1000;
@@ -57,25 +97,36 @@ let gameState = {
   round: 0,
   totalRounds: TOTAL_ROUNDS,
   winCount: WIN_COUNT,  // ★ 前N名获胜
-  players: {},         // { socketId: { name, num, score, eliminated, voted, voteChoice } }
+  players: {},         // { playerId: { playerId, name, num, score, eliminated, voted, voteChoice, betAmount, socketId, connected } }
   votes: { red: 0, gold: 0, silver: 0 },
   timer: ROUND_TIME,
   roundResult: null,
   roundHistory: [],
+  lastResults: {},     // { playerId: myResult } —— 结算补偿，重连可拉回本轮结果
   publicUrl: ''
 };
 
+// 幂等投票账本：{ `${playerId}:${round}`: { clientVoteId, choice, betAmount, ack } }
+// 同一轮重复提交（网络重试 / 断网补投）永远返回首次回执，绝不重复计票。
+let voteLedger = {};
+
 let timerInterval = null;
+
+// ==================== 玩家查找 ====================
+function getPlayerBySocket(socketId) {
+  for (const pid in gameState.players) {
+    if (gameState.players[pid].socketId === socketId) return gameState.players[pid];
+  }
+  return null;
+}
 
 // ==================== 有效玩家（未淘汰）====================
 function getActivePlayers() {
-  return Object.entries(gameState.players)
-    .filter(([_, p]) => !p.eliminated)
-    .map(([id, p]) => ({ id, ...p }));
+  return Object.values(gameState.players).filter(p => !p.eliminated);
 }
 
 function getActivePlayerCount() {
-  return Object.values(gameState.players).filter(p => !p.eliminated).length;
+  return getActivePlayers().length;
 }
 
 // ==================== 规则计算 ====================
@@ -212,17 +263,18 @@ function calculateResult(votes, round) {
 }
 
 // 将结果应用到玩家积分（仅有效玩家参与）
+// ★ 以 playerId 为键，杜绝重连换 socket.id 后结果错位
 function applyResult(result) {
   const scoreChanges = {};
   const newlyEliminated = [];
 
-  for (const id in gameState.players) {
-    const player = gameState.players[id];
+  for (const pid in gameState.players) {
+    const player = gameState.players[pid];
     let change = 0;
 
     // 已淘汰玩家不参与
     if (player.eliminated) {
-      scoreChanges[id] = { name: player.name, num: player.num, change: 0, total: player.score, eliminated: true };
+      scoreChanges[pid] = { name: player.name, num: player.num, change: 0, total: player.score, eliminated: true };
       continue;
     }
 
@@ -254,20 +306,93 @@ function applyResult(result) {
     if (player.score <= 0 && !player.eliminated) {
       player.eliminated = true;
       player.score = 0;  // 钳位到0
-      newlyEliminated.push(id);
+      newlyEliminated.push(pid);
     }
 
-    scoreChanges[id] = { name: player.name, num: player.num, change, total: player.score, eliminated: player.eliminated };
+    scoreChanges[pid] = { name: player.name, num: player.num, change, total: player.score, eliminated: player.eliminated };
   }
 
   return { scoreChanges, newlyEliminated };
 }
 
 function getLeaderboard() {
-  return Object.entries(gameState.players)
-    .map(([id, p]) => ({ id, name: p.name, num: p.num, score: p.score, eliminated: p.eliminated }))
+  return Object.values(gameState.players)
+    .map(p => ({ id: p.playerId, name: p.name, num: p.num, score: p.score, eliminated: p.eliminated }))
     .sort((a, b) => b.score - a.score);
 }
+
+function broadcastPlayerList() {
+  io.emit('playerListUpdate', { players: getLeaderboard(), count: Object.keys(gameState.players).length });
+}
+
+function broadcastVoteUpdate() {
+  const active = getActivePlayers();
+  const votedCount = active.filter(p => p.voted).length;
+  const payload = { votes: gameState.votes, votedCount, totalCount: active.length };
+  io.to('display').emit('voteUpdate', payload);
+  io.to('admin').emit('voteUpdate', payload);
+}
+
+// ==================== 投票（幂等）====================
+function computeMaxBet(score) {
+  return Math.max(0, Math.floor(Math.max(0, (score - LOSE_PENALTY) / 2) / 500) * 500);
+}
+
+/**
+ * 唯一投票入口（HTTP 与 socket 共用）。
+ * 幂等保证：同一 (playerId, round) 只计一次票，重复提交返回首次回执。
+ */
+function castVote({ token, round, choice, betAmount, clientVoteId }) {
+  const info = verifyToken(token);
+  if (!info) return { ok: false, code: 'BAD_TOKEN', message: '身份已失效，请重新加入' };
+  if (info.gameId !== gameId) return { ok: false, code: 'STALE_TOKEN', message: '本局已结束，请重新加入' };
+
+  const player = gameState.players[info.playerId];
+  if (!player) return { ok: false, code: 'NO_PLAYER', message: '找不到你的游戏数据，请重新加入' };
+  if (!clientVoteId) return { ok: false, code: 'NO_VOTE_ID', message: '缺少投票标识，请重试' };
+
+  const r = Number(round);
+  const key = `${info.playerId}:${r}`;
+
+  // ★ 幂等：本轮已记录过 → 原样返回首次回执，不重复计票
+  const existing = voteLedger[key];
+  if (existing) {
+    return { ...existing.ack, duplicate: true };
+  }
+
+  if (gameState.status !== 'voting') return { ok: false, code: 'NOT_VOTING', message: '当前不在投票阶段' };
+  if (r !== gameState.round) return { ok: false, code: 'WRONG_ROUND', message: '轮次已更新，请刷新页面' };
+  if (player.eliminated) return { ok: false, code: 'ELIMINATED', message: '你已被淘汰，无法投票' };
+  if (!['gold', 'silver', 'red'].includes(choice)) return { ok: false, code: 'BAD_CHOICE', message: '无效的投票选项' };
+
+  const safeBet = Math.min(Math.max(0, Math.floor((betAmount || 0) / 500) * 500), computeMaxBet(player.score));
+  player.voted = true;
+  player.voteChoice = choice;
+  player.betAmount = safeBet;
+  gameState.votes[choice]++;
+
+  const ack = { ok: true, round: r, choice, betAmount: safeBet, score: player.score, clientVoteId, ts: Date.now() };
+  voteLedger[key] = { clientVoteId, choice, betAmount: safeBet, ack };
+  broadcastVoteUpdate();
+
+  // ★ 全员投票完成 → 立即结算（不用等倒计时结束）
+  const active = getActivePlayers();
+  const votedCount = active.filter(p => p.voted).length;
+  if (active.length > 0 && votedCount >= active.length) {
+    console.log(`所有玩家已投票(${votedCount}/${active.length})，立即结算`);
+    clearInterval(timerInterval);
+    endVoting();
+  }
+
+  return ack;
+}
+
+// HTTP 投票接口：手机端断网自动补投的可靠通道（socket.io 仅负责实时推送）
+app.post('/api/vote', (req, res) => {
+  const { token, round, choice, betAmount, clientVoteId } = req.body || {};
+  const ack = castVote({ token, round, choice, betAmount, clientVoteId });
+  res.json(ack);
+});
 
 // ==================== 定时器 ====================
 function startTimer() {
@@ -309,29 +434,30 @@ function endVoting() {
     isFinalRound: result.isFinalRound,
     winCount: gameState.winCount,
     activePlayerCount: activeCount,
-    newlyEliminated: newlyEliminated.map(id => ({
-      id, name: gameState.players[id].name, num: gameState.players[id].num
+    newlyEliminated: newlyEliminated.map(pid => ({
+      id: pid, name: gameState.players[pid].name, num: gameState.players[pid].num
     }))
   });
 
-  // 通知每个玩家个人结果
-  for (const id in gameState.players) {
-    const player = gameState.players[id];
-    const change = scoreChanges[id];
-    const sock = io.sockets.sockets.get(id);
-    if (sock) {
-      sock.emit('myResult', {
-        voted: player.voted,
-        choice: player.voteChoice,
-        change: change ? change.change : 0,
-        total: player.score,
-        eliminated: player.eliminated,
-        specialEvent: result.specialEvent || null,
-        message: result.message,
-        isFinalRound: result.isFinalRound
-      });
-    }
+  // ★ 结算结果按 playerId 落库，重连后可补偿拉回
+  const myResults = {};
+  for (const pid in gameState.players) {
+    const player = gameState.players[pid];
+    const change = scoreChanges[pid];
+    myResults[pid] = {
+      voted: player.voted,
+      choice: player.voteChoice,
+      change: change ? change.change : 0,
+      total: player.score,
+      eliminated: player.eliminated,
+      specialEvent: result.specialEvent || null,
+      message: result.message,
+      isFinalRound: result.isFinalRound
+    };
+    const sock = player.socketId ? io.sockets.sockets.get(player.socketId) : null;
+    if (sock) sock.emit('myResult', myResults[pid]);
   }
+  gameState.lastResults = myResults;
 
   // 全体胜利 → 自动结束
   if (result.specialEvent === 'all_red') {
@@ -349,102 +475,81 @@ function triggerGameOver() {
 io.on('connection', (socket) => {
   console.log('新连接:', socket.id);
 
+  // 新玩家加入（仅 waiting 阶段）
   socket.on('joinGame', ({ name }) => {
-    // 游戏进行中禁止加入（仅waiting状态可以）
     if (gameState.status !== 'waiting') {
       socket.emit('joinError', { message: '游戏已经开始，无法加入。请等待游戏重置。' });
       return;
     }
     const trimName = (name || '').trim().slice(0, 10) || ('玩家' + socket.id.slice(0, 4));
+    const playerId = crypto.randomUUID();
     const num = assignPlayerNum();
-    gameState.players[socket.id] = { name: trimName, num, score: INITIAL_SCORE, eliminated: false, voted: false, voteChoice: null, betAmount: 0 };
-    socket.emit('joinSuccess', { name: trimName, num, score: INITIAL_SCORE, playerId: socket.id });
-    io.emit('playerListUpdate', { players: getLeaderboard(), count: Object.keys(gameState.players).length });
+    gameState.players[playerId] = {
+      playerId, name: trimName, num, score: INITIAL_SCORE,
+      eliminated: false, voted: false, voteChoice: null, betAmount: 0,
+      socketId: socket.id, connected: true, joinedAt: Date.now()
+    };
+    const token = signToken(playerId, gameId);
+    socket.emit('joinSuccess', { playerId, token, name: trimName, num, score: INITIAL_SCORE, reconnected: false });
+    broadcastPlayerList();
     console.log(`玩家 ${trimName}(#${num}) 加入，当前人数: ${Object.keys(gameState.players).length}`);
   });
 
-  // ★ 玩家重连恢复（锁屏后重连）
-  socket.on('reconnectPlayer', ({ playerId, num }) => {
-    // 查找旧玩家数据（用编号匹配）
-    let oldPlayer = null;
-    let oldId = null;
-    for (const id in gameState.players) {
-      if (gameState.players[id].num === num) {
-        oldPlayer = gameState.players[id];
-        oldId = id;
-        break;
+  // ★ 身份识别 / 重连：只认服务端签发的 token，不再按编号猜测
+  socket.on('identify', ({ token }) => {
+    const info = verifyToken(token);
+    if (!info) { socket.emit('identifyFailed', { reason: 'BAD_TOKEN', message: '身份已失效，请重新加入' }); return; }
+    if (info.gameId !== gameId) { socket.emit('identifyFailed', { reason: 'STALE_TOKEN', message: '本局已结束，请重新加入' }); return; }
+
+    const player = gameState.players[info.playerId];
+    if (!player) { socket.emit('identifyFailed', { reason: 'NO_PLAYER', message: '找不到你的游戏数据，请重新加入' }); return; }
+
+    // 同一身份开新连接 → 踢掉旧连接，避免一台设备多处投票
+    if (player.socketId && player.socketId !== socket.id) {
+      const old = io.sockets.sockets.get(player.socketId);
+      if (old) {
+        old.emit('kicked', { message: '该身份已在其他设备/页面打开，此连接已断开' });
+        old.disconnect(true);
       }
     }
-    if (!oldPlayer) {
-      socket.emit('joinError', { message: '找不到你的游戏数据，请重新加入' });
-      return;
-    }
+    player.socketId = socket.id;
+    player.connected = true;
 
-    // 把旧数据迁移到新 socket.id
-    gameState.players[socket.id] = { ...oldPlayer };
-    delete gameState.players[oldId];
-
-    // 发送恢复成功事件 + 当前游戏状态
-    socket.emit('joinSuccess', { name: gameState.players[socket.id].name, num: gameState.players[socket.id].num, score: gameState.players[socket.id].score, playerId: socket.id });
+    socket.emit('joinSuccess', {
+      playerId: player.playerId, token, name: player.name, num: player.num,
+      score: player.score, eliminated: player.eliminated, reconnected: true
+    });
 
     // 根据当前游戏状态恢复页面
     if (gameState.status === 'voting') {
       const isFinalRound = gameState.round >= gameState.totalRounds;
-      socket.emit('gameStart', { round: gameState.round, timer: gameState.timer, totalRounds: gameState.totalRounds, isFinalRound, activePlayerCount: getActivePlayerCount() });
-      // 如果已投票，补发投票确认
-      if (gameState.players[socket.id].voted) {
-        socket.emit('voteSuccess', { choice: gameState.players[socket.id].voteChoice, score: gameState.players[socket.id].score });
-      }
-    } else if (gameState.status === 'result' && gameState.roundResult) {
-      // 结算阶段 — 发送结果
-      const result = gameState.roundResult;
-      const change = result.scoreChanges[socket.id];
-      if (change) {
-        socket.emit('myResult', {
-          voted: gameState.players[socket.id].voted,
-          choice: gameState.players[socket.id].voteChoice,
-          change: change.change,
-          total: gameState.players[socket.id].score,
-          eliminated: gameState.players[socket.id].eliminated,
-          specialEvent: result.specialEvent || null,
-          message: result.message,
-          isFinalRound: result.isFinalRound
-        });
-      }
+      socket.emit('gameStart', {
+        round: gameState.round, timer: gameState.timer, totalRounds: gameState.totalRounds,
+        winCount: gameState.winCount, isFinalRound, activePlayerCount: getActivePlayerCount()
+      });
+      const rec = voteLedger[`${player.playerId}:${gameState.round}`];
+      if (rec) socket.emit('voteSuccess', { choice: rec.choice, score: player.score, betAmount: rec.betAmount });
+    } else if (gameState.status === 'result' && gameState.lastResults[player.playerId]) {
+      socket.emit('myResult', gameState.lastResults[player.playerId]);
+    } else if (gameState.status === 'gameover') {
+      socket.emit('gameOver', { leaderboard: getLeaderboard(), history: gameState.roundHistory, winCount: gameState.winCount });
     }
 
-    console.log(`玩家 ${gameState.players[socket.id].name}(#${num}) 重连恢复`);
+    broadcastPlayerList();
+    console.log(`玩家 ${player.name}(#${player.num}) 通过 token 恢复`);
   });
 
-  socket.on('vote', ({ choice, betAmount }) => {
-    const player = gameState.players[socket.id];
+  // 兼容：旧版/测试页仍可用 socket 投票（走同一个幂等入口）
+  socket.on('vote', ({ choice, betAmount, clientVoteId, round }) => {
+    const player = getPlayerBySocket(socket.id);
     if (!player) { socket.emit('voteError', { message: '你还没有加入游戏' }); return; }
-    if (gameState.status !== 'voting') { socket.emit('voteError', { message: '当前不在投票阶段' }); return; }
-    if (player.eliminated) { socket.emit('voteError', { message: '你已被淘汰，无法投票' }); return; }
-    if (player.voted) { socket.emit('voteError', { message: '你已经投过票了' }); return; }
-    if (!['gold', 'silver', 'red'].includes(choice)) { socket.emit('voteError', { message: '无效的投票选项' }); return; }
-
-    // 投票免费，不扣积分
-    player.voted = true;
-    player.voteChoice = choice;
-    player.betAmount = Math.max(0, Math.min(betAmount || 0, Math.floor(Math.max(0, (player.score - LOSE_PENALTY) / 2) / 500) * 500));  // ★ 存储加注额（带安全校验）
-    gameState.votes[choice]++;
-
-    socket.emit('voteSuccess', { choice, score: player.score });
-
-    // 只统计有效玩家的投票数
-    const activePlayers = Object.values(gameState.players).filter(p => !p.eliminated);
-    const votedCount = activePlayers.filter(p => p.voted).length;
-    const totalCount = activePlayers.length;
-    io.to('display').emit('voteUpdate', { votes: gameState.votes, votedCount, totalCount });
-    io.to('admin').emit('voteUpdate', { votes: gameState.votes, votedCount, totalCount });
-
-    // ★ 全员投票完成 → 立即结算（不用等倒计时结束）
-    if (votedCount >= totalCount && totalCount > 0) {
-      console.log(`所有玩家已投票(${votedCount}/${totalCount})，立即结算`);
-      clearInterval(timerInterval);
-      endVoting();
-    }
+    const ack = castVote({
+      token: signToken(player.playerId, gameId),
+      round: round || gameState.round,
+      choice, betAmount, clientVoteId: clientVoteId || `socket:${socket.id}:${gameState.round}`
+    });
+    if (ack.ok) socket.emit('voteSuccess', { choice: ack.choice, score: ack.score, betAmount: ack.betAmount });
+    else socket.emit('voteError', { message: ack.message });
   });
 
   // 管理员：开始游戏
@@ -456,11 +561,14 @@ io.on('connection', (socket) => {
     gameState.status = 'voting';
     gameState.round = 1;
     gameState.votes = { red: 0, gold: 0, silver: 0 };
-    for (const id in gameState.players) {
-      const p = gameState.players[id];
+    gameState.lastResults = {};
+    voteLedger = {};
+    for (const pid in gameState.players) {
+      const p = gameState.players[pid];
       if (!p.eliminated) {
         p.voted = false;
         p.voteChoice = null;
+        p.betAmount = 0;
       }
     }
     const isFinalRound = gameState.round >= gameState.totalRounds;
@@ -484,11 +592,13 @@ io.on('connection', (socket) => {
     gameState.status = 'voting';
     gameState.votes = { red: 0, gold: 0, silver: 0 };
     gameState.roundResult = null;
-    for (const id in gameState.players) {
-      const p = gameState.players[id];
+    gameState.lastResults = {};
+    for (const pid in gameState.players) {
+      const p = gameState.players[pid];
       if (!p.eliminated) {
         p.voted = false;
         p.voteChoice = null;
+        p.betAmount = 0;
       }
     }
     const isFinalRound = gameState.round >= gameState.totalRounds;
@@ -503,13 +613,15 @@ io.on('connection', (socket) => {
   socket.on('adminResetGame', () => {
     clearInterval(timerInterval);
     nextPlayerNum = 1;  // 重置编号
+    gameId = crypto.randomBytes(8).toString('hex');  // ★ 旧 token 全部作废，杜绝跨局串号
+    voteLedger = {};
     gameState = {
       status: 'waiting', round: 0, totalRounds: gameState.totalRounds, winCount: gameState.winCount,
       players: {}, votes: { red: 0, gold: 0, silver: 0 },
-      timer: ROUND_TIME, roundResult: null, roundHistory: [], publicUrl: gameState.publicUrl
+      timer: ROUND_TIME, roundResult: null, roundHistory: [], lastResults: {}, publicUrl: gameState.publicUrl
     };
     io.emit('gameReset');
-    console.log('游戏已重置');
+    console.log('游戏已重置（gameId 已更新）');
   });
 
   socket.on('adminForceEnd', () => {
@@ -567,8 +679,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    if (gameState.players[socket.id]) {
-      console.log(`玩家 ${gameState.players[socket.id].name}(#${gameState.players[socket.id].num}) 断线（保留数据）`);
+    const player = getPlayerBySocket(socket.id);
+    if (player) {
+      player.connected = false;
+      console.log(`玩家 ${player.name}(#${player.num}) 断线（保留数据，可用 token 重连）`);
     }
   });
 });

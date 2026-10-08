@@ -520,7 +520,8 @@ const socket = io();
 const COUNTDOWN_SEC = 60;
 const CD_RING_CIRCUMFERENCE = 2 * Math.PI * 23; // ≈ 144.5
 
-let myId = null;
+let myId = null;       // 服务端签发的 playerId（UUID）
+let myToken = null;    // 服务端签发的身份令牌，重连/投票的唯一凭据
 let myName = '';
 let myNum = 0;
 let myScore = 10000;
@@ -533,6 +534,12 @@ let winCount = 10;
 let curBet = 0;
 let gameActive = false;
 let gamePhase = 'idle';
+
+// 从本地恢复身份：页面刷新 / 锁屏后仍可凭 token 回到原记录，不再产生幽灵玩家
+myToken = localStorage.getItem('eden_token') || null;
+myId = localStorage.getItem('eden_player_id') || null;
+myNum = parseInt(localStorage.getItem('eden_player_num') || '0', 10) || 0;
+myName = localStorage.getItem('eden_name') || '';
 
 // ============================================================
 //  页面切换
@@ -681,7 +688,91 @@ function selApple(ch){
 
 function confirmVote(){
   if(!selChoice||hasVoted)return;
-  socket.emit('vote', { choice: selChoice, betAmount: curBet });
+  if(!gameActive||gamePhase!=='voting')return;
+  if(!myToken){ showError('身份已失效，请重新加入'); return; }
+  // 先落本地队列，再提交：断网/刷新都不会丢票
+  const vote = { round: currentRound, choice: selChoice, betAmount: curBet, clientVoteId: genVoteId() };
+  savePendingVote(vote);
+  submitVote(vote);
+}
+
+// ============================================================
+//  投票提交（HTTP + 幂等 + 断网自动补投）
+// ============================================================
+const PENDING_KEY = 'eden_pending_vote';
+
+function genVoteId(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+function loadPendingVotes(){
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch(e){ return []; }
+}
+function savePendingVote(v){
+  const list = loadPendingVotes().filter(x => x.round !== v.round);
+  list.push(v);
+  localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+}
+function clearPendingVote(round){
+  const list = loadPendingVotes().filter(x => x.round !== round);
+  localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+}
+
+let voteRetryTimer = null;
+let voteRetryDelay = 1500;
+
+async function submitVote(vote){
+  if(!myToken) return;
+  try {
+    const res = await fetch('/api/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: myToken, round: vote.round, choice: vote.choice, betAmount: vote.betAmount, clientVoteId: vote.clientVoteId })
+    });
+    const ack = await res.json();
+    if (ack && ack.ok) {
+      clearPendingVote(vote.round);
+      voteRetryDelay = 1500;
+      onVoteAck(ack);
+      return;
+    }
+    // 本轮已结束 / 轮次过期 / 身份失效：不再补投
+    if (['NOT_VOTING','WRONG_ROUND','BAD_TOKEN','STALE_TOKEN','NO_PLAYER','ELIMINATED','BAD_CHOICE'].includes(ack && ack.code)) {
+      clearPendingVote(vote.round);
+      if (ack.code === 'BAD_TOKEN' || ack.code === 'STALE_TOKEN' || ack.code === 'NO_PLAYER') {
+        showError(ack.message);
+      }
+      return;
+    }
+    scheduleVoteRetry(vote);
+  } catch(e) {
+    // 网络异常（断网）→ 保留队列，稍后自动补投
+    scheduleVoteRetry(vote);
+  }
+}
+
+function scheduleVoteRetry(vote){
+  clearTimeout(voteRetryTimer);
+  voteRetryTimer = setTimeout(() => submitVote(vote), voteRetryDelay);
+  voteRetryDelay = Math.min(voteRetryDelay * 2, 10000);
+}
+
+function flushPendingVote(){
+  if(!myToken) return;
+  loadPendingVotes().forEach(v => submitVote(v));
+}
+
+function onVoteAck(ack){
+  if (ack.round !== currentRound) return;  // 过期回执，忽略
+  hasVoted = true;
+  if (typeof ack.score === 'number') {
+    myScore = ack.score;
+    document.getElementById('vhSc').textContent = myScore.toLocaleString();
+  }
+  showVotedApple(ack.choice);
 }
 
 // ============================================================
@@ -745,26 +836,25 @@ socket.on('disconnect', () => {
   console.log('[WS] 断开连接，等待自动重连...');
 });
 
-socket.io.on('reconnect', () => {
-  console.log('[WS] 重连成功！恢复游戏状态...');
-  if (myId && myNum) {
-    socket.emit('reconnectPlayer', { playerId: myId, num: myNum });
-  }
+// 每次（重）连成功都用 token 认领身份：命中即恢复原记录，未命中才回到加入页
+socket.on('connect', () => {
+  console.log('[WS] 已连接');
+  if (myToken) socket.emit('identify', { token: myToken });
+  flushPendingVote();
 });
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     console.log('[VIS] 页面重新可见');
-    if (myId && myNum && !socket.connected) {
-      socket.connect();
-    } else if (myId && myNum && socket.connected) {
-      const cp = curPg();
-      if (cp === 'waitPage' && gameActive && gamePhase === 'voting') {
-        initVoteUI({ round: currentRound, timer: 60, isFinalRound: currentRound >= totalRounds });
-        showPg('votePage');
-      }
-    }
+    if (!socket.connected) socket.connect();
+    flushPendingVote();
   }
+});
+
+// 网络恢复 → 立即补投未确认的票
+window.addEventListener('online', () => {
+  if (!socket.connected) socket.connect();
+  flushPendingVote();
 });
 
 // ============================================================
@@ -863,11 +953,14 @@ function initVoteUI(data){
 // ============================================================
 socket.on('joinSuccess', (data) => {
   myId = data.playerId;
-  myName = '';
+  myToken = data.token || myToken;
+  myName = data.name || myName || '';
   myNum = data.num || 0;
   myScore = data.score;
+  localStorage.setItem('eden_token', myToken);
   localStorage.setItem('eden_player_id', myId);
   localStorage.setItem('eden_player_num', String(myNum));
+  localStorage.setItem('eden_name', myName);
   const ns = String(myNum).padStart(3,'0');
   document.getElementById('wAv').textContent = '#'+ns;
   document.getElementById('wNm').textContent = '#'+ns;
@@ -876,6 +969,22 @@ socket.on('joinSuccess', (data) => {
 
 socket.on('joinError', (data) => {
   showError(data.message);
+});
+
+// 身份失效（本局已结束 / 服务端已重置）→ 清空本地身份，回到加入页
+socket.on('identifyFailed', (data) => {
+  localStorage.removeItem('eden_token');
+  localStorage.removeItem('eden_player_id');
+  localStorage.removeItem('eden_player_num');
+  localStorage.removeItem(PENDING_KEY);
+  myToken = null; myId = null; myNum = 0;
+  showPg('joinPage');
+  showError((data && data.message) || '身份已失效，请重新加入');
+});
+
+// 同一身份被新连接顶下线（避免一台设备多处投票）
+socket.on('kicked', (data) => {
+  showError((data && data.message) || '该身份已在其他设备打开');
 });
 
 socket.on('playerListUpdate', (data) => {
@@ -1012,8 +1121,10 @@ socket.on('gameReset', () => {
   gamePhase = 'idle';
   curBet = 0;
   stopAwParticlesP();
+  localStorage.removeItem('eden_token');
   localStorage.removeItem('eden_player_id');
   localStorage.removeItem('eden_player_num');
+  localStorage.removeItem(PENDING_KEY);
   location.reload();
 });
 
